@@ -34,7 +34,7 @@ io.on("connection", (socket) => {
     if (dir == "E") sub.col = Math.min(cols - 1, sub.col + 1);
     if (dir == "W") sub.col = Math.max(0, sub.col - 1);
 
-    console.log(`Move received: ${dir}`);
+    console.log(`Move received: ${dir} (Player: ${socket.id})`);
     io.emit("state", { subs });
   });
 

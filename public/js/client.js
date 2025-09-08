@@ -1,3 +1,6 @@
+const socket = io(); // connect to server
+
+// Canvas setup (same as before)
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
@@ -8,16 +11,14 @@ function resizeCanvas() {
 window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
-// Grid settings
-const rows = 15;
-const cols = 15;
+const rows = 15, cols = 15;
 let cellWidth, cellHeight;
+let subs = {}; // keyed by socketId
 
 function drawGrid() {
   cellWidth = canvas.width / cols;
   cellHeight = canvas.height / rows;
   ctx.strokeStyle = "#555";
-  ctx.lineWidth = 1;
 
   for (let r = 0; r <= rows; r++) {
     ctx.beginPath();
@@ -33,24 +34,28 @@ function drawGrid() {
   }
 }
 
-// Example submarine
-let sub = { row: 7, col: 7 };
-
-function drawSub() {
-  ctx.fillStyle = "#ff5555";
-  ctx.fillRect(sub.col * cellWidth, sub.row * cellHeight, cellWidth, cellHeight);
+function drawSubs() {
+  Object.values(subs).forEach((sub) => {
+    ctx.fillStyle = sub.color;
+    ctx.fillRect(sub.col * cellWidth, sub.row * cellHeight, cellWidth, cellHeight);
+  });
 }
 
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawGrid();
-  drawSub();
+  drawSubs();
   requestAnimationFrame(render);
 }
 render();
 
-// Panel button interactions
-document.getElementById("moveN").addEventListener("click", () => sub.row = Math.max(0, sub.row - 1));
-document.getElementById("moveS").addEventListener("click", () => sub.row = Math.min(rows - 1, sub.row + 1));
-document.getElementById("moveE").addEventListener("click", () => sub.col = Math.min(cols - 1, sub.col + 1));
-document.getElementById("moveW").addEventListener("click", () => sub.col = Math.max(0, sub.col - 1));
+// Button actions -> emit move
+document.getElementById("moveN").addEventListener("click", () => socket.emit("move", "N"));
+document.getElementById("moveS").addEventListener("click", () => socket.emit("move", "S"));
+document.getElementById("moveE").addEventListener("click", () => socket.emit("move", "E"));
+document.getElementById("moveW").addEventListener("click", () => socket.emit("move", "W"));
+
+// Listen for state updates from server
+socket.on("state", (gameState) => {
+  subs = gameState.subs;
+});

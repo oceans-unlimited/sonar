@@ -4,9 +4,12 @@
   <meta charset="UTF-8">
   <title>Captain Sonar Visual Demo</title>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
 
   <div id="overlayPanel">
     <h2>Control Panel</h2>
@@ -16,7 +19,13 @@
     <button id="moveW">Move W</button>
   </div>
 
+  <!-- Socket.io (server-provided) -->
   <script src="/socket.io/socket.io.js"></script>
-  <script src="js/client.js"></script>
+  <!-- PixiJS CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/8.0.0/pixi.min.js"></script>
+  <!-- PixiJS Filters CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/pixi-filters@latest/dist/pixi-filters.min.js"></script>
+  <!-- Client entrypoint -->
+  <script type="module" src="js/client.js"></script>
 </body>
 </html>

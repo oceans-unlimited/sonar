@@ -14,7 +14,8 @@
   "type": "commonjs",
   "dependencies": {
     "express": "^5.1.0",
-    "pixi.js": "^8.13.1",
+    "pixi-filters": "^6.1.4",
+    "pixi.js": "^8.13.2",
     "socket.io": "^4.8.1"
   },
   "devDependencies": {

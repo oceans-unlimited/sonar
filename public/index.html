@@ -8,6 +8,14 @@
     body { margin: 0; overflow: hidden; }
     canvas { display: block; }
   </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "pixi.js": "/node_modules/pixi.js/dist/pixi.mjs",
+        "pixi-filters": "/node_modules/pixi-filters/dist/pixi-filters.mjs"
+      }
+    }
+  </script>
 </head>
 <body>
 
@@ -21,10 +29,7 @@
 
   <!-- Socket.io (server-provided) -->
   <script src="/socket.io/socket.io.js"></script>
-  <!-- PixiJS CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/8.0.0/pixi.min.js"></script>
-  <!-- PixiJS Filters CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/pixi-filters@latest/dist/pixi-filters.min.js"></script>
+  <!-- PixiJS is now loaded via client.js -->
   <!-- Client entrypoint -->
   <script type="module" src="js/client.js"></script>
 </body>

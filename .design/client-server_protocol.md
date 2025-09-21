@@ -25,3 +25,40 @@ There are two sets of messages: client-to-server, and server-to-client. Each of 
   - game_started { }: All players have marked "ready" and the countdown is complete; game has started!
 
 TODO: fill in rest of this from written notes.
+
+## Testing
+
+I would like tests to test the actual protocol interactions, as written/specified on client and server.
+
+Here's how I'm thinking of structuring the code to accomplish this. It will allow testing and development of the protocol in isolation from the client. Then the client can be switched over to different parts of the protocol as the client supports different stages of the game.
+
+// Server code files
+
+function createServerGameState() {
+  return {
+    // initial server game state here. might not be same as client.
+  };
+}
+
+// Key constraint on this code is that the gameState object itself is never reassigned. The variables inside might be reassigned, but the object itself might not be.
+function createAndRunServer(port, gameState) {
+  // create server on port
+  // listen on socket, updating gameState as necessary.
+}
+
+// Test files
+
+function TestSetDisplayName() {
+  test('asserts true', () => {
+    const serverGameState = createServerGameState();
+    const server = createAndRunServer(3000, serverGameState);
+    
+    const clientSocket = io("http://localhost:3000");
+
+    // send some things on clientSocket.
+    clientSocket.emit("set-name", "Display Name");
+
+    // assert 
+    expect(serverGameState.players[0].name).toBe('Display Name');
+  });
+}

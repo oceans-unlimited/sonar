@@ -1,9 +1,9 @@
 // js/titleScene.js
-import { Graphics, FillGradient, Assets, Sprite, Text } from "pixi.js";
+import { Graphics, FillGradient, Assets, Sprite, Text, Container } from "pixi.js";
 import { GodrayFilter } from "pixi-filters";
-import { createMenuScene } from "./scenes/menuScene.js";
 
-export async function createTitleScene(app) {
+export async function createTitleScene(app, assets) {
+  const scene = new Container();
 
   // Background gradient overlay
   const bg = new Graphics();
@@ -20,22 +20,14 @@ export async function createTitleScene(app) {
   });
   bg.fill(gradient);
   bg.rect({ x: 0, y: 0, w: app.screen.width, h: app.screen.height });
-  app.stage.addChild(bg);
-
-  // Load all assets for the title and menu scenes
-  const assets = await Assets.load([
-    { alias: 'god_rays', src: '../assets/textures/god_rays_03.png' },
-    // { alias: 'chart_overlay', src: '../assets/textures/chart_overlay.png' },
-    { alias: 'noise', src: '../assets/textures/noise.png' },
-    { alias: 'scanlines', src: '../assets/textures/scanlines.png' }
-  ]);
+  scene.addChild(bg);
 
   const rays = new Sprite(assets.god_rays);
 
   rays.alpha = 0.1;
   rays.width = app.screen.width;
   rays.height = app.screen.height * 1.5; // oversize for movement
-  app.stage.addChild(rays);
+  scene.addChild(rays);
 
   // Add god-ray filter
   const godray = new GodrayFilter({
@@ -48,7 +40,7 @@ export async function createTitleScene(app) {
   rays.filters = [godray];
 
   // Animate light rays
-  app.ticker.add((ticker) => {
+  const tickerCallback = (ticker) => {
     rays.y += 0.05 * ticker.deltaTime; //slow drift
     if (rays.y > 0) rays.y = -app.screen.height * 0.5;
 
@@ -57,9 +49,12 @@ export async function createTitleScene(app) {
 
   // animate godray phase
     godray.time += 0.01 * ticker.deltaTime;
+  };
+  app.ticker.add(tickerCallback);
+
+  scene.on('destroyed', () => {
+    app.ticker.remove(tickerCallback);
   });
 
-  // --- Create and add menu scene as an overlay ---
-  const menu = createMenuScene(app, assets);
-  app.stage.addChild(menu);
+  return scene;
 }

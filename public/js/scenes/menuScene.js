@@ -64,6 +64,7 @@ export function createMenuScene(app, assets) {
     offsetY += Font.lineHeight;
   }
 
+  let flickerCallback;
   // --- Cursor ---
   if (menuTexts.length > 0) {
     const cursor = new PIXI.Text(">", { fontFamily: Font.family, fontSize: Font.size, fill: Colors.text });
@@ -71,10 +72,16 @@ export function createMenuScene(app, assets) {
     cursor.y = menuTexts[0].y;
     root.addChild(cursor);
     // Add cursor to flicker effect
-    applyFlickerEffect(app, [...menuTexts, cursor, title]);
+    flickerCallback = applyFlickerEffect(app, [...menuTexts, cursor, title]);
   } else {
-    applyFlickerEffect(app, [title]);
+    flickerCallback = applyFlickerEffect(app, [title]);
   }
+
+  root.on('destroyed', () => {
+      if(flickerCallback) {
+          app.ticker.remove(flickerCallback);
+      }
+  });
 
 
   // --- Overlays (will be clipped by the mask) ---

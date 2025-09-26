@@ -15,8 +15,13 @@ export function createScanlinesOverlay(texture, app) {
 }
 
 export function applyFlickerEffect(app, targets, amplitude = 0.02, frequency = 10) {
-  app.ticker.add(() => {
+  const flickerCallback = () => {
     const flicker = 1 + Math.sin(app.ticker.lastTime * frequency * 0.001) * amplitude;
-    for (const obj of targets) obj.alpha = flicker;
-  });
+    for (const obj of targets) {
+        obj.alpha = flicker;
+    }
+  };
+  app.ticker.add(flickerCallback);
+
+  return flickerCallback;
 }

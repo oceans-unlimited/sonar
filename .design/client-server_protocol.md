@@ -39,7 +39,14 @@ Those constraints in mind, here is the protocol.
   * Server receives "player_ready".
     * Player data is updated to record that player as "ready".
     * Server sends "lobby_state" to all clients.
-    * If all players are ready, server sets state to "game beginning" and uses setTimeout(3000, () => {...}) to trigger sending "begin_game" with initial game state to all clients (and to update state to "game in progress").
+    * If all players are ready, server does two things.
+      * It sets state to "game beginning".
+      * It sends "game_beginning" to all clients.
+      * It uses setTimeout(3000, () => {...logic goes here...}) to do the following three things.
+        * It sets state to "captains selecting roles".
+        * It sends "begin_game" with initial game state to all clients.
+        * It sends "captains_selecting_roles" to all clients.
+* Captains select locations, everyone clicks "ready", and the action starts. (See section on in-game protocol for details.)
 * During the game, captain presses "pause".
   * Client sends "pause" to server.
   * If game not already paused and player is captain, then game goes into "paused" state. (No messages except "ready" are processed.)
@@ -69,6 +76,24 @@ Those constraints in mind, here is the protocol.
 ### In-Game Protocol
 
 The in-game protocol will be somewhat more involved, but in general will be similar to the protocol above: clients will send actions to the server, and the server will respond with "game_state" messages containing the updated game state for the client.
+
+Everything revolves around the actions performed by the CO and XO.
+
+CO has the following actions.
+* Move
+* Surface (by choice)
+* Surface (due to blackout)
+* Activate System
+  * Fire Torpedo
+  * Drop Mine
+  * Detonate Mine
+  * Silent Running
+
+XO can only activate two systems.
+* Sonar
+* Drone
+
+Note: the pause action that the captain can execute is technically part of these actions as well.
 
 ## Testing
 

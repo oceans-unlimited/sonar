@@ -3,7 +3,7 @@
 import * as PIXI from 'pixi.js';
 // TODO: Move these styles to a central uiStyle.js
 const Colors = {
-    grid: 0x444444,
+    grid: 0x222222,
     sector: 0x00ff00,
     text: 0x00ff00,
 };
@@ -15,17 +15,11 @@ const Font = {
 
 const Layout = {
     margin: 20,
-}
+};
 // End of styles to move
 
 import { createNoiseOverlay, createScanlinesOverlay, applyFlickerEffect } from '../core/uiEffects.js';
 
-/**
- * Creates the main game scene for the Captain role.
- * @param {PIXI.Application} app - The PIXI Application instance.
- * @param {object} assets - The loaded game assets.
- * @returns {PIXI.Container} The scene container.
- */
 export function createConnScene(app, assets) {
     const scene = new PIXI.Container();
 
@@ -38,24 +32,50 @@ export function createConnScene(app, assets) {
     const mapContainer = new PIXI.Container();
     scene.addChild(mapContainer);
 
-    // --- Map Sprites (Placeholders) ---
+    // --- Map Sprites ---
     const mapGrid = new PIXI.Container();
+    const backgroundTextures = [
+        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(0, 0, TILE_SIZE, TILE_SIZE) }),
+        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(TILE_SIZE, 0, TILE_SIZE, TILE_SIZE) }),
+        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(TILE_SIZE * 2, 0, TILE_SIZE, TILE_SIZE) }),
+        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(0, TILE_SIZE, TILE_SIZE, TILE_SIZE) }),
+    ];
+
+    const foregroundTextures = [
+        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(TILE_SIZE, TILE_SIZE, TILE_SIZE, TILE_SIZE) }),
+        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(TILE_SIZE * 2, TILE_SIZE, TILE_SIZE, TILE_SIZE) }),
+        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(0, TILE_SIZE * 2, TILE_SIZE, TILE_SIZE) }),
+        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(TILE_SIZE, TILE_SIZE * 2, TILE_SIZE, TILE_SIZE) }),
+        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(0, TILE_SIZE * 3, TILE_SIZE, TILE_SIZE) }),
+    ];
+
     for (let row = 0; row < GRID_SIZE; row++) {
         for (let col = 0; col < GRID_SIZE; col++) {
-            const tile = new PIXI.Graphics();
-            tile.beginFill(0x0b1e2d); // Dark blue placeholder from gameCanvas background
-            tile.drawRect(col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-            tile.endFill();
+            const randomTexture = backgroundTextures[Math.floor(Math.random() * backgroundTextures.length)];
+            const tile = new PIXI.Sprite(randomTexture);
+            tile.x = col * TILE_SIZE;
+            tile.y = row * TILE_SIZE;
             mapGrid.addChild(tile);
 
             // Add a small circular dot at the center of each grid space
             const dot = new PIXI.Graphics();
-            dot.beginFill(Colors.grid, 0.5);
-            dot.drawCircle(col * TILE_SIZE + TILE_SIZE / 2, row * TILE_SIZE + TILE_SIZE / 2, 2);
-            dot.endFill();
+            dot.circle(col * TILE_SIZE + TILE_SIZE / 2, row * TILE_SIZE + TILE_SIZE / 2, 2)
+                .fill({ color: Colors.grid, alpha: 0.5 });
             mapGrid.addChild(dot);
         }
     }
+
+    // Add a few random foreground sprites
+    for (let i = 0; i < 5; i++) {
+        const randomRow = Math.floor(Math.random() * GRID_SIZE);
+        const randomCol = Math.floor(Math.random() * GRID_SIZE);
+        const randomTexture = foregroundTextures[Math.floor(Math.random() * foregroundTextures.length)];
+        const foregroundSprite = new PIXI.Sprite(randomTexture);
+        foregroundSprite.x = randomCol * TILE_SIZE;
+        foregroundSprite.y = randomRow * TILE_SIZE;
+        mapGrid.addChild(foregroundSprite);
+    }
+
     mapContainer.addChild(mapGrid);
 
     // --- Overlay Grid ---
@@ -66,34 +86,36 @@ export function createConnScene(app, assets) {
     overlay.addChild(gridLines);
 
     // Draw grid lines
-    gridLines.lineStyle(1, Colors.grid, 0.5);
     for (let i = 0; i <= GRID_SIZE; i++) {
         gridLines.moveTo(i * TILE_SIZE, 0);
         gridLines.lineTo(i * TILE_SIZE, MAP_HEIGHT);
         gridLines.moveTo(0, i * TILE_SIZE);
         gridLines.lineTo(MAP_WIDTH, i * TILE_SIZE);
     }
+    gridLines.stroke({ width: 1, color: Colors.grid, alpha: 0.8 });
 
     // --- Coordinate Labels ---
     const labelStyle = {
         fontFamily: Font.family,
         fontSize: 14,
         fill: Colors.text,
-        alpha: 0.6,
     };
 
-    // Horizontal labels (A-O)
+    // Horizontal labels (A–O)
     for (let i = 0; i < GRID_SIZE; i++) {
-        const label = new PIXI.Text(String.fromCharCode('A'.charCodeAt(0) + i), labelStyle);
+        const label = new PIXI.Text({
+            text: String.fromCharCode('A'.charCodeAt(0) + i),
+            style: labelStyle,
+        });
         label.x = i * TILE_SIZE + TILE_SIZE / 2;
         label.y = -20;
         label.anchor.set(0.5);
         overlay.addChild(label);
     }
 
-    // Vertical labels (1-15)
+    // Vertical labels (1–15)
     for (let i = 0; i < GRID_SIZE; i++) {
-        const label = new PIXI.Text(String(i + 1), labelStyle);
+        const label = new PIXI.Text({ text: String(i + 1), style: labelStyle });
         label.x = -20;
         label.y = i * TILE_SIZE + TILE_SIZE / 2;
         label.anchor.set(0.5);
@@ -101,32 +123,33 @@ export function createConnScene(app, assets) {
     }
 
     // --- Sector Lines and Labels ---
+    const sectorLines = new PIXI.Graphics();
+    overlay.addChild(sectorLines);
     const sectorLabelStyle = {
         fontFamily: Font.family,
         fontSize: 64,
-        fill: Colors.sector,
-        alpha: 0.15,
+        fill: { xolor: Colors.sector, alpha: 0.38 }
     };
 
-    gridLines.lineStyle(1, Colors.sector, 0.5);
     for (let i = 0; i < 3; i++) {
         for (let j = 0; j < 3; j++) {
             const sectorX = j * 5 * TILE_SIZE;
             const sectorY = i * 5 * TILE_SIZE;
             const sectorNum = i * 3 + j + 1;
 
-            gridLines.drawRect(sectorX, sectorY, 5 * TILE_SIZE, 5 * TILE_SIZE);
+            sectorLines.rect(sectorX, sectorY, 5 * TILE_SIZE, 5 * TILE_SIZE);
 
-            const label = new PIXI.Text(String(sectorNum), sectorLabelStyle);
+            const label = new PIXI.Text({ text: String(sectorNum), style: sectorLabelStyle });
             label.x = sectorX + (5 * TILE_SIZE) / 2;
             label.y = sectorY + (5 * TILE_SIZE) / 2;
             label.anchor.set(0.5);
             overlay.addChild(label);
         }
     }
+    sectorLines.stroke({width: 2, color: Colors.sector, alpha: 1.0});
 
     // --- Scrolling Logic ---
-    mapContainer.eventMode = 'static'; // Enable interaction
+    mapContainer.eventMode = 'static';
     mapContainer.on('pointerdown', onDragStart, mapContainer);
     mapContainer.on('pointerup', onDragEnd, mapContainer);
     mapContainer.on('pointerupoutside', onDragEnd, mapContainer);
@@ -151,22 +174,18 @@ export function createConnScene(app, assets) {
             const newPos = event.global;
             const dx = newPos.x - dragStart.x;
             const dy = newPos.y - dragStart.y;
-
             this.x = dragStartPos.x + dx;
             this.y = dragStartPos.y + dy;
-
-            // Clamp position
             this.x = Math.min(Layout.margin, Math.max(app.screen.width - MAP_WIDTH - Layout.margin, this.x));
             this.y = Math.min(Layout.margin, Math.max(app.screen.height - MAP_HEIGHT - Layout.margin, this.y));
         }
     }
 
-    // Center the map initially
+    // Center map
     mapContainer.x = (app.screen.width - MAP_WIDTH) / 2;
     mapContainer.y = (app.screen.height - MAP_HEIGHT) / 2;
 
     // --- Overlays ---
-    // Assumes 'noise' and 'scanlines' are loaded into assets
     const noise = createNoiseOverlay(assets.noise, app);
     const scan = createScanlinesOverlay(assets.scanlines, app);
     scene.addChild(noise, scan);
@@ -175,9 +194,7 @@ export function createConnScene(app, assets) {
     const allText = overlay.children.filter(c => c instanceof PIXI.Text);
     const flickerCallback = applyFlickerEffect(app, allText);
 
-    scene.on('destroyed', () => {
-        app.ticker.remove(flickerCallback);
-    });
+    scene.on('destroyed', () => app.ticker.remove(flickerCallback));
 
     return scene;
 }

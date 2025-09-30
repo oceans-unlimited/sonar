@@ -3,13 +3,13 @@
 import * as PIXI from "pixi.js";
 
 export function createNoiseOverlay(texture, app) {
-  const sprite = new PIXI.TilingSprite(texture, app.screen.width, app.screen.height);
+  const sprite = new PIXI.TilingSprite({texture, width: app.screen.width, height: app.screen.height});
   sprite.alpha = 0.05;
   return sprite;
 }
 
 export function createScanlinesOverlay(texture, app) {
-  const sprite = new PIXI.TilingSprite(texture, app.screen.width, app.screen.height);
+  const sprite = new PIXI.TilingSprite({texture, width: app.screen.width, height: app.screen.height});
   sprite.alpha = 0.03;
   return sprite;
 }

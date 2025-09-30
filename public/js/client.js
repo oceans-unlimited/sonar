@@ -17,6 +17,7 @@ import { SceneManager } from './core/sceneManager.js';
       // chart_overlay will be needed by menuScene
       chart_overlay: await Assets.load('assets/light_rays.png'), // using a placeholder
       god_rays: await Assets.load('assets/textures/god_rays_03.png'),
+      map_sprites: await Assets.load('assets/sprites/ocean_02.png'),
   };
 
   await SceneManager.init(app, assets);

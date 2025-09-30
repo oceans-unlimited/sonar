@@ -7,10 +7,9 @@ export function createMenuScene(app, assets) {
   const root = new PIXI.Container();
 
   // --- Mask to create a "windowed" effect ---
-  const mask = new PIXI.Graphics();
-  mask.beginFill(0xFFFFFF); // Color doesn't matter for a mask
-  mask.drawRect(Layout.margin, Layout.margin, Layout.menuWidth, Layout.menuHeight);
-  mask.endFill();
+  const mask = new PIXI.Graphics()
+    .rect(Layout.margin, Layout.margin, Layout.menuWidth, Layout.menuHeight)
+    .fill(0xFFFFFF); // Color doesn't matter for a mask
   root.addChild(mask);
   root.mask = mask;
 
@@ -22,20 +21,21 @@ export function createMenuScene(app, assets) {
   root.addChild(chart);
 
   // --- Menu panel ---
-  const panel = new PIXI.Graphics();
-  // Give the panel a semi-transparent background
-  panel.beginFill(Colors.background, 0.9);
-  panel.lineStyle(1, Colors.border);
-  panel.drawRect(Layout.margin, Layout.margin, Layout.menuWidth, Layout.menuHeight);
-  panel.endFill();
+  const panel = new PIXI.Graphics()
+    .rect(Layout.margin, Layout.margin, Layout.menuWidth, Layout.menuHeight)
+    .fill({ color: Colors.background, alpha: 0.9 })
+    .stroke({ width: 1, color: Colors.border });
   root.addChild(panel);
 
   // --- Title ---
-  const title = new PIXI.Text("CAPTAIN SONAR", {
-    fontFamily: Font.family,
-    fontSize: Font.size + 6,
-    fill: Colors.text,
-    letterSpacing: Font.letterSpacing,
+  const title = new PIXI.Text({
+    text: "CAPTAIN SONAR",
+    style: {
+      fontFamily: Font.family,
+      fontSize: Font.size + 6,
+      fill: Colors.text,
+      letterSpacing: Font.letterSpacing,
+    }
   });
   title.x = Layout.margin + Layout.panelPadding;
   title.y = Layout.margin + Layout.panelPadding;
@@ -51,11 +51,14 @@ export function createMenuScene(app, assets) {
     if (offsetY > Layout.menuHeight - Font.lineHeight) {
         break;
     }
-    const text = new PIXI.Text(item.toUpperCase(), {
-      fontFamily: Font.family,
-      fontSize: Font.size,
-      fill: Colors.text,
-      letterSpacing: Font.letterSpacing,
+    const text = new PIXI.Text({ 
+        text: item.toUpperCase(), 
+        style: {
+          fontFamily: Font.family,
+          fontSize: Font.size,
+          fill: Colors.text,
+          letterSpacing: Font.letterSpacing,
+        }
     });
     text.x = Layout.margin + Layout.panelPadding + 20;
     text.y = offsetY;
@@ -67,7 +70,7 @@ export function createMenuScene(app, assets) {
   let flickerCallback;
   // --- Cursor ---
   if (menuTexts.length > 0) {
-    const cursor = new PIXI.Text(">", { fontFamily: Font.family, fontSize: Font.size, fill: Colors.text });
+    const cursor = new PIXI.Text({ text: ">", style: { fontFamily: Font.family, fontSize: Font.size, fill: Colors.text }});
     cursor.x = Layout.margin + Layout.panelPadding;
     cursor.y = menuTexts[0].y;
     root.addChild(cursor);

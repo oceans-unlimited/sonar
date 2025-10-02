@@ -15,9 +15,10 @@ import { SceneManager } from './core/sceneManager.js';
       noise: await Assets.load('assets/textures/noise.png'),
       scanlines: await Assets.load('assets/textures/scanlines.png'),
       // chart_overlay will be needed by menuScene
-      chart_overlay: await Assets.load('assets/light_rays.png'), // using a placeholder
+      chart_overlay: await Assets.load('assets/textures/light_rays.png'), // using a placeholder
       god_rays: await Assets.load('assets/textures/god_rays_03.png'),
       map_sprites: await Assets.load('assets/sprites/ocean_02.png'),
+      sub_sheet: await Assets.load('assets/sprites/sub.json')
   };
 
   await SceneManager.init(app, assets);
@@ -30,5 +31,8 @@ import { SceneManager } from './core/sceneManager.js';
   });
   document.getElementById('sceneConnBtn').addEventListener('click', () => {
     SceneManager.changeScene('conn');
+  });
+  document.getElementById('sceneDebugRotationBtn').addEventListener('click', () => {
+    SceneManager.changeScene('debugRotation');
   });
 })();

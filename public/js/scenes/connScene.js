@@ -5,7 +5,8 @@ import * as PIXI from 'pixi.js';
 const Colors = {
     grid: 0x222222,
     sector: 0x00ff00,
-    text: 0x00ff00,
+    coordinatesText: 0x00ff00,
+    sectorText: 0xffffff
 };
 
 const Font = {
@@ -98,7 +99,7 @@ export function createConnScene(app, assets) {
     const labelStyle = {
         fontFamily: Font.family,
         fontSize: 14,
-        fill: Colors.text,
+        fill: Colors.coordinatesText,
     };
 
     // Horizontal labels (A–O)
@@ -128,7 +129,7 @@ export function createConnScene(app, assets) {
     const sectorLabelStyle = {
         fontFamily: Font.family,
         fontSize: 64,
-        fill: { xolor: Colors.sector, alpha: 0.38 }
+        fill: { color: Colors.sectorText, alpha: 0.38 }
     };
 
     for (let i = 0; i < 3; i++) {

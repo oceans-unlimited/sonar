@@ -61,3 +61,7 @@ Thumbs.db
 *.swp
 *.swo
 >>>>>>> origin/main
+
+# Specific files
+GEMINI.md
+llms*.txt

@@ -9,6 +9,7 @@ const io = new Server(server);
 
 // Serve a simple static index.html for testing
 app.use(express.static("public"));
+app.use('/node_modules', express.static('node_modules'));
 
 const rows = 15, cols = 15;
 let subs = {};

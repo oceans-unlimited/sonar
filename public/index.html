@@ -4,19 +4,33 @@
   <meta charset="UTF-8">
   <title>Captain Sonar Visual Demo</title>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "pixi.js": "/node_modules/pixi.js/dist/pixi.mjs",
+        "pixi-filters": "/node_modules/pixi-filters/dist/pixi-filters.mjs"
+      }
+    }
+  </script>
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
 
   <div id="overlayPanel">
-    <h2>Control Panel</h2>
-    <button id="moveN">Move N</button>
-    <button id="moveS">Move S</button>
-    <button id="moveE">Move E</button>
-    <button id="moveW">Move W</button>
+    <h2>Scene Select</h2>
+    <button id="sceneTitleBtn">Title Scene</button>
+    <button id="sceneMenuBtn">Menu Scene</button>
+    <button id="sceneConnBtn">Conn Scene</button>
+    <button id="sceneDebugRotationBtn">Debug Rotation Scene</button>
   </div>
 
+  <!-- Socket.io (server-provided) -->
   <script src="/socket.io/socket.io.js"></script>
-  <script src="js/client.js"></script>
+  <!-- PixiJS is now loaded via client.js -->
+  <!-- Client entrypoint -->
+  <script type="module" src="js/client.js"></script>
 </body>
 </html>

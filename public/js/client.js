@@ -1,61 +1,38 @@
-const socket = io(); // connect to server
+// js/client.js
+import { Application, Assets } from 'pixi.js';
+import { SceneManager } from './core/sceneManager.js';
 
-// Canvas setup (same as before)
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
+(async () => {
+  // Create a new application
+  const app = new Application();
+  // The background color is set by the scene, so we don't need it here.
+  await app.init({ resizeTo: window });
+  document.body.appendChild(app.canvas);
 
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-window.addEventListener("resize", resizeCanvas);
-resizeCanvas();
+  // Pre-load any assets needed for the scenes
+  const assets = {
+      // placeholder for assets. In a real app, you'd load them here.
+      noise: await Assets.load('assets/textures/noise.png'),
+      scanlines: await Assets.load('assets/textures/scanlines.png'),
+      // chart_overlay will be needed by menuScene
+      chart_overlay: await Assets.load('assets/textures/light_rays.png'), // using a placeholder
+      god_rays: await Assets.load('assets/textures/god_rays_03.png'),
+      map_sprites: await Assets.load('assets/sprites/ocean_02.png'),
+      sub_sheet: await Assets.load('assets/sprites/sub.json')
+  };
 
-const rows = 15, cols = 15;
-let cellWidth, cellHeight;
-let subs = {}; // keyed by socketId
+  await SceneManager.init(app, assets);
 
-function drawGrid() {
-  cellWidth = canvas.width / cols;
-  cellHeight = canvas.height / rows;
-  ctx.strokeStyle = "#555";
-
-  for (let r = 0; r <= rows; r++) {
-    ctx.beginPath();
-    ctx.moveTo(0, r * cellHeight);
-    ctx.lineTo(canvas.width, r * cellHeight);
-    ctx.stroke();
-  }
-  for (let c = 0; c <= cols; c++) {
-    ctx.beginPath();
-    ctx.moveTo(c * cellWidth, 0);
-    ctx.lineTo(c * cellWidth, canvas.height);
-    ctx.stroke();
-  }
-}
-
-function drawSubs() {
-  Object.values(subs).forEach((sub) => {
-    ctx.fillStyle = sub.color;
-    ctx.fillRect(sub.col * cellWidth, sub.row * cellHeight, cellWidth, cellHeight);
+  document.getElementById('sceneTitleBtn').addEventListener('click', () => {
+    SceneManager.changeScene('title');
   });
-}
-
-function render() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawGrid();
-  drawSubs();
-  requestAnimationFrame(render);
-}
-render();
-
-// Button actions -> emit move
-document.getElementById("moveN").addEventListener("click", () => socket.emit("move", "N"));
-document.getElementById("moveS").addEventListener("click", () => socket.emit("move", "S"));
-document.getElementById("moveE").addEventListener("click", () => socket.emit("move", "E"));
-document.getElementById("moveW").addEventListener("click", () => socket.emit("move", "W"));
-
-// Listen for state updates from server
-socket.on("state", (gameState) => {
-  subs = gameState.subs;
-});
+  document.getElementById('sceneMenuBtn').addEventListener('click', () => {
+    SceneManager.changeScene('menu');
+  });
+  document.getElementById('sceneConnBtn').addEventListener('click', () => {
+    SceneManager.changeScene('conn');
+  });
+  document.getElementById('sceneDebugRotationBtn').addEventListener('click', () => {
+    SceneManager.changeScene('debugRotation');
+  });
+})();

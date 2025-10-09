@@ -4,6 +4,7 @@
  */
 import * as PIXI from 'pixi.js';
 import { createMenuScene } from '../scenes/menuScene.js';
+import { createLobbyScene } from '../scenes/lobbyScene.js';
 import { createConnScene } from '../scenes/connScene.js';
 import { createTitleScene } from '../titleScene.js';
 import { createDebugRotationScene } from '../scenes/debugRotationScene.js';
@@ -12,6 +13,7 @@ const scenes = {
     title: createTitleScene,
     menu: createMenuScene,
     conn: createConnScene,
+    lobby: createLobbyScene,
     debugRotation: createDebugRotationScene,
 };
 

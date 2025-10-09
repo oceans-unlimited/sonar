@@ -1,4 +1,9 @@
 @font-face {
+  font-family: 'Orbitron';
+  src: url('../assets/fonts/Orbitron-VariableFont_wght.ttf') format('truetype');
+}
+
+@font-face {
   font-family: 'Goldman';
   src: url('../assets/fonts/Goldman-Regular.ttf') format('truetype');
   font-weight: normal;

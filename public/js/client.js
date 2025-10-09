@@ -18,7 +18,14 @@ import { SceneManager } from './core/sceneManager.js';
       chart_overlay: await Assets.load('assets/textures/light_rays.png'), // using a placeholder
       god_rays: await Assets.load('assets/textures/god_rays_03.png'),
       map_sprites: await Assets.load('assets/sprites/ocean_02.png'),
-      sub_sheet: await Assets.load('assets/sprites/sub.json')
+      sub_sheet: await Assets.load('assets/sprites/sub.json'),
+      orbitron: await Assets.load('assets/fonts/Orbitron-VariableFont_wght.ttf'),
+      sub_profileA: await Assets.load('assets/ui/sub_profileA.svg'),
+      sub_profileB: await Assets.load('assets/ui/sub_profileB.svg'),
+      role_captain: await Assets.load('assets/ui/role_captain.svg'),
+      role_engineer: await Assets.load('assets/ui/role_engineer.svg'),
+      role_firstofficer: await Assets.load('assets/ui/role_firstofficer.svg'),
+      role_sonar: await Assets.load('assets/ui/role_sonar.svg'),
   };
 
   await SceneManager.init(app, assets);
@@ -34,5 +41,8 @@ import { SceneManager } from './core/sceneManager.js';
   });
   document.getElementById('sceneDebugRotationBtn').addEventListener('click', () => {
     SceneManager.changeScene('debugRotation');
+  });
+  document.getElementById('sceneLobbyBtn').addEventListener('click', () => {
+    SceneManager.changeScene('lobby');
   });
 })();

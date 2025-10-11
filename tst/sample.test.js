@@ -1,15 +1,24 @@
-import io from 'socket.io-client';
-import {initializeServerState, createAndRunServer} from '../src/server.js';
+import { initializeServerState, createAndRunServer } from '../src/server.lib.js';
+import { io } from 'socket.io-client';
+import { test, afterEach, expect } from 'vitest';
+
+let server = null;
+
+afterEach(() => {
+  if (server)
+    server.close();
+  server = null;
+});
 
 test('asserts true', async () => {
   const state = initializeServerState();
-  createAndRunServer(state);
+  server = createAndRunServer(state);
   const socket = io("http://localhost:3000");
 
-  const emittedStatePromise = new Promise(value => value);
+  let row = -1;
   socket.on("state", state => {
-    emittedState.push(Object.values(state.subs)[0]);
+    row = Object.values(state.subs)[0].row;
   });
   socket.emit("move", "N");
-  
+  await expect.poll(() => row, { timeout: 1000 }).greaterThan(-1);
 });

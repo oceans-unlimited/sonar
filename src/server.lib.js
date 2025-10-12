@@ -44,12 +44,18 @@ export function createAndRunServer(serverState) {
     });
 
     socket.on("change_name", new_name => {
+      if (serverState.currentState !== "lobby")
+        return;
+
       serverState.players.find(p => p.id === socket.id).name = new_name;
       serverState.version++;
       ioServer.emit("state", serverState);
     });
 
     socket.on("select_role", ({submarine, role}) => {
+      if (serverState.currentState !== "lobby")
+        return;
+
       if (
         0 <= submarine
         && submarine < serverState.submarines.length
@@ -70,6 +76,9 @@ export function createAndRunServer(serverState) {
     });
 
     socket.on("leave_role", () => {
+      if (serverState.currentState !== "lobby")
+        return;
+
       serverState.submarines.forEach(submarine =>
         Object.keys(submarine).forEach(role => {
           if (submarine[role] === socket.id)
@@ -82,6 +91,9 @@ export function createAndRunServer(serverState) {
     })
 
     socket.on("ready", () => {
+      if (serverState.currentState !== "lobby")
+        return;
+
       if (serverState.submarines.some(sub =>
         Object.keys(sub).some(role => sub[role] === socket.id)
       ) && !serverState.ready.includes(socket.id)) {
@@ -119,6 +131,9 @@ export function createAndRunServer(serverState) {
     });
 
     socket.on("not_ready", () => {
+      if (serverState.currentState !== "lobby")
+        return;
+
       serverState.ready = serverState.ready.filter(id => id !== socket.id);
       serverState.version++;
       ioServer.emit("state", serverState);

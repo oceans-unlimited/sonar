@@ -82,3 +82,20 @@ test('Player changes name.', async () => {
   await expect.poll(() => null, {timeout: 1000})
     .toSatisfy(() => state.players[0].name === "My Custom Name #(*$&*(&$");
 });
+
+test('Player selects role.', async () => {
+  const serverState = initializeServerState();
+  server = createAndRunServer(serverState);
+  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+
+  let state = null;
+  let clientId = null;
+  client.on("state", remoteState => state = remoteState);
+  client.on("player_id", player_id => clientId = player_id);
+  
+  client.connect();
+  await expect.poll(() => null, {timeout: 1000}).toSatisfy(() => state);
+  client.emit("select_role", {submarine: 0, role: "co"});
+  await expect.poll(() => null, {timeout: 1000})
+    .toSatisfy(() => clientId && state.submarines[0].co === clientId);
+});

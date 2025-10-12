@@ -6,7 +6,17 @@ export function initializeServerState() {
   return {
     players: [],
     adminId: null,
+    submarines: [createSubmarine(), createSubmarine()]
   };
+}
+
+function createSubmarine() {
+  return {
+    co: null,
+    xo: null,
+    sonar: null,
+    radio: null,
+  }
 }
 
 export function createAndRunServer(serverState) {
@@ -31,6 +41,13 @@ export function createAndRunServer(serverState) {
 
     socket.on("change_name", new_name => {
       serverState.players.find(p => p.id === socket.id).name = new_name;
+      ioServer.emit("state", serverState);
+    });
+
+    socket.on("select_role", ({submarine, role}) => {
+      if (0 <= submarine && submarine < serverState.submarines.length) {
+        serverState.submarines[submarine][role] = socket.id;
+      }
       ioServer.emit("state", serverState);
     });
 

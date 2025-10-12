@@ -53,6 +53,14 @@ export function createAndRunServer(serverState) {
         && submarine < serverState.submarines.length
         && !serverState.submarines[submarine][role]
       ) {
+        // leave existing role
+        serverState.submarines.forEach(submarine =>
+          Object.keys(submarine).forEach(role => {
+            if (submarine[role] === socket.id)
+              submarine[role] = null;
+          })
+        );
+        // go to new role
         serverState.submarines[submarine][role] = socket.id;
       }
       serverState.version++;

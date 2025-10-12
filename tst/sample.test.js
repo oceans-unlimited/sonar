@@ -100,7 +100,53 @@ test('Player selects role.', async () => {
     .toSatisfy(() => clientId && state.submarines[0].co === clientId);
 });
 
-test('Player selects role that is already filled.', async () => {
+test('Player selects different role than they already selected.', async () => {
+  const serverState = initializeServerState();
+  server = createAndRunServer(serverState);
+  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+
+  let state = null;
+  let clientId = null;
+  client.on("state", remoteState => state = remoteState);
+  client.on("player_id", player_id => clientId = player_id);
+  
+  client.connect();
+  await expect.poll(() => null, {timeout: 1000}).toSatisfy(() => state && clientId);
+  client.emit("select_role", {submarine: 0, role: "co"});
+  await expect.poll(() => null, {timeout: 1000})
+    .toSatisfy(() => state.submarines[0].co === clientId);
+  client.emit("select_role", {submarine: 0, role: "xo"});
+  await expect.poll(() => null, {timeout: 1000})
+    .toSatisfy(() =>
+      !state.submarines[0].co
+      && state.submarines[0].xo === clientId);
+});
+
+test('Player selects same role as they already selected.', async () => {
+  const serverState = initializeServerState();
+  server = createAndRunServer(serverState);
+  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+
+  let state = null;
+  let clientId = null;
+  client.on("state", remoteState => state = remoteState);
+  client.on("player_id", player_id => clientId = player_id);
+  
+  client.connect();
+  await expect.poll(() => null, {timeout: 1000}).toSatisfy(() => state && clientId);
+  client.emit("select_role", {submarine: 0, role: "co"});
+  await expect.poll(() => null, {timeout: 1000})
+    .toSatisfy(() => state.submarines[0].co === clientId);
+  let previousStateVersion = state.version;
+  client.emit("select_role", {submarine: 0, role: "co"});
+  await expect.poll(() => null, {timeout: 1000})
+    .toSatisfy(() =>
+      state.submarines[0].co === clientId
+      && state.version > previousStateVersion
+    );
+});
+
+test('Player selects role that is already filled by another player.', async () => {
   const serverState = initializeServerState();
   server = createAndRunServer(serverState);
   const firstClient = io(SERVER_URL, DEFAULT_OPTIONS);

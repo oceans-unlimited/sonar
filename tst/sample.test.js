@@ -194,3 +194,137 @@ test('Player leaves role.', async () => {
   await expect.poll(() => null, {timeout: 1000})
     .toSatisfy(() => !state.submarines[0].co);
 });
+
+test('Player is ready to start before they selected a role.', async () => {
+  const serverState = initializeServerState();
+  server = createAndRunServer(serverState);
+  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+
+  let state = null;
+  let clientId = null;
+  client.on("state", remoteState => state = remoteState);
+  client.on("player_id", player_id => clientId = player_id);
+  
+  client.connect();
+  await expect.poll(() => null, {timeout: 1000}).toSatisfy(() => state);
+  let previousStateVersion = state.version;
+  client.emit("ready");
+  await expect.poll(() => null, {timeout: 1000}).toSatisfy(() =>
+    state.ready.length === 0
+    && state.version > previousStateVersion
+  );
+});
+
+test('Player is ready to start after they selected a role.', async () => {
+  const serverState = initializeServerState();
+  server = createAndRunServer(serverState);
+  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+
+  let state = null;
+  let clientId = null;
+  client.on("state", remoteState => state = remoteState);
+  client.on("player_id", player_id => clientId = player_id);
+  
+  client.connect();
+  client.emit("select_role", {submarine: 0, role: "co"});
+  client.emit("ready");
+  await expect.poll(() => null, {timeout: 1000}).toSatisfy(() =>
+    state.ready.some(id => id === clientId)
+  );
+});
+
+test('Player is ready, then is ready again.', async () => {
+  const serverState = initializeServerState();
+  server = createAndRunServer(serverState);
+  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+
+  let state = null;
+  let clientId = null;
+  client.on("state", remoteState => state = remoteState);
+  client.on("player_id", player_id => clientId = player_id);
+  
+  client.connect();
+  client.emit("select_role", {submarine: 0, role: "co"});
+  client.emit("ready");
+  await expect.poll(() => null, {timeout: 1000}).toSatisfy(() =>
+    state.ready.some(id => id === clientId)
+  );
+  let previousStateVersion = state.version;
+  client.emit("ready");
+  await expect.poll(() => null, {timeout: 1000}).toSatisfy(() =>
+    state.version > previousStateVersion &&
+    state.ready.filter(id => id === clientId).length === 1
+  );
+});
+
+test('Player is not ready.', async () => {
+  const serverState = initializeServerState();
+  server = createAndRunServer(serverState);
+  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+
+  let state = null;
+  let clientId = null;
+  client.on("state", remoteState => state = remoteState);
+  client.on("player_id", player_id => clientId = player_id);
+
+  client.connect();
+  client.emit("select_role", {submarine: 0, role: "co"});
+  client.emit("ready");
+  await expect.poll(() => null, {timeout: 1000}).toSatisfy(() =>
+    state.ready.includes(clientId)
+  );
+  client.emit("not_ready");
+  await expect.poll(() => null, {timeout: 1000}).toSatisfy(() =>
+    !state.ready.includes(clientId)
+  );
+});
+
+test('All roles are ready to start the game.', async () => {
+  const serverState = initializeServerState();
+  server = createAndRunServer(serverState);
+
+  let state = null;
+  let ids = [null, null, null, null, null, null, null, null];
+  function configureClient(client, index) {
+    client.on("player_id", player_id => ids[index] = player_id);
+    client.on("state", serverState => {
+      state = serverState;
+    });
+  }
+  
+  let clients = []
+  for (let i = 0; i < 8; ++i) {
+    clients[i] = io(SERVER_URL, DEFAULT_OPTIONS);
+    configureClient(clients[i], i);
+    clients[i].connect();
+  }
+
+  clients[0].emit("select_role", {submarine: 0, role: "co"});
+  clients[1].emit("select_role", {submarine: 0, role: "xo"});
+  clients[2].emit("select_role", {submarine: 0, role: "sonar"});
+  clients[3].emit("select_role", {submarine: 0, role: "radio"});
+  clients[4].emit("select_role", {submarine: 1, role: "co"});
+  clients[5].emit("select_role", {submarine: 1, role: "xo"});
+  clients[6].emit("select_role", {submarine: 1, role: "sonar"});
+  clients[7].emit("select_role", {submarine: 1, role: "radio"});
+  // make sure they're all selected
+  await expect.poll(() => null, {timeout: 1000})
+    .toSatisfy(() => {
+      var sub0 = state.submarines[0];
+      var sub1 = state.submarines[1];
+      return sub0.co && sub0.xo && sub0.sonar && sub0.radio &&
+        sub1.co && sub1.xo && sub1.sonar && sub1.radio;
+    });
+
+  for (let i = 0; i < 8; ++i) {
+    clients[i].emit("ready");
+  }
+
+  await expect.poll(() => null, {timeout:1000}).toSatisfy(() =>
+    state.currentState === "game_beginning"
+  );
+
+  await expect.poll(() => null, {timeout: 4000}).toSatisfy(() =>
+    state.currentState === "in_game"
+  );
+});

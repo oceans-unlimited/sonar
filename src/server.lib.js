@@ -5,9 +5,11 @@ import { Server as SocketIoServer } from 'socket.io';
 export function initializeServerState() {
   return {
     version: 0,
+    currentState: "lobby",
     players: [],
     adminId: null,
-    submarines: [createSubmarine(), createSubmarine()]
+    submarines: [createSubmarine(), createSubmarine()],
+    ready: [],
   };
 }
 
@@ -75,6 +77,49 @@ export function createAndRunServer(serverState) {
         })
       );
 
+      serverState.version++;
+      ioServer.emit("state", serverState);
+    })
+
+    socket.on("ready", () => {
+      if (serverState.submarines.some(sub =>
+        Object.keys(sub).some(role => sub[role] === socket.id)
+      ) && !serverState.ready.includes(socket.id)) {
+        serverState.ready.push(socket.id);
+      }
+
+      let allRolesAreReady = serverState.submarines.every(sub =>
+        serverState.ready.includes(sub.co) &&
+        serverState.ready.includes(sub.xo) &&
+        serverState.ready.includes(sub.sonar) &&
+        serverState.ready.includes(sub.radio)
+      );
+      if (allRolesAreReady && serverState.currentState === "lobby") {
+        serverState.currentState = "game_beginning";
+        serverState.version++;
+        ioServer.emit("state", serverState);
+        setTimeout(() => {
+          serverState.currentState = "in_game";
+          serverState.version++;
+          ioServer.emit("state", serverState);
+
+          // This is a placeholder until I implement actual game logic elsewhere.
+          setTimeout(() => {
+            ioServer.emit("game_won", Math.floor(Math.random() * 10) % 2);
+
+            serverState.currentState = "lobby"
+            serverState.version++;
+            ioServer.emit("state", serverState);
+          }, 120 * 1000);
+        }, 3000);
+      }
+
+      serverState.version++;
+      ioServer.emit("state", serverState);
+    });
+
+    socket.on("not_ready", () => {
+      serverState.ready = serverState.ready.filter(id => id !== socket.id);
       serverState.version++;
       ioServer.emit("state", serverState);
     })

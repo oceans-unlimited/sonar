@@ -4,6 +4,7 @@ import { Server as SocketIoServer } from 'socket.io';
 
 export function initializeServerState() {
   return {
+    version: 0,
     players: [],
     adminId: null,
     submarines: [createSubmarine(), createSubmarine()]
@@ -36,18 +37,25 @@ export function createAndRunServer(serverState) {
         serverState.adminId = null;
       }
       console.log(`Player disconnected: ${socket.id}`);
+      serverState.version++;
       ioServer.emit("state", serverState);
     });
 
     socket.on("change_name", new_name => {
       serverState.players.find(p => p.id === socket.id).name = new_name;
+      serverState.version++;
       ioServer.emit("state", serverState);
     });
 
     socket.on("select_role", ({submarine, role}) => {
-      if (0 <= submarine && submarine < serverState.submarines.length) {
+      if (
+        0 <= submarine
+        && submarine < serverState.submarines.length
+        && !serverState.submarines[submarine][role]
+      ) {
         serverState.submarines[submarine][role] = socket.id;
       }
+      serverState.version++;
       ioServer.emit("state", serverState);
     });
 
@@ -62,6 +70,7 @@ export function createAndRunServer(serverState) {
     }
     
     socket.emit("player_id", socket.id);
+    serverState.version++;
     ioServer.emit("state", serverState);
 
     console.log(`Player connected: ${socket.id}`);

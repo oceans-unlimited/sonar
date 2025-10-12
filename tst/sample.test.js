@@ -99,3 +99,33 @@ test('Player selects role.', async () => {
   await expect.poll(() => null, {timeout: 1000})
     .toSatisfy(() => clientId && state.submarines[0].co === clientId);
 });
+
+test('Player selects role that is already filled.', async () => {
+  const serverState = initializeServerState();
+  server = createAndRunServer(serverState);
+  const firstClient = io(SERVER_URL, DEFAULT_OPTIONS);
+  const secondClient = io(SERVER_URL, DEFAULT_OPTIONS);
+  
+  let ids = [null, null];
+  let state = null;
+
+  function configureClient(client, index) {
+    client.on("player_id", player_id => ids[index] = player_id);
+    client.on("state", serverState => {
+      state = serverState;
+    });
+  }
+  configureClient(firstClient, 0);
+  configureClient(secondClient, 1);
+
+  firstClient.connect();
+  secondClient.connect();
+  firstClient.emit('select_role', {submarine: 1, role: "xo"});
+  await expect.poll(() => null, {timeout: 1000}).toSatisfy(() => ids[0] && state.submarines[1].xo === ids[0]);
+  let lastStateVersion = state.version;
+  secondClient.emit('select_role', {submarine: 1, role: "xo"})
+  await expect.poll(() => null, {timeout: 1000}).toSatisfy(() =>
+    state.submarines[1].xo === ids[0]
+    && state.version > lastStateVersion
+  );
+});

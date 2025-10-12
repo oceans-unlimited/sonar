@@ -59,6 +59,18 @@ export function createAndRunServer(serverState) {
       ioServer.emit("state", serverState);
     });
 
+    socket.on("leave_role", () => {
+      serverState.submarines.forEach(submarine =>
+        Object.keys(submarine).forEach(role => {
+          if (submarine[role] === socket.id)
+            submarine[role] = null;
+        })
+      );
+
+      serverState.version++;
+      ioServer.emit("state", serverState);
+    })
+
     serverState.players.push({
       id: socket.id,
       name: `Player ${playerNameCounter}`,

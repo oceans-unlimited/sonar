@@ -10,15 +10,21 @@ afterEach(() => {
   server = null;
 });
 
-test('asserts true', async () => {
-  const state = initializeServerState();
-  server = createAndRunServer(state);
-  const socket = io("http://localhost:3000");
-
-  let row = -1;
-  socket.on("state", state => {
-    row = Object.values(state.subs)[0].row;
+test('First player connects.', async () => {
+  const serverState = initializeServerState();
+  server = createAndRunServer(serverState);
+  const client = io("http://localhost:3000");
+  
+  let id = null;
+  let state = null;
+  client.on("player_id", player_id => id = player_id);
+  client.on("state", serverState => {
+    state = serverState;
   });
-  socket.emit("move", "N");
-  await expect.poll(() => row, { timeout: 1000 }).greaterThan(-1);
+  await expect
+    .poll(() => [id, state], { timeout: 1000 })
+    .toSatisfy(([id, state]) => id && state);
+  expect(state.adminId).toBe(id);
+  expect(state.players[0].id).toBe(id);
+  expect(state.players[0].name).toBe(`Player 1`);
 });

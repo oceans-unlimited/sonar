@@ -67,3 +67,18 @@ test('Second player connects.', async() => {
   expect(latest_state.players[1].id).toBe(ids[1]);
   expect(latest_state.players[1].name).toBe(`Player 2`);
 });
+
+test('Player changes name.', async () => {
+  const serverState = initializeServerState();
+  server = createAndRunServer(serverState);
+  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+
+  let state = null;
+  client.on("state", remoteState => state = remoteState);
+  
+  client.connect();
+  await expect.poll(() => null, {timeout: 1000}).toSatisfy(() => state);
+  client.emit("change_name", "My Custom Name #(*$&*(&$");
+  await expect.poll(() => null, {timeout: 1000})
+    .toSatisfy(() => state.players[0].name === "My Custom Name #(*$&*(&$");
+});

@@ -27,7 +27,7 @@ export function createAndRunServer(serverState) {
     });
     playerNameCounter++;
 
-    ioServer.emit("player_id", socket.id);
+    socket.emit("player_id", socket.id);
     if (!serverState.adminId) {
       serverState.adminId = socket.id;
     }

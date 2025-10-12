@@ -2,6 +2,9 @@ import { initializeServerState, createAndRunServer } from '../src/server.lib.js'
 import { io } from 'socket.io-client';
 import { test, afterEach, expect } from 'vitest';
 
+const SERVER_URL = "http://localhost:3000";
+const DEFAULT_OPTIONS = {autoConnect: false};
+
 let server = null;
 
 afterEach(() => {
@@ -13,7 +16,7 @@ afterEach(() => {
 test('First player connects.', async () => {
   const serverState = initializeServerState();
   server = createAndRunServer(serverState);
-  const client = io("http://localhost:3000");
+  const client = io(SERVER_URL, DEFAULT_OPTIONS);
   
   let id = null;
   let state = null;
@@ -21,10 +24,46 @@ test('First player connects.', async () => {
   client.on("state", serverState => {
     state = serverState;
   });
+
+  client.connect();
+
   await expect
     .poll(() => [id, state], { timeout: 1000 })
     .toSatisfy(([id, state]) => id && state);
   expect(state.adminId).toBe(id);
   expect(state.players[0].id).toBe(id);
   expect(state.players[0].name).toBe(`Player 1`);
+});
+
+test('Second player connects.', async() => {
+  const serverState = initializeServerState();
+  server = createAndRunServer(serverState);
+  const firstClient = io(SERVER_URL, DEFAULT_OPTIONS);
+  const secondClient = io(SERVER_URL, DEFAULT_OPTIONS);
+  
+  let ids = [];
+  let latest_state = null;
+
+  function configureClient(client) {
+    client.on("player_id", player_id => ids.push(player_id));
+    client.on("state", state => {
+      latest_state = state;
+    });
+  }
+
+  configureClient(firstClient);
+  configureClient(secondClient);
+
+  firstClient.connect();
+  await expect.poll(() => null, {timeout: 1000}).toSatisfy(() => latest_state);
+  secondClient.connect();
+  await expect
+    .poll(() => null, { timeout: 1000 })
+    .toSatisfy(() =>
+      ids.length == 2 && latest_state.players.length == 2);
+  expect(latest_state.adminId).toBe(ids[0]);
+  expect(latest_state.players[0].id).toBe(ids[0]);
+  expect(latest_state.players[0].name).toBe(`Player 1`);
+  expect(latest_state.players[1].id).toBe(ids[1]);
+  expect(latest_state.players[1].name).toBe(`Player 2`);
 });

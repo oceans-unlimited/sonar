@@ -59,7 +59,7 @@ export async function createLobbyScene(app, assets) {
   subs.push(subA, subB);
 
   // --- Unassigned Panel ---
-  const unassigned = createUnassignedPanel();
+  const unassigned = createUnassignedPanel(app, assets);
 
   container.addChild(subA, unassigned, subB);
 
@@ -84,12 +84,8 @@ export async function createLobbyScene(app, assets) {
   /*----------------------------------------------------------
     Global overlays & effects
   ----------------------------------------------------------*/
-  const noise = createNoiseOverlay(assets.noise, app);
-  const scan = createScanlinesOverlay(assets.scanlines, app);
-  root.addChild(noise);
-  root.addChild(scan);
 
-  const flickerCallback = applyFlickerEffect(app, [playerName, subA, unassigned, subB]);
+  const flickerCallback = applyFlickerEffect(app, [subA, unassigned, subB]);
   root.on("destroyed", () => app.ticker.remove(flickerCallback));
 
   /*----------------------------------------------------------
@@ -141,6 +137,10 @@ function createSubPanel(defaultName, outlineColor, assets, subId, app) {
   subImage.y = 40;
   subImage.tint = outlineColor;
   panel.addChild(subImage);
+
+  const noise = createNoiseOverlay(assets.noise, app, width, height);
+  const scan = createScanlinesOverlay(assets.scanlines, app, width, height);
+  panel.addChild(noise, scan);
 
   // --- Role slots ---
   const roles = ["Captain", "1st Officer", "Sonar", "Engineer"];
@@ -207,8 +207,8 @@ function createRoleSlot(role, outlineColor, subId, assets, app) {
   container.glowEffect = glowEffect;
 
   // Player nameplate
-  const plate = createPlayerNameplate(null, outlineColor, glowEffect);
-  plate.x = 90;
+  const plate = createPlayerNameplate(null, outlineColor, glowEffect, role);
+  plate.x = 95;
   plate.y = 5;
   container.addChild(plate);
 
@@ -232,19 +232,16 @@ function createRoleSlot(role, outlineColor, subId, assets, app) {
 /*------------------------------------------------------------
   PLAYER NAMEPLATE COMPONENT
 ------------------------------------------------------------*/
-function createPlayerNameplate(initialPlayer, textColor = Colors.text, glowEffect) {
+function createPlayerNameplate(initialPlayer, textColor = Colors.text, glowEffect, role) {
   const container = new PIXI.Container();
   const width = 180;
   const height = 50;
 
-  const bg = new PIXI.Graphics()
-    .rect(0, 0, width, height)
-    .fill({ color: Colors.background, alpha: 0.4 })
-    .stroke({ color: Colors.border, width: 1 });
+  const bg = new PIXI.Graphics();
   container.addChild(bg);
 
   const nameText = new PIXI.Text({
-    text: initialPlayer ? initialPlayer.name : "Empty",
+    text: initialPlayer ? initialPlayer.name : `<<< ${role}`,
     style: {
       fontFamily: "Orbitron",
       fontSize: 14,
@@ -269,6 +266,14 @@ function createPlayerNameplate(initialPlayer, textColor = Colors.text, glowEffec
   vacateBtn.y = 14;
   vacateBtn.visible = false;
   container.addChild(vacateBtn);
+
+  if (!initialPlayer) {
+    toggle.visible = false;
+  } else {
+    bg.roundRect(0, 0, width, height, 10)
+      .fill({ color: Colors.background, alpha: 0.4 })
+      .stroke({ color: Colors.border, width: 1 });
+  }
 
   vacateBtn.eventMode = "static";
   vacateBtn.cursor = "pointer";
@@ -303,7 +308,7 @@ function createPlayerNameplate(initialPlayer, textColor = Colors.text, glowEffec
     else if (role.includes("Officer")) roleColor = Colors.roleXO;
     else if (role.includes("Sonar")) roleColor = Colors.roleSonar;
 
-    bg.clear().rect(0, 0, width, height);
+    bg.clear().roundRect(0, 0, width, height, 10);
 
     if (player.id === 999) { // Client player
       bg.fill({ color: roleColor, alpha: 0.6 });
@@ -321,13 +326,11 @@ function createPlayerNameplate(initialPlayer, textColor = Colors.text, glowEffec
 
   container.vacate = () => {
     container.player = null;
-    nameText.text = "Empty";
+    nameText.text = `<<< ${role}`;
     nameText.style.fill = textColor;
     vacateBtn.visible = false;
-    bg.clear()
-      .rect(0, 0, width, height)
-      .fill({ color: Colors.background, alpha: 0.4 })
-      .stroke({ color: Colors.border, width: 1 });
+    toggle.visible = false;
+    bg.clear();
     if (glowEffect) glowEffect.pulse();
   };
 
@@ -337,7 +340,7 @@ function createPlayerNameplate(initialPlayer, textColor = Colors.text, glowEffec
 /*------------------------------------------------------------
   UNASSIGNED PANEL
 ------------------------------------------------------------*/
-function createUnassignedPanel() {
+function createUnassignedPanel(app, assets) {
   const panel = new PIXI.Container();
   const width = 300;
   const height = 420;
@@ -359,6 +362,10 @@ function createUnassignedPanel() {
   title.y = 8;
   panel.addChild(title);
 
+  const noise = createNoiseOverlay(assets.noise, app, width, height);
+  const scan = createScanlinesOverlay(assets.scanlines, app, width, height);
+  panel.addChild(noise, scan);
+
   const scrollContainer = new PIXI.Container();
   scrollContainer.x = 10;
   scrollContainer.y = 40;
@@ -366,7 +373,7 @@ function createUnassignedPanel() {
 
   let offsetY = 0;
   panel.addPlayer = (player) => {
-    const plate = createPlayerNameplate(player, Colors.border, undefined);
+    const plate = createPlayerNameplate(player, Colors.border, undefined, '');
     plate.y = offsetY;
     scrollContainer.addChild(plate);
     offsetY += 60;
@@ -406,6 +413,7 @@ function createEditableText(app, textObject) {
 
   const input = document.createElement('input');
   input.type = 'text';
+  input.maxLength = 15;
   input.style.position = 'absolute';
   input.style.display = 'none';
   input.style.fontFamily = textObject.style.fontFamily;

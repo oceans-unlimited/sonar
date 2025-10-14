@@ -3,14 +3,14 @@
 import * as PIXI from "pixi.js";
 import { GlowFilter } from 'pixi-filters';
 
-export function createNoiseOverlay(texture, app) {
-  const sprite = new PIXI.TilingSprite({texture, width: app.screen.width, height: app.screen.height});
+export function createNoiseOverlay(texture, app, width, height) {
+  const sprite = new PIXI.TilingSprite({texture, width, height});
   sprite.alpha = 0.05;
   return sprite;
 }
 
-export function createScanlinesOverlay(texture, app) {
-  const sprite = new PIXI.TilingSprite({texture, width: app.screen.width, height: app.screen.height});
+export function createScanlinesOverlay(texture, app, width, height) {
+  const sprite = new PIXI.TilingSprite({texture, width, height});
   sprite.alpha = 0.03;
   return sprite;
 }

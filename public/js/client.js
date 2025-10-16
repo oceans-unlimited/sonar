@@ -1,6 +1,7 @@
-// js/client.js
 import { Application, Assets } from 'pixi.js';
 import { SceneManager } from './core/sceneManager.js';
+import { socketManager } from './core/socketManager.js';
+import { AudioManager } from './core/audioManager.js';
 
 (async () => {
   // Create a new application
@@ -9,8 +10,14 @@ import { SceneManager } from './core/sceneManager.js';
   await app.init({ resizeTo: window });
   document.body.appendChild(app.canvas);
 
+  const audioManager = new AudioManager();
+  await audioManager.loadBeep('assets/audio/beep_01.wav');
+
   // Pre-load any assets needed for the scenes
   const assets = {
+      orbitron: await Assets.load('assets/fonts/Orbitron-VariableFont_wght.ttf'),
+      goldman_bold: await Assets.load('assets/fonts/Goldman-Bold.ttf'),
+      goldman_regular: await Assets.load('assets/fonts/Goldman-Regular.ttf'),
       // placeholder for assets. In a real app, you'd load them here.
       noise: await Assets.load('assets/textures/noise.png'),
       scanlines: await Assets.load('assets/textures/scanlines.png'),
@@ -19,7 +26,6 @@ import { SceneManager } from './core/sceneManager.js';
       god_rays: await Assets.load('assets/textures/god_rays_03.png'),
       map_sprites: await Assets.load('assets/sprites/ocean_02.png'),
       sub_sheet: await Assets.load('assets/sprites/sub.json'),
-      orbitron: await Assets.load('assets/fonts/Orbitron-VariableFont_wght.ttf'),
       sub_profileA: await Assets.load('assets/ui/sub_profileA.svg'),
       sub_profileB: await Assets.load('assets/ui/sub_profileB.svg'),
       role_captain: await Assets.load('assets/ui/role_captain.svg'),
@@ -28,7 +34,7 @@ import { SceneManager } from './core/sceneManager.js';
       role_sonar: await Assets.load('assets/ui/role_sonar.svg'),
   };
 
-  await SceneManager.init(app, assets);
+  await SceneManager.init(app, assets, socketManager, audioManager);
 
   document.getElementById('sceneTitleBtn').addEventListener('click', () => {
     SceneManager.changeScene('title');

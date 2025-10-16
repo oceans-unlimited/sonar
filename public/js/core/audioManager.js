@@ -3,6 +3,15 @@ export class AudioManager {
   constructor() {
     this.context = new (window.AudioContext || window.webkitAudioContext)();
     this.buffer = null;
+    this.isResumed = false;
+  }
+
+  resume() {
+    if (this.isResumed) return;
+    this.isResumed = true;
+    if (this.context.state === 'suspended') {
+      this.context.resume();
+    }
   }
 
   async loadBeep(url) {

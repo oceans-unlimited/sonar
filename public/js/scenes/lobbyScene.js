@@ -13,6 +13,7 @@ import {
   applyFlickerEffect,
   applyGlowEffect,
 } from "../core/uiEffects.js";
+import { socketManager } from "../core/socketManager.js";
 
 /*------------------------------------------------------------
   MAIN LOBBY SCENE
@@ -29,7 +30,7 @@ export async function createLobbyScene(app, assets) {
 
   // --- Player name editor (top left) ---
   const playerName = new PIXI.Text({
-    text: "Player-001",
+    text: "Player-01",
     style: {
       fontFamily: Font.family,
       fontSize: 20,
@@ -41,7 +42,17 @@ export async function createLobbyScene(app, assets) {
   playerName.y = 20;
   root.addChild(playerName);
 
-  createEditableText(app, playerName);
+  // When the local player confirms a name change, send it to the server
+  createEditableText(app, playerName, (newName) => {
+    // Ensure socketManager is available and playerId matches
+    try {
+      if (window.socketManager && window.socketManager.playerId) {
+        window.socketManager.changeName(newName);
+      }
+    } catch (e) {
+      // fallback: nothing
+    }
+  });
 
   /*----------------------------------------------------------
     Layout containers
@@ -51,12 +62,10 @@ export async function createLobbyScene(app, assets) {
 
   const colWidth = 300;
   const colSpacing = 16;
-  const subs = [];
 
   // --- Create Sub A and Sub B panels ---
   const subA = createSubPanel("Sub A", Colors.subA, assets, "A", app);
   const subB = createSubPanel("Sub B", Colors.subB, assets, "B", app);
-  subs.push(subA, subB);
 
   // --- Unassigned Panel ---
   const unassigned = createUnassignedPanel(app, assets);
@@ -65,21 +74,69 @@ export async function createLobbyScene(app, assets) {
 
   positionColumns(container, app.screen.width, colWidth, colSpacing);
 
-  /*----------------------------------------------------------
-    Dummy data for debug
-  ----------------------------------------------------------*/
-  const dummyPlayers = [
-    { id: 1, name: "Player-001", ready: false },
-    { id: 2, name: "Player-002", ready: false },
-    { id: 3, name: "Player-003", ready: false },
-    { id: 4, name: "Player-004", ready: false },
-  ];
-  // Assign first two players to subs
-  subA.assignPlayerToRole("Captain", dummyPlayers[0]);
-  subB.assignPlayerToRole("Engineer", dummyPlayers[1]);
-  // Remaining unassigned
-  unassigned.addPlayer(dummyPlayers[2]);
-  unassigned.addPlayer(dummyPlayers[3]);
+  function updateLobby(state) {
+    const allPlayers = [...state.players];
+    const assignedPlayerIds = new Set();
+
+    const clientPlayer = allPlayers.find(p => p.id === socketManager.playerId);
+    if (clientPlayer) {
+      playerName.text = clientPlayer.name;
+    }
+
+    // Map internal server role keys to UI display role names
+    const internalToDisplay = {
+      co: 'Captain',
+      xo: '1st Officer',
+      sonar: 'Sonar',
+      eng: 'Engineer'
+    };
+
+    [subA, subB].forEach((sub, i) => {
+      const subState = state.submarines[i];
+      Object.keys(subState).forEach(internalRole => {
+        const playerId = subState[internalRole];
+        const displayRole = internalToDisplay[internalRole] || internalRole;
+        if (playerId) {
+          const player = allPlayers.find(p => p.id === playerId);
+          sub.assignPlayerToRole(displayRole, player);
+          assignedPlayerIds.add(playerId);
+        } else {
+          sub.vacatePlayer(displayRole);
+        }
+      });
+    });
+
+    // Sort unassigned players by connectionOrder so Player-01, Player-02, ... order is preserved
+    const unassignedPlayers = allPlayers
+      .filter(p => !assignedPlayerIds.has(p.id))
+      .sort((a, b) => (a.connectionOrder || 0) - (b.connectionOrder || 0));
+
+    // Fill the unassigned panel slots (1..8) with the players in connection order
+    if (typeof unassigned.setPlayers === 'function') {
+      unassigned.setPlayers(unassignedPlayers);
+    } else {
+      unassigned.clearPlayers();
+      unassignedPlayers.forEach(player => unassigned.addPlayer(player));
+    }
+  }
+
+  socketManager.on('stateUpdate', updateLobby);
+
+  // If socketManager already has a cached state, apply it immediately so the
+  // lobby doesn't wait for a subsequent update (avoids race where scene subscribes
+  // after an initial 'state' was received).
+  try {
+    if (socketManager.lastState) {
+      // call async to avoid potential re-entrancy
+      setTimeout(() => updateLobby(socketManager.lastState), 0);
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  root.on('destroyed', () => {
+    socketManager.off('stateUpdate', updateLobby);
+  });
 
   /*----------------------------------------------------------
     Global overlays & effects
@@ -157,13 +214,15 @@ function createSubPanel(defaultName, outlineColor, assets, subId, app) {
 
   // --- API for assignment ---
   panel.assignPlayerToRole = (role, player) => {
+    const roleKey = role.toLowerCase().replace(' ', '');
     if (roleSlots[role]) {
-      roleSlots[role].assignPlayer(player);
+      roleSlots[role].assignPlayer(player, roleKey, panel.outlineColor);
     }
   };
   panel.vacatePlayer = (role) => {
+    const roleKey = role.toLowerCase().replace(' ', '');
     if (roleSlots[role]) {
-      roleSlots[role].vacate();
+      roleSlots[role].vacate(roleKey);
     }
   };
 
@@ -207,7 +266,7 @@ function createRoleSlot(role, outlineColor, subId, assets, app) {
   container.glowEffect = glowEffect;
 
   // Player nameplate
-  const plate = createPlayerNameplate(null, outlineColor, glowEffect, role);
+  const plate = createPlayerNameplate(null, outlineColor, glowEffect, role, true);
   plate.x = 95;
   plate.y = 5;
   container.addChild(plate);
@@ -216,15 +275,19 @@ function createRoleSlot(role, outlineColor, subId, assets, app) {
   roleBtn.cursor = "pointer";
   roleBtn.on("pointertap", () => {
     if (!plate.player) {
-      // Assign this player locally for debug
-      const newPlayer = { id: 999, name: "You", ready: false };
-      plate.assignPlayer(newPlayer, role, outlineColor);
-      // socket.emit('assignRole', { playerId: newPlayer.id, subId, role });
+      const displayToInternal = {
+        'Captain': 'co',
+        '1st Officer': 'xo',
+        'Sonar': 'sonar',
+        'Engineer': 'eng'
+      };
+      const internalRole = displayToInternal[role] || role.toLowerCase().replace(' ', '');
+      socketManager.selectRole(subId, internalRole);
     }
   });
 
-  container.assignPlayer = (player) => plate.assignPlayer(player, role, outlineColor);
-  container.vacate = () => plate.vacate();
+  container.assignPlayer = (player, role, subColor) => plate.assignPlayer(player, role.toLowerCase().replace(' ', ''), subColor);
+  container.vacate = (role) => plate.vacate(role.toLowerCase().replace(' ', ''));
 
   return container;
 }
@@ -232,7 +295,7 @@ function createRoleSlot(role, outlineColor, subId, assets, app) {
 /*------------------------------------------------------------
   PLAYER NAMEPLATE COMPONENT
 ------------------------------------------------------------*/
-function createPlayerNameplate(initialPlayer, textColor = Colors.text, glowEffect, role) {
+function createPlayerNameplate(initialPlayer, textColor = Colors.text, glowEffect, role, isPlaceholder = false) {
   const container = new PIXI.Container();
   const width = 180;
   const height = 50;
@@ -241,9 +304,9 @@ function createPlayerNameplate(initialPlayer, textColor = Colors.text, glowEffec
   container.addChild(bg);
 
   const nameText = new PIXI.Text({
-    text: initialPlayer ? initialPlayer.name : `<<< ${role}`,
+    text: initialPlayer ? initialPlayer.name : (role ? `<<< ${role}` : ''),
     style: {
-      fontFamily: "Orbitron",
+      fontFamily: Font.family,
       fontSize: 14,
       fill: textColor,
     },
@@ -260,77 +323,93 @@ function createPlayerNameplate(initialPlayer, textColor = Colors.text, glowEffec
   // Vacate button
   const vacateBtn = new PIXI.Text({
     text: "✖",
-    style: { fontFamily: "Orbitron", fontSize: 14, fill: Colors.text },
+    style: { fontFamily: "Orbitron", fontSize: 14, fill: textColor },
   });
   vacateBtn.x = width - 30;
   vacateBtn.y = 14;
   vacateBtn.visible = false;
   container.addChild(vacateBtn);
 
-  if (!initialPlayer) {
-    toggle.visible = false;
-  } else {
-    bg.roundRect(0, 0, width, height, 10)
-      .fill({ color: Colors.background, alpha: 0.4 })
-      .stroke({ color: Colors.border, width: 1 });
-  }
+  // By default, both toggle (ready indicator) and vacate button are hidden.
+  toggle.visible = false;
 
   vacateBtn.eventMode = "static";
   vacateBtn.cursor = "pointer";
   vacateBtn.on("pointertap", () => {
-    container.vacate();
-    // socket.emit('vacateRole', { playerId: container.player.id });
+    socketManager.leaveRole();
   });
 
   toggle.eventMode = "static";
   toggle.cursor = "pointer";
   toggle.on("pointertap", () => {
-    if (container.player && container.player.id === 999) {
+    if (container.player && container.player.id === socketManager.playerId) {
       // Toggle only for self
       container.player.ready = !container.player.ready;
       toggle.clear();
       toggle.circle(width - 15, height / 2, 6);
       toggle.fill({ color: container.player.ready ? 0x00ff00 : 0xff0000 });
-      // socket.emit('toggleReady', { ready: container.player.ready });
+      if (container.player.ready) {
+        socketManager.ready();
+      } else {
+        socketManager.notReady();
+      }
     }
   });
 
-  container.assignPlayer = (player, role, subColor) => {
+  container.assignPlayer = (player, roleKey, subColor) => {
     container.player = player;
     nameText.text = player.name;
-    vacateBtn.visible = true;
-    toggle.clear().circle(width - 15, height / 2, 6);
-    toggle.fill({ color: player.ready ? 0x00ff00 : 0xff0000 });
 
-    // Style change per role
-    let roleColor = Colors.roleEngineer;
-    if (role.includes("Captain")) roleColor = Colors.roleCaptain;
-    else if (role.includes("Officer")) roleColor = Colors.roleXO;
-    else if (role.includes("Sonar")) roleColor = Colors.roleSonar;
+    // Show ready indicator and vacate only if this player is assigned to a role (roleKey truthy).
+    const isAssigned = !!roleKey;
+    toggle.visible = isAssigned;
+    if (isAssigned) {
+      toggle.clear().circle(width - 15, height / 2, 6);
+      toggle.fill({ color: player.ready ? 0x00ff00 : 0xff0000 });
+    }
 
-    bg.clear().roundRect(0, 0, width, height, 10);
+    // Vacate button visible only for the local (client) player when assigned.
+    vacateBtn.visible = isAssigned && (player.id === socketManager.playerId);
 
-    if (player.id === 999) { // Client player
-      bg.fill({ color: roleColor, alpha: 0.6 });
+    // Style change per role (robust handling of different roleKey formats)
+    let roleColor = Colors.text;
+    const rk = String(roleKey || '').toLowerCase();
+    if (rk.includes('cap') || rk === 'co') roleColor = Colors.roleCaptain;
+    else if (rk.includes('officer') || rk === 'xo') roleColor = Colors.roleXO;
+    else if (rk.includes('sonar')) roleColor = Colors.roleSonar;
+    else if (rk.includes('eng')) roleColor = Colors.roleEngineer;
+
+    bg.clear();
+
+    if (player.id === socketManager.playerId) { // Client player
+      // Own player: filled background using Colors.text and no outline
+      bg.roundRect(0, 0, width, height, 10).fill({ color: roleColor, alpha: 0.6 });
       nameText.style.fill = Colors.background;
-      container.scale.set(1.05);
+      // Ensure vacate button text matches this text color
+      vacateBtn.style.fill = nameText.style.fill;
       if (glowEffect) glowEffect.steadyOn();
     } else { // Other players
-      bg.fill({ color: Colors.background, alpha: 0.4 });
+      // For non-local assigned players, draw an outline matching the roleColor
+      // so the outline updates to the role color when a role is selected.
+      bg.clear();
+      bg.roundRect(0, 0, width, height, 10).stroke({ color: roleColor, width: 2 });
       nameText.style.fill = subColor;
-      container.scale.set(1.0);
       if (glowEffect) glowEffect.off();
     }
-    bg.stroke({ color: subColor, width: 2 });
   };
 
   container.vacate = () => {
     container.player = null;
-    nameText.text = `<<< ${role}`;
+    nameText.text = role ? `<<< ${role}` : '';
     nameText.style.fill = textColor;
     vacateBtn.visible = false;
     toggle.visible = false;
+    // Reset background. If this is an unassigned placeholder, do not draw a border
+    // so the parent container's border is visible through it.
     bg.clear();
+    if (!isPlaceholder) {
+      bg.roundRect(0, 0, width, height, 10).stroke({ color: Colors.border, width: 1 });
+    }
     if (glowEffect) glowEffect.pulse();
   };
 
@@ -373,10 +452,47 @@ function createUnassignedPanel(app, assets) {
 
   let offsetY = 0;
   panel.addPlayer = (player) => {
-    const plate = createPlayerNameplate(player, Colors.border, undefined, '');
+    const plate = createPlayerNameplate(player, Colors.border, undefined, player.name, false);
     plate.y = offsetY;
     scrollContainer.addChild(plate);
     offsetY += 60;
+  };
+
+  panel.clearPlayers = () => {
+    // Remove all child plates and reset offset for fresh rendering
+    scrollContainer.removeChildren();
+    offsetY = 0;
+  };
+
+  // Create fixed 8 slots (placeholders). This keeps layout stable and allows clients
+  // to fill the first available slots (1..8) deterministically.
+  const slotHeight = 60;
+  const maxSlots = 8;
+  const slots = new Array(maxSlots).fill(null);
+  for (let i = 0; i < maxSlots; i++) {
+    // create an empty placeholder (no role label)
+    const placeholder = createPlayerNameplate(null, Colors.border, undefined, null, true);
+    placeholder.y = i * slotHeight;
+    scrollContainer.addChild(placeholder);
+    slots[i] = placeholder;
+  }
+
+  // Replace the visible contents with the provided players filling slots 0..7
+  panel.setPlayers = (players) => {
+    // Clear existing plates but keep placeholders; we'll update placeholder contents
+    players = players || [];
+    for (let i = 0; i < maxSlots; i++) {
+      const slotPlate = slots[i];
+      if (players[i]) {
+        // assign player to this slot
+        slotPlate.assignPlayer(players[i], players[i].role || null, Colors.border);
+      } else {
+        // vacate to show placeholder (no border when it is a placeholder)
+        slotPlate.vacate();
+      }
+    }
+    // Ensure offsetY remains correct for any later addPlayer calls
+    offsetY = maxSlots * slotHeight;
   };
 
   return panel;
@@ -407,7 +523,7 @@ function positionColumns(container, screenWidth, colWidth, spacing) {
 /*------------------------------------------------------------
   EDITABLE TEXT COMPONENT
 ------------------------------------------------------------*/
-function createEditableText(app, textObject) {
+function createEditableText(app, textObject, onConfirm) {
   textObject.eventMode = 'static';
   textObject.cursor = 'pointer';
 
@@ -447,10 +563,15 @@ function createEditableText(app, textObject) {
   };
 
   const stopEditing = () => {
-    textObject.text = input.value;
+    const newVal = input.value;
+    textObject.text = newVal;
     textObject.visible = true;
     input.style.display = 'none';
     confirmBtn.style.display = 'none';
+
+    if (typeof onConfirm === 'function') {
+      onConfirm(newVal);
+    }
   };
 
   textObject.on('pointertap', startEditing);

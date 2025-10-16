@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "vitest"
+    "test": "vitest",
+    "test:file": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -20,7 +21,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.10",
-    "vitest": "^3.2.4",
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "vitest": "^3.2.4"
   }
 }

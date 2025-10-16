@@ -75,7 +75,7 @@ export function createMenuScene(app, assets) {
     cursor.y = menuTexts[0].y;
     root.addChild(cursor);
     // Add cursor to flicker effect
-    flickerCallback = applyFlickerEffect(app, [...menuTexts, cursor, title]);
+    flickerCallback = applyFlickerEffect(app, [...menuTexts, cursor, title], 0.15, 3);
   } else {
     flickerCallback = applyFlickerEffect(app, [title]);
   }

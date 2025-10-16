@@ -4,31 +4,93 @@
  */
 import * as PIXI from 'pixi.js';
 import { createMenuScene } from '../scenes/menuScene.js';
+import { createLobbyScene } from '../scenes/lobbyScene.js';
 import { createConnScene } from '../scenes/connScene.js';
 import { createTitleScene } from '../titleScene.js';
 import { createDebugRotationScene } from '../scenes/debugRotationScene.js';
+import { createBootScene } from '../scenes/bootScene.js';
 
 const scenes = {
+    boot: createBootScene,
     title: createTitleScene,
     menu: createMenuScene,
     conn: createConnScene,
+    lobby: createLobbyScene,
     debugRotation: createDebugRotationScene,
 };
 
 let app;
 let currentScene;
+
+async function fadeTo(target, alpha, duration) {
+    return new Promise((resolve) => {
+        const startAlpha = target.alpha;
+        const diff = alpha - startAlpha;
+
+        let elapsed = 0;
+        const ticker = (delta) => {
+            elapsed += delta.deltaMS;
+            const t = Math.min(1, elapsed / duration);
+            target.alpha = startAlpha + diff * t;
+            if (t === 1) {
+                app.ticker.remove(ticker);
+                resolve();
+            }
+        };
+        app.ticker.add(ticker);
+    });
+}
+
+async function fadeIn(duration) {
+    const fade = new PIXI.Graphics()
+        .rect(0, 0, app.screen.width, app.screen.height)
+        .fill({ color: 0x000000, alpha: 1 });
+    app.stage.addChild(fade);
+
+    let elapsed = 0;
+    const ticker = (delta) => {
+        elapsed += delta.deltaMS;
+        const t = Math.min(1, elapsed / duration);
+        fade.alpha = 1 - t;
+        if (t === 1) {
+            app.ticker.remove(ticker);
+            app.stage.removeChild(fade);
+        }
+    };
+    app.ticker.add(ticker);
+}
+
 let assets;
+let socketManager;
+let audioManager;
 
 export const SceneManager = {
     /**
      * Initializes the scene manager.
      * @param {PIXI.Application} pixiApp - The PIXI Application instance.
      * @param {object} loadedAssets - The loaded game assets.
+     * @param {SocketManager} sockManager - The socket manager instance.
+     * @param {AudioManager} audManager - The audio manager instance.
      */
-    async init(pixiApp, loadedAssets) {
+    async init(pixiApp, loadedAssets, sockManager, audManager) {
         app = pixiApp;
         assets = loadedAssets;
-        await this.changeScene('title'); // Start with the title scene
+        socketManager = sockManager;
+        audioManager = audManager;
+
+        socketManager.on('stateUpdate', (state) => {
+            this.onStateUpdate(state);
+        });
+
+        await this.changeScene('boot'); // Start with the boot scene
+    },
+
+    onStateUpdate(state) {
+        if (state.currentState === 'lobby' && this.currentSceneName !== 'lobby') {
+            this.changeScene('lobby');
+        } else if (state.currentState === 'in_game' && this.currentSceneName !== 'conn') {
+            this.changeScene('conn');
+        }
     },
 
     /**
@@ -37,15 +99,18 @@ export const SceneManager = {
      */
     async changeScene(sceneName) {
         if (currentScene) {
+            await fadeTo(currentScene, 0, 500);
             app.stage.removeChild(currentScene);
             currentScene.destroy({ children: true });
         }
 
         if (scenes[sceneName]) {
-            const newScene = await scenes[sceneName](app, assets);
+            this.currentSceneName = sceneName;
+            const newScene = await scenes[sceneName](app, assets, audioManager);
             if (newScene instanceof PIXI.Container) {
                 currentScene = newScene;
                 app.stage.addChild(currentScene);
+                await fadeIn(500);
             }
         } else {
             console.error(`Scene "${sceneName}" not found.`);

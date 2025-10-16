@@ -6,10 +6,16 @@ export const Colors = {
   text: 0x28ee28,
   dim: 0x146e14,
   border: 0x116611,
+  subA: 0x00aaff,
+  subB: 0xff5555,
+  roleCaptain: 0xffcc00,
+  roleXO: 0x005aff,
+  roleSonar: 0x00ff00,
+  roleEngineer: 0xb3b3b3
 };
 
 export const Font = {
-  family: "IBM Plex Mono, Roboto Mono, monospace",
+  family: "Orbitron",
   size: 22,
   lineHeight: 30,
   letterSpacing: 2,

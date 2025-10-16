@@ -11,9 +11,14 @@ Updated based on 2025-09-26 discussion.
 
 User opens the website, and clicks "start" (or maybe they just auto-connect to the server; TBD). They are given a random default name ("Player X" for now). They are able to see things like who joined what teams and who has what roles.
 
-They can select a role on either team (selecting team and role is a single action).
+On "start", the client is taken to the lobby (lobbyScene.js). They are assigned a 'friendly' player name if they don't already have one. They can change their player name at any time while in the lobby, which will push to the server and all other clients for refresh. Their name is displayed in the lobby and in-game as appropriate. 
 
-After selecting a team and a role, they can indicate that they are ready for the game to begin.
+They can select a role on either team (selecting team and role is a single action).
+While no role is selected, the client's nameplate appears in 'Unassigned' section of the lobby. Once a team and role is selected, the client's nameplate appears in the appropriate team/role section of the lobby.
+
+After selecting a team and a role, they can indicate that they are ready for the game to begin. The 'ready' toggle button appears only on a nameplate that has a team and role selected. The button toggles between "Ready" and "Not Ready" states. The button is disabled if the user has not selected a team and role.
+
+When a user indicates they are ready, their nameplate updates to show that they are ready. When a user indicates they are not ready, their nameplate updates to show that they are not ready.
 
 There are two scenarios to consider: either the game has already begun when the user goes to the server, or the game has not begun yet.
 * If the game has not begun yet: when all roles are selected and all players have indicated "ready", the countdown proceeds and then the game begins.

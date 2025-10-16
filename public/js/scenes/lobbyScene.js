@@ -98,6 +98,7 @@ export async function createLobbyScene(app, assets) {
         const displayRole = internalToDisplay[internalRole] || internalRole;
         if (playerId) {
           const player = allPlayers.find(p => p.id === playerId);
+          if (player) player.ready = state.ready.includes(playerId);
           sub.assignPlayerToRole(displayRole, player);
           assignedPlayerIds.add(playerId);
         } else {
@@ -110,6 +111,8 @@ export async function createLobbyScene(app, assets) {
     const unassignedPlayers = allPlayers
       .filter(p => !assignedPlayerIds.has(p.id))
       .sort((a, b) => (a.connectionOrder || 0) - (b.connectionOrder || 0));
+
+    unassignedPlayers.forEach(p => p.ready = state.ready.includes(p.id));
 
     // Fill the unassigned panel slots (1..8) with the players in connection order
     if (typeof unassigned.setPlayers === 'function') {
@@ -220,9 +223,8 @@ function createSubPanel(defaultName, outlineColor, assets, subId, app) {
     }
   };
   panel.vacatePlayer = (role) => {
-    const roleKey = role.toLowerCase().replace(' ', '');
     if (roleSlots[role]) {
-      roleSlots[role].vacate(roleKey);
+      roleSlots[role].vacate(role);
     }
   };
 
@@ -266,7 +268,7 @@ function createRoleSlot(role, outlineColor, subId, assets, app) {
   container.glowEffect = glowEffect;
 
   // Player nameplate
-  const plate = createPlayerNameplate(null, outlineColor, glowEffect, role, true);
+  const plate = createPlayerNameplate(null, outlineColor, glowEffect, role, true, assets, app);
   plate.x = 95;
   plate.y = 5;
   container.addChild(plate);
@@ -287,7 +289,7 @@ function createRoleSlot(role, outlineColor, subId, assets, app) {
   });
 
   container.assignPlayer = (player, role, subColor) => plate.assignPlayer(player, role.toLowerCase().replace(' ', ''), subColor);
-  container.vacate = (role) => plate.vacate(role.toLowerCase().replace(' ', ''));
+  container.vacate = (role) => plate.vacate(role);
 
   return container;
 }
@@ -295,7 +297,7 @@ function createRoleSlot(role, outlineColor, subId, assets, app) {
 /*------------------------------------------------------------
   PLAYER NAMEPLATE COMPONENT
 ------------------------------------------------------------*/
-function createPlayerNameplate(initialPlayer, textColor = Colors.text, glowEffect, role, isPlaceholder = false) {
+function createPlayerNameplate(initialPlayer, textColor = Colors.text, glowEffect, role, isPlaceholder = false, assets, app) {
   const container = new PIXI.Container();
   const width = 180;
   const height = 50;
@@ -307,7 +309,8 @@ function createPlayerNameplate(initialPlayer, textColor = Colors.text, glowEffec
     text: initialPlayer ? initialPlayer.name : (role ? `<<< ${role}` : ''),
     style: {
       fontFamily: Font.family,
-      fontSize: 14,
+      fontSize: 15,
+      fontWeight: 'normal',
       fill: textColor,
     },
   });
@@ -316,17 +319,23 @@ function createPlayerNameplate(initialPlayer, textColor = Colors.text, glowEffec
   container.addChild(nameText);
 
   // Ready toggle indicator
-  const toggle = new PIXI.Graphics().circle(width - 15, height / 2, 6);
-  toggle.fill({ color: 0xff0000 });
+  const toggle = new PIXI.Sprite(assets.thumb);
+  toggle.width = 25;
+  toggle.height = 25;
+  toggle.x = width - 25;
+  toggle.y = height / 2 - 5;
   container.addChild(toggle);
+
+  const thumbGlow = applyGlowEffect(toggle, app, 0x00ff00);
+  thumbGlow.off();
 
   // Vacate button
   const vacateBtn = new PIXI.Text({
     text: "✖",
-    style: { fontFamily: "Orbitron", fontSize: 14, fill: textColor },
+    style: { fontFamily: "Orbitron", fontSize: 16, fill: textColor },
   });
-  vacateBtn.x = width - 30;
-  vacateBtn.y = 14;
+  vacateBtn.x = width - 20;
+  vacateBtn.y = 3;
   vacateBtn.visible = false;
   container.addChild(vacateBtn);
 
@@ -345,12 +354,12 @@ function createPlayerNameplate(initialPlayer, textColor = Colors.text, glowEffec
     if (container.player && container.player.id === socketManager.playerId) {
       // Toggle only for self
       container.player.ready = !container.player.ready;
-      toggle.clear();
-      toggle.circle(width - 15, height / 2, 6);
-      toggle.fill({ color: container.player.ready ? 0x00ff00 : 0xff0000 });
+      toggle.tint = container.player.ready ? 0x00ff00 : (container.player.id === socketManager.playerId ? Colors.background : subColor);
       if (container.player.ready) {
+        thumbGlow.steadyOn();
         socketManager.ready();
       } else {
+        thumbGlow.off();
         socketManager.notReady();
       }
     }
@@ -364,8 +373,12 @@ function createPlayerNameplate(initialPlayer, textColor = Colors.text, glowEffec
     const isAssigned = !!roleKey;
     toggle.visible = isAssigned;
     if (isAssigned) {
-      toggle.clear().circle(width - 15, height / 2, 6);
-      toggle.fill({ color: player.ready ? 0x00ff00 : 0xff0000 });
+      toggle.tint = player.ready ? 0x00ff00 : (player.id === socketManager.playerId ? Colors.background : subColor);
+      if (player.ready) {
+        thumbGlow.steadyOn();
+      } else {
+        thumbGlow.off();
+      }
     }
 
     // Vacate button visible only for the local (client) player when assigned.
@@ -385,23 +398,25 @@ function createPlayerNameplate(initialPlayer, textColor = Colors.text, glowEffec
       // Own player: filled background using Colors.text and no outline
       bg.roundRect(0, 0, width, height, 10).fill({ color: roleColor, alpha: 0.6 });
       nameText.style.fill = Colors.background;
+      nameText.style.fontWeight = 'bold';
       // Ensure vacate button text matches this text color
       vacateBtn.style.fill = nameText.style.fill;
       if (glowEffect) glowEffect.steadyOn();
     } else { // Other players
-      // For non-local assigned players, draw an outline matching the roleColor
-      // so the outline updates to the role color when a role is selected.
+      // For non-local assigned players, draw an outline matching the subColor
       bg.clear();
-      bg.roundRect(0, 0, width, height, 10).stroke({ color: roleColor, width: 2 });
+      bg.roundRect(0, 0, width, height, 10).stroke({ color: subColor, width: 2 });
       nameText.style.fill = subColor;
+      nameText.style.fontWeight = 'normal';
       if (glowEffect) glowEffect.off();
     }
   };
 
-  container.vacate = () => {
+  container.vacate = (role) => {
     container.player = null;
     nameText.text = role ? `<<< ${role}` : '';
     nameText.style.fill = textColor;
+    nameText.style.fontWeight = 'normal';
     vacateBtn.visible = false;
     toggle.visible = false;
     // Reset background. If this is an unassigned placeholder, do not draw a border
@@ -452,7 +467,7 @@ function createUnassignedPanel(app, assets) {
 
   let offsetY = 0;
   panel.addPlayer = (player) => {
-    const plate = createPlayerNameplate(player, Colors.border, undefined, player.name, false);
+    const plate = createPlayerNameplate(player, Colors.border, undefined, player.name, false, assets, app);
     plate.y = offsetY;
     scrollContainer.addChild(plate);
     offsetY += 60;
@@ -471,7 +486,7 @@ function createUnassignedPanel(app, assets) {
   const slots = new Array(maxSlots).fill(null);
   for (let i = 0; i < maxSlots; i++) {
     // create an empty placeholder (no role label)
-    const placeholder = createPlayerNameplate(null, Colors.border, undefined, null, true);
+    const placeholder = createPlayerNameplate(null, Colors.border, undefined, null, true, assets, app);
     placeholder.y = i * slotHeight;
     scrollContainer.addChild(placeholder);
     slots[i] = placeholder;

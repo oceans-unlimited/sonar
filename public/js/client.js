@@ -32,6 +32,7 @@ import { AudioManager } from './core/audioManager.js';
       role_engineer: await Assets.load('assets/ui/role_engineer.svg'),
       role_firstofficer: await Assets.load('assets/ui/role_firstofficer.svg'),
       role_sonar: await Assets.load('assets/ui/role_sonar.svg'),
+      thumb: await Assets.load('assets/ui/thumb.svg'),
   };
 
   await SceneManager.init(app, assets, socketManager, audioManager);

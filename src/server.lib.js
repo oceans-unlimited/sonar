@@ -110,6 +110,9 @@ export function createAndRunServer(serverState) {
         );
         // go to new role
         serverState.submarines[subIndex][internalRole] = socket.id;
+
+        // un-ready the player
+        serverState.ready = serverState.ready.filter(id => id !== socket.id);
       }
       serverState.version++;
       log('Broadcasting state update after role selection');
@@ -125,6 +128,8 @@ export function createAndRunServer(serverState) {
           if (submarine[role] === socket.id) submarine[role] = null;
         })
       );
+
+      serverState.ready = serverState.ready.filter(id => id !== socket.id);
 
       serverState.version++;
       log('Broadcasting state update after leaving role');

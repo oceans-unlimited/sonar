@@ -33,6 +33,16 @@ import { AudioManager } from './core/audioManager.js';
       role_firstofficer: await Assets.load('assets/ui/role_firstofficer.svg'),
       role_sonar: await Assets.load('assets/ui/role_sonar.svg'),
       thumb: await Assets.load('assets/ui/thumb.svg'),
+      // Engine assets
+      label: await Assets.load('assets/ui/directionLabel.svg'),
+      border: await Assets.load('assets/ui/directionBorder.svg'),
+      corners: await Assets.load('assets/ui/directionCorners.svg'),
+      toggle: await Assets.load('assets/ui/toggle.svg'),
+      circuitColor: await Assets.load('assets/ui/circuitColor.svg'),
+      stealth: await Assets.load('assets/ui/stealth.svg'),
+      detection: await Assets.load('assets/ui/detection.svg'),
+      weapons: await Assets.load('assets/ui/weapons.svg'),
+      reactor: await Assets.load('assets/ui/reactor.svg'),
   };
 
   await SceneManager.init(app, assets, socketManager, audioManager);
@@ -51,5 +61,8 @@ import { AudioManager } from './core/audioManager.js';
   });
   document.getElementById('sceneLobbyBtn').addEventListener('click', () => {
     SceneManager.changeScene('lobby');
+  });
+  document.getElementById('sceneEngineBtn').addEventListener('click', () => {
+    SceneManager.changeScene('engine');
   });
 })();

@@ -9,6 +9,8 @@ import { createConnScene } from '../scenes/connScene.js';
 import { createTitleScene } from '../titleScene.js';
 import { createDebugRotationScene } from '../scenes/debugRotationScene.js';
 import { createBootScene } from '../scenes/bootScene.js';
+import { createEngineScene } from '../scenes/engineScene.js';
+import { mockLayout } from '../mockEngineLayout.js';
 
 const scenes = {
     boot: createBootScene,
@@ -16,6 +18,7 @@ const scenes = {
     menu: createMenuScene,
     conn: createConnScene,
     lobby: createLobbyScene,
+    engine: createEngineScene,
     debugRotation: createDebugRotationScene,
 };
 
@@ -106,7 +109,11 @@ export const SceneManager = {
 
         if (scenes[sceneName]) {
             this.currentSceneName = sceneName;
-            const newScene = await scenes[sceneName](app, assets, audioManager);
+            let state = socketManager.lastState;
+            if (sceneName === 'engine') {
+                state = { submarines: [{ engineLayout: mockLayout }] };
+            }
+            const newScene = await scenes[sceneName](app, assets, audioManager, state);
             if (newScene instanceof PIXI.Container) {
                 currentScene = newScene;
                 app.stage.addChild(currentScene);

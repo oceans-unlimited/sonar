@@ -22,6 +22,14 @@ export const Font = {
   uppercase: true,
 };
 
+export const headerFont = {
+  family: "Goldman",
+  size: 30,
+  lineHeight: 30,
+  letterSpacing: 2,
+  uppercase: true,  
+}
+
 export const Layout = {
   margin: 24,
   panelPadding: 12,

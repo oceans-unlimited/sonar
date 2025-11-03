@@ -2,6 +2,7 @@
 
 import * as PIXI from "pixi.js";
 import { GlowFilter } from 'pixi-filters';
+import { Colors } from './uiStyle.js';
 
 export function createNoiseOverlay(texture, app, width, height) {
   const sprite = new PIXI.TilingSprite({texture, width, height});
@@ -76,5 +77,119 @@ export function applyGlowEffect(target, app, color) {
         steadyOn,
         off,
         glowFilter: glow
+    };
+}
+
+export function createButtonStateManager(button, app) {
+  const glow = applyGlowEffect(button, app, Colors.text);
+  glow.off();
+
+  const redX = new PIXI.Text({text:'X', style:{
+    fontFamily: 'Arial',
+    fontSize: Math.min(button.width, button.height) * 0.8, // Scale X to button size
+    fill: Colors.subB, // Red color
+    align: 'center',
+  }});
+  redX.anchor.set(0.5);
+  redX.position.set(button.width / 2, button.height / 2);
+  redX.visible = false;
+  button.addChild(redX);
+
+  let isPushed = false;
+
+  const setActive = () => {
+    isPushed = false;
+    button.alpha = 1;
+    glow.steadyOn(2); // Slight glow
+    redX.visible = false;
+    button.eventMode = 'static';
+    button.cursor = 'pointer';
+  };
+
+  const setDisabled = () => {
+    isPushed = false;
+    button.alpha = 0.5;
+    glow.off();
+    redX.visible = false;
+    button.eventMode = 'none';
+    button.cursor = 'default';
+  };
+
+  const setPushed = () => {
+    isPushed = true;
+    button.alpha = 0.3;
+    glow.off();
+    redX.visible = true;
+    button.eventMode = 'none';
+    button.cursor = 'default';
+  };
+
+  // Initial state
+  setActive();
+
+  return {
+    setActive,
+    setDisabled,
+    setPushed,
+    isPushed: () => isPushed,
+  };
+}
+
+export function applyColorBlink(targets, app, foregroundColor, backgroundColor, flickerCount = 2, flickOn = true) {
+    if (!Array.isArray(targets)) {
+        targets = [targets];
+    }
+
+    let currentTicker = null;
+
+    const blink = () => {
+        if (currentTicker) {
+            app.ticker.remove(currentTicker);
+        }
+
+        let count = 0;
+        const maxCount = flickerCount;
+        const interval = 6; // run every 4 frames for example
+        let frameCounter = 0;
+
+        // Start with the background color
+        targets.forEach(target => { target.tint = backgroundColor; });
+
+        currentTicker = () => {
+            frameCounter++;
+            if (frameCounter % interval === 0) {
+                count++;
+                if (count > maxCount) {
+                    targets.forEach(target => { target.tint = flickOn ? foregroundColor : backgroundColor; });
+                    app.ticker.remove(currentTicker);
+                    currentTicker = null;
+                    return;
+                }
+
+                if (targets[0].tint === foregroundColor) {
+                    targets.forEach(target => { target.tint = backgroundColor; });
+                } else {
+                    targets.forEach(target => { target.tint = foregroundColor; });
+                }
+            }
+        };
+
+        app.ticker.add(currentTicker);
+    };
+
+    const destroy = () => {
+        if (currentTicker) {
+            app.ticker.remove(currentTicker);
+            currentTicker = null;
+        }
+    };
+
+    targets.forEach(target => {
+        target.on('destroyed', destroy);
+    });
+
+    return {
+        blink,
+        destroy,
     };
 }

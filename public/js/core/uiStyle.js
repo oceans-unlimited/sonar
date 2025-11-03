@@ -11,7 +11,10 @@ export const Colors = {
   roleCaptain: 0xffcc00,
   roleXO: 0x005aff,
   roleSonar: 0x00ff00,
-  roleEngineer: 0xb3b3b3
+  roleEngineer: 0xb3b3b3,
+  caution: 0xffa500,
+  danger: 0xff0000,
+  active: 0xffffff
 };
 
 export const Font = {

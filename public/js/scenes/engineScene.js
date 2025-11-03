@@ -4,7 +4,11 @@ import {
   createNoiseOverlay,
   createScanlinesOverlay,
   applyFlickerEffect,
+  createButtonStateManager,
+  applyColorBlink,
+  applyGlowEffect,
 } from "../core/uiEffects.js";
+import { socketManager } from '../core/socketManager.js';
 
 function createEngineScene(app, assets, audioManager, state) {
     const scene = new PIXI.Container();
@@ -17,7 +21,10 @@ function createEngineScene(app, assets, audioManager, state) {
     engineInterface.container.addChild(noise, scanlines);
 
     const flickerCallback = applyFlickerEffect(app, [engineInterface.container]);
-    scene.on('destroyed', () => app.ticker.remove(flickerCallback));
+    scene.on('destroyed', () => {
+        app.ticker.remove(flickerCallback);
+        engineInterface.destroy();
+    });
 
     // Handle resizing
     const positionPanel = () => {
@@ -45,6 +52,8 @@ class EngineInterface {
         this.directionTemplates = [];
         this.circuits = [];
         this.buttons = [];
+        this.buttonStateManagers = new Map();
+        this.handleKeyDown = this.handleKeyDown.bind(this);
         
         this.init();
     }
@@ -55,6 +64,87 @@ class EngineInterface {
         this.populateSystems();
         this.setupCircuits();
         this.setupInteractions();
+        this.setupSocketListeners();
+        window.addEventListener('keydown', this.handleKeyDown);
+    }
+
+    destroy() {
+        window.removeEventListener('keydown', this.handleKeyDown);
+        socketManager.off('directionChange', this.handleDirectionChange.bind(this));
+    }
+
+    handleKeyDown(e) {
+        let direction = null;
+        if (e.key === 'ArrowUp') {
+            direction = 'N';
+        } else if (e.key === 'ArrowDown') {
+            direction = 'S';
+        } else if (e.key === 'ArrowLeft') {
+            direction = 'W';
+        } else if (e.key === 'ArrowRight') {
+            direction = 'E';
+        } else if (e.key === 'r' || e.key === 'R') {
+            this.resetAllButtons();
+        } else if (e.key === '1') {
+            this.directionTemplates[0].blinker.blink();
+        } else if (e.key === '2') {
+            this.directionTemplates[1].blinker.blink();
+        } else if (e.key === '3') {
+            this.directionTemplates[2].blinker.blink();
+        } else if (e.key === '4') {
+            this.directionTemplates[3].blinker.blink();
+        }
+
+        if (direction) {
+            this.handleDirectionChange(direction);
+        }
+    }
+
+    setupSocketListeners() {
+        socketManager.on('directionChange', this.handleDirectionChange.bind(this));
+    }
+
+    handleDirectionChange(direction) {
+        console.log(`Received direction: ${direction}`);
+
+        this.directionTemplates.forEach(template => {
+            const isCurrentDirection = template.direction === direction;
+
+            const elementsToReset = [
+                template.labelSprite,
+                template.border.cornersSprite,
+                template.border.borderSprite,
+            ];
+
+            if (isCurrentDirection) {
+                template.blinker.blink();
+                template.borderGlow.steadyOn();
+                template.border.borderSprite.tint = Colors.text;
+                elementsToReset.forEach(el => {
+                    el.alpha = 1;
+                });
+            } else {
+                template.borderGlow.off();
+                elementsToReset.forEach(el => {
+                    el.tint = Colors.dim;
+                    el.alpha = 0.5;
+                });
+            }
+
+            template.slots.forEach(slot => {
+                const button = slot.toggle;
+                if (button) {
+                    const stateManager = this.buttonStateManagers.get(button);
+                    if (stateManager && !stateManager.isPushed()) {
+                        if (isCurrentDirection) {
+                            stateManager.setActive();
+                        } else {
+                            stateManager.setDisabled();
+                        }
+                    }
+                }
+            });
+        });
     }
 
     createDirectionTemplates() {
@@ -80,8 +170,7 @@ class EngineInterface {
         container.direction = direction;
         container.index = index;
 
-        // --- Demo tinting ---
-        const tintColor = index < 2 ? 0xff0000 : 0xffa500; // Red and Orange for demo
+        const tintColor = Colors.text;
         
         // Position templates horizontally
         const gap = 25;
@@ -90,6 +179,7 @@ class EngineInterface {
 
         // Create border frame
         const border = this.createBorder(tintColor);
+        container.border = border;
         container.addChild(border);
 
         // Create system slots
@@ -101,14 +191,30 @@ class EngineInterface {
         labelSprite.x = 0;
         labelSprite.y = 0;
         labelSprite.tint = tintColor;
+        container.labelSprite = labelSprite;
         container.addChild(labelSprite);
 
         // Create direction label text
         const label = this.createDirectionLabel(direction);
+        container.directionLabel = label;
         container.addChild(label);
 
         // Store reference to slots for circuit connections
         container.slots = slots.children;
+
+        const blinker = applyColorBlink(
+            [labelSprite, border.cornersSprite],
+            this.app,
+            Colors.text, // foreground
+            Colors.active,  // background (active color)
+            2,
+            false
+        );
+        container.blinker = blinker;
+
+        const borderGlow = applyGlowEffect(border.borderSprite, this.app, Colors.text);
+        borderGlow.off();
+        container.borderGlow = borderGlow;
 
         return container;
     }
@@ -120,6 +226,7 @@ class EngineInterface {
         const cornersSprite = PIXI.Sprite.from(this.assets.corners);
         cornersSprite.tint = tintColor;
         borderContainer.addChild(cornersSprite);
+        borderContainer.cornersSprite = cornersSprite;
 
         // Main border (white fill from SVG)
         const borderSprite = PIXI.Sprite.from(this.assets.border);
@@ -128,6 +235,8 @@ class EngineInterface {
         borderSprite.y = cornersSprite.height / 2;
         borderSprite.tint = tintColor;
         borderContainer.addChild(borderSprite);
+        borderContainer.borderSprite = borderSprite;
+
         return borderContainer;
     }
 
@@ -234,12 +343,23 @@ class EngineInterface {
             const directionLayout = this.engineLayout.directions[direction];
 
             template.slots.forEach(slot => {
-                const system = directionLayout.frameSlots[slot.label] || directionLayout.reactorSlots[slot.label];
-                if (system) {
+                const systemData = directionLayout.frameSlots[slot.label] || directionLayout.reactorSlots[slot.label];
+                if (systemData) {
+                    const system = systemData.system;
                     const button = this.createSystemButton(system);
+                    button.direction = direction;
+                    button.slotId = slot.label;
+                    button.type = slot.type;
+                    button.system = system;
+                    const stateManager = createButtonStateManager(button, this.app);
+                    this.buttonStateManagers.set(button, stateManager);
                     slot.removeChild(slot.toggle); // Remove the placeholder
                     slot.addChild(button);
                     slot.toggle = button;
+
+                    if (systemData.pushed) {
+                        stateManager.setPushed();
+                    }
                 }
             });
         });
@@ -268,8 +388,70 @@ class EngineInterface {
     }
 
     setupInteractions() {
-        // This will be implemented in next phase
-        console.log('Interaction setup ready for implementation');
+        this.buttonStateManagers.forEach((stateManager, button) => {
+            button.on('pointerdown', () => {
+                if (!stateManager.isPushed()) {
+                    stateManager.setPushed();
+                    this.checkCircuitCompletion(button);
+                    socketManager.pushButton({
+                        direction: button.direction,
+                        slotId: button.slotId,
+                        system: button.system,
+                    });
+                }
+            });
+        });
+    }
+
+    checkCircuitCompletion(pushedButton) {
+        if (pushedButton.type === 'reactor') {
+            return;
+        }
+
+        const direction = pushedButton.direction;
+        const slotId = pushedButton.slotId;
+
+        const circuit = this.engineLayout.circuits.find(c =>
+            c.connections.some(conn => conn.direction === direction && conn.slotId === slotId)
+        );
+
+        if (!circuit) {
+            return;
+        }
+
+        const circuitButtons = [];
+        let allPushed = true;
+
+        circuit.connections.forEach(conn => {
+            const template = this.directionTemplates.find(t => t.direction === conn.direction);
+            if (template) {
+                const slot = template.slots.find(s => s.label === conn.slotId);
+                if (slot && slot.toggle) {
+                    const button = slot.toggle;
+                    circuitButtons.push(button);
+                    const stateManager = this.buttonStateManagers.get(button);
+                    if (!stateManager || !stateManager.isPushed()) {
+                        allPushed = false;
+                    }
+                }
+            }
+        });
+
+        if (allPushed && circuitButtons.length === circuit.connections.length) {
+            console.log(`Circuit completed: ${circuit.color}`);
+            circuitButtons.forEach(button => {
+                const stateManager = this.buttonStateManagers.get(button);
+                if (stateManager) {
+                    stateManager.setActive();
+                }
+            });
+        }
+    }
+
+    resetAllButtons() {
+        this.buttonStateManagers.forEach(stateManager => {
+            stateManager.setActive();
+        });
     }
 }
 

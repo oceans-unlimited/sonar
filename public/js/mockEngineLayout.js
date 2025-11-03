@@ -2,20 +2,52 @@ export const mockLayout = {
   sessionId: 'engine_1678886400000_abcdef123',
   directions: {
     N: {
-      frameSlots: { slot01: 'stealth', slot02: 'weapons', slot03: 'detection' },
-      reactorSlots: { reactor01: 'reactor', reactor02: 'stealth', reactor03: 'reactor' }
+      frameSlots: { 
+        slot01: { system: 'stealth', pushed: false },
+        slot02: { system: 'weapons', pushed: false },
+        slot03: { system: 'detection', pushed: false }
+      },
+      reactorSlots: { 
+        reactor01: { system: 'reactor', pushed: false },
+        reactor02: { system: 'stealth', pushed: false },
+        reactor03: { system: 'reactor', pushed: false }
+      }
     },
     E: {
-      frameSlots: { slot01: 'weapons', slot02: 'detection', slot03: 'stealth' },
-      reactorSlots: { reactor01: 'reactor', reactor02: 'weapons', reactor03: 'detection' }
+      frameSlots: { 
+        slot01: { system: 'weapons', pushed: false },
+        slot02: { system: 'detection', pushed: false },
+        slot03: { system: 'stealth', pushed: false }
+      },
+      reactorSlots: { 
+        reactor01: { system: 'reactor', pushed: false },
+        reactor02: { system: 'weapons', pushed: false },
+        reactor03: { system: 'detection', pushed: false }
+      }
     },
     W: {
-      frameSlots: { slot01: 'detection', slot02: 'stealth', slot03: 'weapons' },
-      reactorSlots: { reactor01: 'reactor', reactor02: 'detection', reactor03: 'stealth' }
+      frameSlots: { 
+        slot01: { system: 'detection', pushed: false },
+        slot02: { system: 'stealth', pushed: false },
+        slot03: { system: 'weapons', pushed: false }
+      },
+      reactorSlots: { 
+        reactor01: { system: 'reactor', pushed: false },
+        reactor02: { system: 'detection', pushed: false },
+        reactor03: { system: 'stealth', pushed: false }
+      }
     },
     S: {
-      frameSlots: { slot01: 'weapons', slot02: 'detection', slot03: 'stealth' },
-      reactorSlots: { reactor01: 'reactor', reactor02: 'reactor', reactor03: 'weapons' }
+      frameSlots: { 
+        slot01: { system: 'weapons', pushed: false },
+        slot02: { system: 'detection', pushed: false },
+        slot03: { system: 'stealth', pushed: false }
+      },
+      reactorSlots: { 
+        reactor01: { system: 'reactor', pushed: false },
+        reactor02: { system: 'reactor', pushed: false },
+        reactor03: { system: 'weapons', pushed: false }
+      }
     }
   },
   circuits: [

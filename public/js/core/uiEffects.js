@@ -2,17 +2,19 @@
 
 import * as PIXI from "pixi.js";
 import { GlowFilter } from 'pixi-filters';
-import { Colors } from './uiStyle.js';
+import { Colors, SystemColors } from './uiStyle.js';
 
 export function createNoiseOverlay(texture, app, width, height) {
   const sprite = new PIXI.TilingSprite({texture, width, height});
   sprite.alpha = 0.05;
+  sprite.eventMode = 'none';
   return sprite;
 }
 
 export function createScanlinesOverlay(texture, app, width, height) {
   const sprite = new PIXI.TilingSprite({texture, width, height});
   sprite.alpha = 0.03;
+  sprite.eventMode = 'none';
   return sprite;
 }
 
@@ -28,7 +30,29 @@ export function applyFlickerEffect(app, targets, amplitude = 0.02, frequency = 1
   return flickerCallback;
 }
 
-export function applyGlowEffect(target, app, color) {
+export function applyGlowEffect(target, app, colorOrName) {
+    // Resolve colorOrName which can be:
+    // - numeric 0xRRGGBB
+    // - a system name like 'stealth'|'weapons'|'detection'|'reactor'
+    // - a Colors key like 'text' or 'roleCaptain'
+    // - a hex string like '#ff0000'
+    let color = null;
+    if (typeof colorOrName === 'number') {
+        color = colorOrName;
+    } else if (typeof colorOrName === 'string') {
+        const key = colorOrName.toLowerCase();
+        if (SystemColors[key] !== undefined) color = SystemColors[key];
+        else if (Colors[key] !== undefined) color = Colors[key];
+        else if (/^#?[0-9a-f]{6}$/i.test(colorOrName)) {
+            const hex = colorOrName.startsWith('#') ? colorOrName.slice(1) : colorOrName;
+            color = parseInt(hex, 16);
+        } else {
+            color = Colors.text; // fallback
+        }
+    } else {
+        color = Colors.text; // fallback default
+    }
+
     const glow = new GlowFilter({
         distance: 10,
         outerStrength: 0,
@@ -80,28 +104,43 @@ export function applyGlowEffect(target, app, color) {
     };
 }
 
-export function createButtonStateManager(button, app) {
-  const glow = applyGlowEffect(button, app, Colors.text);
+export function createButtonStateManager(button, app, disabledTexture) {
+    // Resolve glow color: prefer a system name on the button (e.g. button.system)
+    // falling back to Colors.text.
+    let glowColor = Colors.text;
+    try {
+        const sys = (button && (button.system || button.systemName));
+        if (sys) {
+            const key = String(sys).toLowerCase();
+            if (SystemColors[key] !== undefined) glowColor = SystemColors[key];
+            else if (Colors[key] !== undefined) glowColor = Colors[key];
+        }
+    } catch (e) {
+        // ignore and keep default
+    }
+
+    const glow = applyGlowEffect(button, app, glowColor);
   glow.off();
 
-  const redX = new PIXI.Text({text:'X', style:{
-    fontFamily: 'Arial',
-    fontSize: Math.min(button.width, button.height) * 0.8, // Scale X to button size
-    fill: Colors.subB, // Red color
-    align: 'center',
-  }});
-  redX.anchor.set(0.5);
-  redX.position.set(button.width / 2, button.height / 2);
-  redX.visible = false;
-  button.addChild(redX);
+  const disabledOverlay = new PIXI.Sprite(disabledTexture);
+  disabledOverlay.anchor.set(0.5);
+    // Position overlay at the button's local center. Buttons are created with
+    // anchor.set(0.5) so (0,0) is the visual center — use that instead of
+    // width/2,height/2 which incorrectly offsets when anchor is centered.
+    disabledOverlay.position.set(0, 0);
+    // Match overlay size to the button so it fully covers it when shown.
+    disabledOverlay.visible = false;
+    disabledOverlay.eventMode = 'none'; // Ensure clicks pass through
+    button.addChild(disabledOverlay);
+    button.disabledOverlay = disabledOverlay;
 
   let isPushed = false;
 
   const setActive = () => {
     isPushed = false;
     button.alpha = 1;
-    glow.steadyOn(2); // Slight glow
-    redX.visible = false;
+    glow.steadyOn(1); // Slight glow
+    disabledOverlay.visible = false;
     button.eventMode = 'static';
     button.cursor = 'pointer';
   };
@@ -110,7 +149,7 @@ export function createButtonStateManager(button, app) {
     isPushed = false;
     button.alpha = 0.5;
     glow.off();
-    redX.visible = false;
+    disabledOverlay.visible = false;
     button.eventMode = 'none';
     button.cursor = 'default';
   };
@@ -119,7 +158,7 @@ export function createButtonStateManager(button, app) {
     isPushed = true;
     button.alpha = 0.3;
     glow.off();
-    redX.visible = true;
+    disabledOverlay.visible = true;
     button.eventMode = 'none';
     button.cursor = 'default';
   };

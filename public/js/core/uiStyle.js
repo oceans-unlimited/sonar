@@ -39,3 +39,12 @@ export const Layout = {
   menuWidth: 360,
   menuHeight: 450,
 };
+
+// Mapping of system asset names (used in engine UI) to a canonical color value.
+// Use these when you want to refer to a system by name instead of passing raw hex.
+export const SystemColors = {
+  stealth: 0xffcc00,   // yellow
+  detection: 0x00ff00, // green
+  weapons: 0xe74c3c,   // red
+  reactor: 0xb3b3b3,   // grey
+};

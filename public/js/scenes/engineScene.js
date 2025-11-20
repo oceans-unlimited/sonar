@@ -4,9 +4,9 @@ import {
   createNoiseOverlay,
   createScanlinesOverlay,
   applyFlickerEffect,
-  createButtonStateManager,
   applyColorBlink,
   applyGlowEffect,
+  createButtonStateManager,
 } from "../core/uiEffects.js";
 import { socketManager } from '../core/socketManager.js';
 
@@ -41,6 +41,7 @@ class EngineInterface {
     constructor(app, assets, engineLayout) {
         this.app = app;
         this.assets = assets; // Use pre-loaded assets
+        this.assets.disabled = assets.disabled;
         this.engineLayout = engineLayout;
         console.log('Engine layout received:', this.engineLayout);
         this.container = new PIXI.Container();
@@ -186,13 +187,14 @@ class EngineInterface {
         const slots = this.createSystemSlots(templateWidth, tintColor);
         container.addChild(slots);
 
-        // Add the label background sprite
-        const labelSprite = PIXI.Sprite.from(this.assets.label);
-        labelSprite.x = 0;
-        labelSprite.y = 0;
-        labelSprite.tint = tintColor;
-        container.labelSprite = labelSprite;
-        container.addChild(labelSprite);
+    // Add the label background sprite (non-interactive so it doesn't block clicks)
+    const labelSprite = PIXI.Sprite.from(this.assets.label);
+    labelSprite.x = 0;
+    labelSprite.y = 0;
+    labelSprite.tint = tintColor;
+    labelSprite.eventMode = 'none';
+    container.labelSprite = labelSprite;
+    container.addChild(labelSprite);
 
         // Create direction label text
         const label = this.createDirectionLabel(direction);
@@ -222,11 +224,12 @@ class EngineInterface {
     createBorder(tintColor) {
         const borderContainer = new PIXI.Container();
 
-        // Add corners
-        const cornersSprite = PIXI.Sprite.from(this.assets.corners);
-        cornersSprite.tint = tintColor;
-        borderContainer.addChild(cornersSprite);
-        borderContainer.cornersSprite = cornersSprite;
+    // Add corners (non-interactive)
+    const cornersSprite = PIXI.Sprite.from(this.assets.corners);
+    cornersSprite.tint = tintColor;
+    cornersSprite.eventMode = 'none';
+    borderContainer.addChild(cornersSprite);
+    borderContainer.cornersSprite = cornersSprite;
 
         // Main border (white fill from SVG)
         const borderSprite = PIXI.Sprite.from(this.assets.border);
@@ -234,8 +237,9 @@ class EngineInterface {
         borderSprite.x = cornersSprite.width / 2;
         borderSprite.y = cornersSprite.height / 2;
         borderSprite.tint = tintColor;
-        borderContainer.addChild(borderSprite);
-        borderContainer.borderSprite = borderSprite;
+    borderSprite.eventMode = 'none';
+    borderContainer.addChild(borderSprite);
+    borderContainer.borderSprite = borderSprite;
 
         return borderContainer;
     }
@@ -277,14 +281,18 @@ class EngineInterface {
         slot.x = x;
         slot.y = y;
         slot.label = id;
-        slot.type = 'frame';
-        slot.eventMode = 'static';
+    slot.type = 'frame';
+    // Slot container itself shouldn't intercept pointer events; buttons inside
+    // will handle interactivity. Use 'passive' so underlying button receives hits.
+    slot.eventMode = 'passive';
         slot.cursor = 'pointer';
 
         // Base slot background (white circle from SVG)
         const baseSprite = PIXI.Sprite.from(this.assets.circuitColor);
         baseSprite.anchor.set(0.5);
         baseSprite.tint = tintColor;
+    // Visual background should not intercept pointer events
+    baseSprite.eventMode = 'none';
         slot.addChild(baseSprite);
 
         // Circuit color overlay (initially hidden)
@@ -292,14 +300,16 @@ class EngineInterface {
         circuitOverlay.anchor.set(0.5);
         circuitOverlay.visible = false;
         circuitOverlay.tint = 0xFFFFFF; // Will be set by circuit color
-        slot.addChild(circuitOverlay);
+    // Overlay should not intercept pointer events; it will sit above the button
+    circuitOverlay.eventMode = 'none';
+    slot.addChild(circuitOverlay);
         slot.circuitOverlay = circuitOverlay;
 
         // Toggle button (will be replaced with system-specific button)
-        const toggleSprite = PIXI.Sprite.from(this.assets.toggle);
-        toggleSprite.anchor.set(0.5);
-        slot.addChild(toggleSprite);
-        slot.toggle = toggleSprite;
+        // const toggleSprite = PIXI.Sprite.from(this.assets.toggle);
+        // toggleSprite.anchor.set(0.5);
+        // slot.addChild(toggleSprite);
+        // slot.toggle = toggleSprite;
 
         return slot;
     }
@@ -313,10 +323,10 @@ class EngineInterface {
         
         // Reactor slots are just position markers, no visual background
         // System buttons will be placed here but won't get circuit coloring
-        const toggleSprite = PIXI.Sprite.from(this.assets.toggle);
-        toggleSprite.anchor.set(0.5);
-        slot.addChild(toggleSprite);
-        slot.toggle = toggleSprite;
+        // const toggleSprite = PIXI.Sprite.from(this.assets.toggle);
+        // toggleSprite.anchor.set(0.5);
+        // slot.addChild(toggleSprite);
+        // slot.toggle = toggleSprite;
         
         return slot;
     }
@@ -351,11 +361,14 @@ class EngineInterface {
                     button.slotId = slot.label;
                     button.type = slot.type;
                     button.system = system;
-                    const stateManager = createButtonStateManager(button, this.app);
+
+                    const stateManager = createButtonStateManager(button, this.app, this.assets.disabled);
                     this.buttonStateManagers.set(button, stateManager);
-                    slot.removeChild(slot.toggle); // Remove the placeholder
+
+                    // Always add the button on top so it receives pointer events
                     slot.addChild(button);
-                    slot.toggle = button;
+
+                    slot.toggle = button; // Keep reference to the actual button
 
                     if (systemData.pushed) {
                         stateManager.setPushed();
@@ -368,6 +381,8 @@ class EngineInterface {
     createSystemButton(system) {
         const button = new PIXI.Sprite(this.assets[system]);
         button.anchor.set(0.5);
+        // ensure the button is initially interactive; manager will toggle eventMode
+        button.eventMode = 'static';
         return button;
     }
 
@@ -391,6 +406,7 @@ class EngineInterface {
         this.buttonStateManagers.forEach((stateManager, button) => {
             button.on('pointerdown', () => {
                 if (!stateManager.isPushed()) {
+                    console.log(`Button clicked: ${button.direction}, ${button.slotId}, ${button.system}`);
                     stateManager.setPushed();
                     this.checkCircuitCompletion(button);
                     socketManager.pushButton({
@@ -449,7 +465,7 @@ class EngineInterface {
     }
 
     resetAllButtons() {
-        this.buttonStateManagers.forEach(stateManager => {
+        this.buttonStateManagers.forEach((stateManager) => {
             stateManager.setActive();
         });
     }

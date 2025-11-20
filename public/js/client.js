@@ -43,6 +43,7 @@ import { AudioManager } from './core/audioManager.js';
       detection: await Assets.load('assets/ui/detection.svg'),
       weapons: await Assets.load('assets/ui/weapons.svg'),
       reactor: await Assets.load('assets/ui/reactor.svg'),
+      disabled: await Assets.load('assets/ui/disabled.svg'),
   };
 
   await SceneManager.init(app, assets, socketManager, audioManager);

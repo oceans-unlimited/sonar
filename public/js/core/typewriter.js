@@ -9,53 +9,77 @@ export class TypewriterText {
     this.fullText = text;
     this.audio = audioManager;
     this.speed = options.speed || 40; // ms per character
-    this.pitchRange = options.pitchRange || [0.9, 1.2];
-    this.cursorBlink = options.cursorBlink ?? true;
+    this.lineBreakPause = options.lineBreakPause || 1000; // ms to pause on line break
 
     this.index = 0;
     this.timer = 0;
     this.isDone = false;
+    this.isPlaying = false;
 
-    this.cursor = new PIXI.Text({text: '_', style});
-    this.cursor.alpha = 1;
-    this.cursor.visible = this.cursorBlink;
-    this.container.addChild(this.cursor);
+    this.isPaused = false;
+    this.pauseTimer = 0;
+  }
+
+  start() {
+      if(this.isPlaying) return;
+      this.isPlaying = true;
+      this.audio.playSound('teletype', { loop: true });
+  }
+
+  pause(duration) {
+      if(!this.isPlaying) return;
+      this.isPaused = true;
+      this.pauseTimer = duration;
+      this.audio.stopSound('teletype');
   }
 
   update(deltaMS) {
-    if (this.isDone) return;
+    if (this.isDone || !this.isPlaying) return;
+
+    if (this.isPaused) {
+        this.pauseTimer -= deltaMS;
+        if (this.pauseTimer <= 0) {
+            this.isPaused = false;
+            if (!this.isDone) {
+                this.audio.playSound('teletype', { loop: true });
+            }
+        }
+        return;
+    }
 
     this.timer += deltaMS;
     if (this.timer >= this.speed) {
       this.timer = 0;
       if (this.index < this.fullText.length) {
+        const char = this.fullText[this.index];
+        
+        if (char === '\n') {
+            this.pause(this.lineBreakPause);
+        }
+        
         this.index++;
         this.textObj.text = this.fullText.substring(0, this.index);
 
-        // Randomized beep pitch
-        const pitch = this.pitchRange[0] + Math.random() * (this.pitchRange[1] - this.pitchRange[0]);
-        this.audio.playBeep(pitch);
       } else {
         this.isDone = true;
-        if (this.cursorBlink) this.cursorBlinkStart();
+        this.isPlaying = false;
+        this.audio.stopSound('teletype');
       }
     }
-
-    // Keep cursor positioned after text
-    const bounds = this.textObj.getBounds();
-    this.cursor.x = bounds.x + bounds.width + 4;
-    this.cursor.y = bounds.y;
   }
 
-  cursorBlinkStart() {
-    if (!this.cursorBlink) return;
-    this.blinkTicker = setInterval(() => {
-      this.cursor.visible = !this.cursor.visible;
-    }, 400);
+  clear() {
+      this.textObj.text = '';
+      this.index = 0;
+      this.isDone = false;
+      this.isPlaying = false;
+      this.isPaused = false;
+      this.pauseTimer = 0;
+      this.audio.stopSound('teletype');
   }
 
   destroy() {
-    clearInterval(this.blinkTicker);
+    this.audio.stopSound('teletype');
     this.container.destroy({ children: true });
   }
 }

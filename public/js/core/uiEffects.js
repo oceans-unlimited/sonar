@@ -98,7 +98,7 @@ export function applyGlowEffect(target, app, colorOrName) {
         let time = 0;
         pulseTicker = () => {
             time += 0.05;
-            glow.outerStrength = 2 + Math.sin(time) * 1.5;
+            glow.outerStrength = 1 + Math.sin(time) * 1.5;
         };
         app.ticker.add(pulseTicker);
     };
@@ -191,6 +191,15 @@ export function createButtonStateManager(button, app, disabledTexture) {
     button.cursor = 'default';
   };
 
+  const setNeutral = () => {
+    isPushed = false;
+    button.alpha = 1.0;
+    glow.off();
+    disabledOverlay.visible = false;
+    button.eventMode = 'none';
+    button.cursor = 'default';
+  };
+
   // Initial state
   setDisabled();
 
@@ -198,6 +207,7 @@ export function createButtonStateManager(button, app, disabledTexture) {
     setActive,
     setDisabled,
     setPushed,
+    setNeutral,
     isPushed: () => isPushed,
   };
 }

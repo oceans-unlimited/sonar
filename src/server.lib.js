@@ -10,17 +10,17 @@ export function initializeServerState() {
   return {
     version: 0,
     currentState: "lobby",
-    // persistent counter for assigning Player-01, Player-02 names
-    playerNameCounter: 1,
     players: [],
     adminId: null,
-    submarines: [createSubmarine(), createSubmarine()],
+    submarines: [createSubmarine('A'), createSubmarine('B')],
     ready: [],
   };
 }
 
-function createSubmarine() {
+function createSubmarine(id) {
   return {
+    id: id,
+    name: `Sub ${id}`,
     co: null,
     xo: null,
     sonar: null,
@@ -28,7 +28,8 @@ function createSubmarine() {
   }
 }
 
-export function createAndRunServer(serverState) {
+export function createAndRunServer(serverState, port) {
+  let usedPlayerNumbers = {};
   const app = express();
   // Serve a simple static index.html for testing
   app.use(express.static("public"));
@@ -40,6 +41,7 @@ export function createAndRunServer(serverState) {
     
     socket.on("disconnect", () => {
       log(`Player disconnected: ${socket.id}`);
+      delete usedPlayerNumbers[socket.id];
       // Remove player record
       serverState.players = serverState.players.filter(p => p.id !== socket.id);
       // Remove from ready list
@@ -70,38 +72,15 @@ export function createAndRunServer(serverState) {
       ioServer.emit("state", serverState);
     });
 
-    // Map client-facing role names to internal submarine keys
-    const roleAlias = (r) => {
-      if (!r) return r;
-      const key = String(r).toLowerCase();
-      if (key === 'captain' || key === 'co') return 'co';
-      if (key === '1stofficer' || key === 'xo' || key === 'firstofficer') return 'xo';
-      if (key.includes('sonar')) return 'sonar';
-      if (key === 'engineer' || key === 'eng' || key === 'radio') return 'eng';
-      return r;
-    };
-
     socket.on("select_role", ({submarine, role}) => {
-      // Accept either numeric index or letter identifiers 'A'/'B' from clients.
-      let subIndex = submarine;
-      if (typeof submarine === 'string') {
-        const s = submarine.toUpperCase();
-        if (s === 'A') subIndex = 0;
-        else if (s === 'B') subIndex = 1;
-        else if (!isNaN(Number(s))) subIndex = Number(s);
-      }
-
-      const internalRole = roleAlias(role);
-      log(`Player ${socket.id} selected role ${role} (internal: ${internalRole}) on submarine ${submarine}`);
       if (serverState.currentState !== "lobby") return;
 
       if (
-        typeof subIndex === 'number' &&
-        0 <= subIndex &&
-        subIndex < serverState.submarines.length &&
-        internalRole &&
-        !serverState.submarines[subIndex][internalRole]
+        0 <= submarine &&
+        submarine < serverState.submarines.length &&
+        !serverState.submarines[submarine][role]
       ) {
+        log(`Player ${socket.id} selected role ${role} on submarine ${serverState.submarines[submarine].name}`);
         // leave existing role
         serverState.submarines.forEach(submarineObj =>
           Object.keys(submarineObj).forEach(rk => {
@@ -109,7 +88,7 @@ export function createAndRunServer(serverState) {
           })
         );
         // go to new role
-        serverState.submarines[subIndex][internalRole] = socket.id;
+        serverState.submarines[submarine][role] = socket.id;
 
         // un-ready the player
         serverState.ready = serverState.ready.filter(id => id !== socket.id);
@@ -173,7 +152,7 @@ export function createAndRunServer(serverState) {
             serverState.version++;
             log('Broadcasting state update: lobby');
             ioServer.emit("state", serverState);
-          }, 120 * 1000);
+          }, 10 * 1000);
         }, 3000);
       }
 
@@ -191,26 +170,17 @@ export function createAndRunServer(serverState) {
       serverState.version++;
       log('Broadcasting state update after not ready');
       ioServer.emit("state", serverState);
-    })
+    });
 
-    // Assign the smallest available slot from 1..8 for friendly names
-    const maxSlots = 8;
-    const usedSlots = new Set(serverState.players.map(p => p.playerNumber).filter(n => typeof n === 'number'));
-    let assignedSlot = null;
-    for (let i = 1; i <= maxSlots; i++) {
-      if (!usedSlots.has(i)) { assignedSlot = i; break; }
-    }
-    // If all 1..8 are used, assign the next numeric slot after the current max
-    if (assignedSlot === null) {
-      const maxUsed = serverState.players.reduce((m, p) => Math.max(m, p.playerNumber || 0), 0);
-      assignedSlot = maxUsed + 1;
-    }
-
-    const playerName = `Player-${String(assignedSlot).padStart(2,'0')}`;
+    let playerNumber = 1;
+    while (Object.values(usedPlayerNumbers).some(usedNumber => playerNumber === usedNumber))
+      playerNumber++;
+    usedPlayerNumbers[socket.id] = playerNumber;
+    
+    const playerName = `Player ${playerNumber}`;
     serverState.players.push({
       id: socket.id,
       name: playerName,
-      playerNumber: assignedSlot,
       connectionOrder: Date.now(),
       ready: false,
     });
@@ -218,8 +188,7 @@ export function createAndRunServer(serverState) {
     if (!serverState.adminId) serverState.adminId = socket.id;
 
     log(`Player connected: ${socket.id} (${playerName})`);
-    // Emit both id and assigned name to the connecting client
-    socket.emit("player_id", { id: socket.id, name: playerName });
+    socket.emit("player_id", socket.id);
     serverState.version++;
     log('Broadcasting state update after new connection');
     ioServer.emit("state", serverState);
@@ -227,8 +196,8 @@ export function createAndRunServer(serverState) {
     console.log(`Player connected: ${socket.id}`);
   });
 
-  httpServer.listen(3000, () => {
-    console.log(`SocketIoServer running at http://localhost:3000`);
+  httpServer.listen(port, () => {
+    console.log(`SocketIoServer running at http://localhost:${port}`);
   });
 
   return httpServer;

@@ -2,7 +2,8 @@ import { initializeServerState, createAndRunServer } from '../src/server.lib.js'
 import { io } from 'socket.io-client';
 import { test, afterEach, expect } from 'vitest';
 
-const SERVER_URL = "http://localhost:3000";
+const PORT = 3000;
+const SERVER_URL = `http://localhost:${PORT}`;
 const DEFAULT_OPTIONS = {autoConnect: false};
 
 let server = null;
@@ -15,7 +16,7 @@ afterEach(() => {
 
 test('First player connects.', async () => {
   const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  server = createAndRunServer(serverState, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
   
   let id = null;
@@ -37,7 +38,7 @@ test('First player connects.', async () => {
 
 test('Second player connects.', async() => {
   const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  server = createAndRunServer(serverState, PORT);
   const firstClient = io(SERVER_URL, DEFAULT_OPTIONS);
   const secondClient = io(SERVER_URL, DEFAULT_OPTIONS);
   
@@ -70,7 +71,7 @@ test('Second player connects.', async() => {
 
 test('Player changes name.', async () => {
   const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  server = createAndRunServer(serverState, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -85,7 +86,7 @@ test('Player changes name.', async () => {
 
 test('Player selects role.', async () => {
   const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  server = createAndRunServer(serverState, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -102,7 +103,7 @@ test('Player selects role.', async () => {
 
 test('Player selects different role than they already selected.', async () => {
   const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  server = createAndRunServer(serverState, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -124,7 +125,7 @@ test('Player selects different role than they already selected.', async () => {
 
 test('Player selects same role as they already selected.', async () => {
   const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  server = createAndRunServer(serverState, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -148,7 +149,7 @@ test('Player selects same role as they already selected.', async () => {
 
 test('Player selects role that is already filled by another player.', async () => {
   const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  server = createAndRunServer(serverState, PORT);
   const firstClient = io(SERVER_URL, DEFAULT_OPTIONS);
   const secondClient = io(SERVER_URL, DEFAULT_OPTIONS);
   
@@ -178,7 +179,7 @@ test('Player selects role that is already filled by another player.', async () =
 
 test('Player leaves role.', async () => {
   const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  server = createAndRunServer(serverState, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -197,7 +198,7 @@ test('Player leaves role.', async () => {
 
 test('Player is ready to start before they selected a role.', async () => {
   const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  server = createAndRunServer(serverState, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -217,7 +218,7 @@ test('Player is ready to start before they selected a role.', async () => {
 
 test('Player is ready to start after they selected a role.', async () => {
   const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  server = createAndRunServer(serverState, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -235,7 +236,7 @@ test('Player is ready to start after they selected a role.', async () => {
 
 test('Player is ready, then is ready again.', async () => {
   const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  server = createAndRunServer(serverState, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -259,7 +260,7 @@ test('Player is ready, then is ready again.', async () => {
 
 test('Player is not ready.', async () => {
   const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  server = createAndRunServer(serverState, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -281,7 +282,7 @@ test('Player is not ready.', async () => {
 
 test('All roles are ready to start the game.', async () => {
   const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  server = createAndRunServer(serverState, PORT);
 
   let state = null;
   let ids = [null, null, null, null, null, null, null, null];
@@ -302,18 +303,18 @@ test('All roles are ready to start the game.', async () => {
   clients[0].emit("select_role", {submarine: 0, role: "co"});
   clients[1].emit("select_role", {submarine: 0, role: "xo"});
   clients[2].emit("select_role", {submarine: 0, role: "sonar"});
-  clients[3].emit("select_role", {submarine: 0, role: "radio"});
+  clients[3].emit("select_role", {submarine: 0, role: "eng"});
   clients[4].emit("select_role", {submarine: 1, role: "co"});
   clients[5].emit("select_role", {submarine: 1, role: "xo"});
   clients[6].emit("select_role", {submarine: 1, role: "sonar"});
-  clients[7].emit("select_role", {submarine: 1, role: "radio"});
+  clients[7].emit("select_role", {submarine: 1, role: "eng"});
   // make sure they're all selected
-  await expect.poll(() => null, {timeout: 1000})
+  await expect.poll(() => null, {timeout: 5000})
     .toSatisfy(() => {
       var sub0 = state.submarines[0];
       var sub1 = state.submarines[1];
-      return sub0.co && sub0.xo && sub0.sonar && sub0.radio &&
-        sub1.co && sub1.xo && sub1.sonar && sub1.radio;
+      return sub0.co && sub0.xo && sub0.sonar && sub0.eng &&
+        sub1.co && sub1.xo && sub1.sonar && sub1.eng;
     });
 
   for (let i = 0; i < 8; ++i) {

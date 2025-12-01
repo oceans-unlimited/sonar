@@ -1,6 +1,7 @@
 import express from 'express';
 import http from 'http';
 import { Server as SocketIoServer } from 'socket.io';
+import { EngineLayoutGenerator } from './engineLayout.js';
 
 const log = (message) => {
   console.log(`[${new Date().toISOString()}] ${message}`);
@@ -137,6 +138,10 @@ export function createAndRunServer(serverState, port) {
         setTimeout(() => {
           log('Transitioning to in_game state');
           serverState.currentState = "in_game";
+          const engineLayoutGenerator = new EngineLayoutGenerator();
+          serverState.submarines.forEach(sub => {
+            sub.engineLayout = engineLayoutGenerator.generateLayout();
+          });
           serverState.version++;
           log('Broadcasting state update: in_game');
           ioServer.emit("state", serverState);
@@ -148,7 +153,8 @@ export function createAndRunServer(serverState, port) {
             ioServer.emit("game_won", winner);
 
             log('Returning to lobby');
-            serverState.currentState = "lobby"
+            serverState.currentState = "lobby";
+            serverState.ready = [];
             serverState.version++;
             log('Broadcasting state update: lobby');
             ioServer.emit("state", serverState);

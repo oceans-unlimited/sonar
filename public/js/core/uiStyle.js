@@ -11,7 +11,10 @@ export const Colors = {
   roleCaptain: 0xffcc00,
   roleXO: 0x005aff,
   roleSonar: 0x00ff00,
-  roleEngineer: 0xb3b3b3
+  roleEngineer: 0xb3b3b3,
+  caution: 0xffa500,
+  danger: 0xff0000,
+  active: 0xffffff
 };
 
 export const Font = {
@@ -22,9 +25,26 @@ export const Font = {
   uppercase: true,
 };
 
+export const headerFont = {
+  family: "Goldman",
+  size: 30,
+  lineHeight: 30,
+  letterSpacing: 2,
+  uppercase: true,  
+}
+
 export const Layout = {
   margin: 24,
   panelPadding: 12,
   menuWidth: 360,
   menuHeight: 450,
+};
+
+// Mapping of system asset names (used in engine UI) to a canonical color value.
+// Use these when you want to refer to a system by name instead of passing raw hex.
+export const SystemColors = {
+  stealth: 0xffcc00,   // yellow
+  detection: 0x00ff00, // green
+  weapons: 0xe74c3c,   // red
+  reactor: 0xb3b3b3,   // grey
 };

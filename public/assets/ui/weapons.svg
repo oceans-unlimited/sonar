@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="15.000001mm"
+   height="15.000021mm"
+   viewBox="0 0 15.000001 15.00002"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.3 (0e150ed6c4, 2023-07-21)"
+   sodipodi:docname="engine.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="0.9983453"
+     inkscape:cx="52.086187"
+     inkscape:cy="426.20524"
+     inkscape:window-width="1600"
+     inkscape:window-height="837"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer2"
+     showguides="true"
+     showgrid="false" />
+  <defs
+     id="defs1">
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient3557"
+       id="linearGradient3559"
+       x1="203.40781"
+       y1="106.82741"
+       x2="216.95833"
+       y2="119.75254"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0.80089529,0,0,0.80089529,-95.817571,38.314239)" />
+    <linearGradient
+       inkscape:collect="always"
+       id="linearGradient3557">
+      <stop
+         style="stop-color:#ff0000;stop-opacity:1;"
+         offset="0"
+         id="stop3553" />
+      <stop
+         style="stop-color:#ff0000;stop-opacity:0;"
+         offset="1"
+         id="stop3555" />
+    </linearGradient>
+  </defs>
+  <g
+     inkscape:label="directionBox"
+     inkscape:groupmode="layer"
+     id="layer1"
+     style="display:none;fill:#000080"
+     transform="translate(-62.943339,-119.22348)">
+    <g
+       inkscape:groupmode="layer"
+       id="system_slots"
+       inkscape:label="system_slots"
+       style="display:inline;fill:#ffffff">
+      <path
+         id="use2"
+         style="display:inline;fill:#999999;fill-rule:evenodd;stroke-width:1.7"
+         inkscape:label="toggle"
+         d="m 79.641527,126.72349 a 9.1981891,9.1981891 0 0 1 -9.198187,9.19819 9.1981891,9.1981891 0 0 1 -9.198188,-9.19819 9.1981891,9.1981891 0 0 1 9.198188,-9.19819 9.1981891,9.1981891 0 0 1 9.198187,9.19819 z"
+         inkscape:export-filename="..\..\..\..\web_dev_ai\sonar\public\assets\ui\toggle.svg"
+         inkscape:export-xdpi="97.1796"
+         inkscape:export-ydpi="97.1796" />
+    </g>
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer4"
+     inkscape:label="circuits"
+     sodipodi:insensitive="true"
+     style="display:none"
+     transform="translate(-62.943339,-119.22348)">
+    <rect
+       style="display:inline;fill:none;fill-rule:evenodd;stroke:#00aad4;stroke-width:3;stroke-dasharray:none"
+       id="rect53"
+       width="112.22038"
+       height="72.144714"
+       x="70.443359"
+       y="62.835556" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer2"
+     inkscape:label="buttons"
+     style="display:inline"
+     transform="translate(-62.943339,-119.22348)">
+    <path
+       id="weapons"
+       style="display:inline;fill:none;stroke:url(#linearGradient3559);stroke-width:1.50226;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+       d="m 62.943339,126.72347 h 5.244143 m 2.255857,-2.24999 v -5.25 m 7.5,7.49999 H 72.68748 m -2.244149,2.24972 8e-6,5.25031 m 5.149613,-7.40454 c 0,2.8968 -2.348313,5.24511 -5.245095,5.24511 -2.896783,0 -5.245096,-2.34831 -5.245096,-5.24511 0,-2.89677 2.348313,-5.24508 5.245096,-5.24508 2.896782,0 5.245095,2.34831 5.245095,5.24508 v 0"
+       inkscape:label="weapons"
+       sodipodi:nodetypes="cccccccccssssc"
+       inkscape:export-filename="..\..\..\..\web_dev_ai\sonar\public\assets\ui\weapons.svg"
+       inkscape:export-xdpi="97.1796"
+       inkscape:export-ydpi="97.1796" />
+  </g>
+</svg>

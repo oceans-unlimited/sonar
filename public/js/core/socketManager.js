@@ -65,6 +65,10 @@ class SocketManager extends EventEmitter {
   notReady() {
     this.socket.emit('not_ready');
   }
+
+  pushButton(buttonData) {
+    this.socket.emit('button_pushed', buttonData);
+  }
 }
 
 export const socketManager = new SocketManager();

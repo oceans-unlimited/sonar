@@ -292,11 +292,11 @@ export function createAndRunServer(serverState, port) {
             // Reset, since might be set from prior movement.
             movingSub.submarineStateData[movingSub.submarineState] = {
               engineerCrossedOutSystem: false,
-              xoChargedGauge: sub.actionGauges.mine === 3 &&
-                sub.actionGauges.torpedo === 3 &&
-                sub.actionGauges.sonar === 3 &&
-                sub.actionGauges.silence === 5 &&
-                sub.actionGauges.drone === 3,
+              xoChargedGauge: movingSub.actionGauges.mine === 3 &&
+                movingSub.actionGauges.torpedo === 3 &&
+                movingSub.actionGauges.sonar === 3 &&
+                movingSub.actionGauges.silence === 5 &&
+                movingSub.actionGauges.drone === 3,
             };
             serverState.version++;
           }
@@ -311,7 +311,7 @@ export function createAndRunServer(serverState, port) {
       let playerName = serverState.players.find(p => p.id === socket.id).name;
       log(`Player ${playerName} (${socket.id}) attempted to charge gauge ${gauge}.`);
 
-      let sub = serverState.submarines.find(s => s.sonar === socket.id);
+      let sub = serverState.submarines.find(s => s.xo === socket.id);
       if (sub && sub.submarineState === 'doingPostMovementActions') {
         let stateData = sub.submarineStateData[sub.submarineState];
         if (!stateData.xoChargedGauge) {
@@ -351,9 +351,9 @@ export function createAndRunServer(serverState, port) {
       if (sub && sub.submarineState === 'doingPostMovementActions') {
         let stateData = sub.submarineStateData[sub.submarineState];
         if (!stateData.engineerCrossedOutSystem) {
-          let slotAlreadyCrossedOut = sub.layout.crossedOutSlots.some(slot => slot.direction === direction && slot.slotId === slotId);
+          let slotAlreadyCrossedOut = sub.engineLayout.crossedOutSlots.some(slot => slot.direction === direction && slot.slotId === slotId);
           if (!slotAlreadyCrossedOut) {
-            slotAlreadyCrossedOut.push({direction, slotId});
+            sub.engineLayout.crossedOutSlots.push({direction, slotId});
             stateData.engineerCrossedOutSystem = true;
 
             if (stateData.xoChargedGauge && stateData.engineerCrossedOutSystem) {
@@ -370,7 +370,10 @@ export function createAndRunServer(serverState, port) {
             // - All radiation symbols are crossed off => take one damage.
             // - Damage taken => clear all crossed-off slots.
 
-            clearedCircuits = sub.engineLayout.circuits.where(circuit => circuit.connections.every(connection => sub.engineLayout.crossedOutSlots.some(slot => connection.direction === slot.direction && connection.slotId === slot.slotId)));
+            let clearedCircuits = sub.engineLayout.circuits.filter(
+              circuit => circuit.connections.every(
+                connection => sub.engineLayout.crossedOutSlots.some(
+                  slot => connection.direction === slot.direction && connection.slotId === slot.slotId)));
             clearedCircuits.forEach(circuit => circuit.connections.forEach(connection => {
               let indexOfCrossedOutSlot = sub.engineLayout.crossedOutSlots.findIndex(slot => slot.direction === connection.direction && slot.slotId === connection.slotId);
               sub.engineLayout.crossedOutSlots.splice(indexOfCrossedOutSlot, 1);

@@ -187,3 +187,87 @@ test('Captain moves, guage is charged, and engineer crosses out a slot.', async 
     testData.state.submarines[0].submarineState === 'waitingForAction'
   );
 }, 10000);
+
+test('Invalid, duplicate, and out-of-order commands are ignored.', async () => {
+  let testData = await startGame();
+
+  await chooseInitialPositions(testData, {row: 2, column: 1}, {row: 0, column: 0});
+
+  // Captain moves onto land.
+  let versionBeforeMoveToLand = testData.state.version;
+  testData.subs[0].co.emit("move", "E");
+  await expect.poll(() => null).toSatisfy(() =>
+    testData.state.version > versionBeforeMoveToLand &&
+    testData.state.submarines[0].submarineState === 'waitingForAction'
+  );
+
+  // Captain moves off the board.
+  let versionBeforeMoveOffBoard = testData.state.version;
+  testData.subs[1].co.emit("move", "W");
+  await expect.poll(() => null).toSatisfy(() =>
+    testData.state.version > versionBeforeMoveOffBoard &&
+    testData.state.submarines[1].submarineState === 'waitingForAction'
+  );
+
+  // Non-captain tries to move.
+  let versionBeforeNonCaptainAttemptsMove = testData.state.version;
+  testData.subs[0].xo.emit("move", "N");
+  await expect.poll(() => null).toSatisfy(() =>
+    testData.state.version > versionBeforeNonCaptainAttemptsMove &&
+    testData.state.submarines[0].submarineState === 'waitingForAction'
+  );
+
+  // Engineer tries to cross off before the captain moves (fails).
+  let versionBeforeIllegalCrossOff = testData.state.version;
+  testData.subs[0].eng.emit("cross_off_system", {direction: 'N', slotId: 'slot01'});
+  await expect.poll(() => null).toSatisfy(() =>
+    testData.state.version > versionBeforeIllegalCrossOff &&
+    testData.state.submarines[0].submarineState === 'waitingForAction' &&
+    testData.state.submarines[0].engineLayout.crossedOutSlots.length === 0 &&
+    !testData.state.submarines[0].submarineStateData.doingPostMovementActions.engineerCrossedOutSystem
+  );
+
+  // First officer tries to increase a gauge before the captain moves (fails).
+  let versionBeforeIllegalGaugeIncrease = testData.state.version;
+  testData.subs[0].xo.emit("charge_gauge", 'silence');
+  await expect.poll(() => null).toSatisfy(() =>
+    testData.state.version > versionBeforeIllegalGaugeIncrease
+    && testData.state.submarines[0].submarineState === 'waitingForAction'
+    && !testData.state.submarines[0].submarineStateData.doingPostMovementActions.xoChargedGauge
+    && testData.state.submarines[0].actionGauges.silence === 0
+  );
+
+  // Captain tries to move after initial move, but before XO/Eng have performed their actions.
+  testData.subs[0].co.emit("move", "N");
+  await expect.poll(() => null).toSatisfy(() =>
+    testData.state.submarines[0].submarineState === 'doingPostMovementActions' &&
+    testData.state.submarines[0].row === 1 &&
+    testData.state.submarines[0].col === 1
+  );
+  let versionBeforeSecondMove = testData.state.version;
+  testData.subs[0].co.emit("move", "W");
+  await expect.poll(() => null).toSatisfy(() =>
+    testData.state.version > versionBeforeSecondMove &&
+    testData.state.submarines[0].row === 1 &&
+    testData.state.submarines[0].col === 1
+  );
+
+  testData.subs[0].xo.emit("charge_gauge", 'silence');
+  await expect.poll(() => null).toSatisfy(() =>
+    testData.state.submarines[0].submarineStateData.doingPostMovementActions.xoChargedGauge
+    && testData.state.submarines[0].actionGauges.silence === 1
+  );
+
+  // Engineer crosses off something in different direction than the one moved.
+  testData.subs[0].eng.emit("cross_off_system", {direction: 'W', slotId: 'slot01'});
+  await expect.poll(() => null).toSatisfy(() =>
+    testData.state.submarines[0].engineLayout.crossedOutSlots.length === 0 &&
+    testData.state.submarines[0].submarineState === 'doingPostMovementActions'
+  );
+
+  testData.subs[0].eng.emit("cross_off_system", {direction: 'N', slotId: 'slot01'});
+  await expect.poll(() => null).toSatisfy(() =>
+    testData.state.submarines[0].engineLayout.crossedOutSlots.some(c => c.direction === 'N' && c.slotId === 'slot01') &&
+    testData.state.submarines[0].submarineState === 'waitingForAction'
+  );
+}, 10000);

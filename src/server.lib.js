@@ -46,6 +46,7 @@ function createSubmarine(id) {
       doingPostMovementActions: {
         engineerCrossedOutSystem: false,
         xoChargedGauge: false,
+        directionMoved: ' ',
       }
     },
   }
@@ -297,13 +298,14 @@ export function createAndRunServer(serverState, port) {
                 movingSub.actionGauges.sonar === 3 &&
                 movingSub.actionGauges.silence === 5 &&
                 movingSub.actionGauges.drone === 3,
+              directionMoved: direction,
             };
-            serverState.version++;
           }
         }
       }
 
       log('Broadcasting state update after attempted movement.');
+      serverState.version++;
       ioServer.emit("state", serverState);
     });
 
@@ -333,13 +335,13 @@ export function createAndRunServer(serverState, port) {
                 sub.submarineState = 'waitingForAction';
               }
 
-              serverState.version++;
             }
           }
         }
       }
 
       log('Broadcasting state update after attempt to charge gauge.');
+      serverState.version++;
       ioServer.emit("state", serverState);
     });
 
@@ -350,7 +352,7 @@ export function createAndRunServer(serverState, port) {
       let sub = serverState.submarines.find(s => s.eng === socket.id);
       if (sub && sub.submarineState === 'doingPostMovementActions') {
         let stateData = sub.submarineStateData[sub.submarineState];
-        if (!stateData.engineerCrossedOutSystem) {
+        if (!stateData.engineerCrossedOutSystem && direction === stateData.directionMoved) {
           let slotAlreadyCrossedOut = sub.engineLayout.crossedOutSlots.some(slot => slot.direction === direction && slot.slotId === slotId);
           if (!slotAlreadyCrossedOut) {
             sub.engineLayout.crossedOutSlots.push({direction, slotId});
@@ -417,12 +419,12 @@ export function createAndRunServer(serverState, port) {
               serverState.currentState = 'lobby';
             }
 
-            serverState.version++;
           }
         }
       }
 
       log('Broadcasting state update after attempt to cross off slot.');
+      serverState.version++;
       ioServer.emit("state", serverState);
     });
 

@@ -1,7 +1,8 @@
 import express from 'express';
 import http from 'http';
 import { Server as SocketIoServer } from 'socket.io';
-import { EngineLayoutGenerator } from './engineLayout.js';
+import { EngineLayoutGenerator } from './engineLayout.lib.js';
+import { generateBoard, L as LAND, W as WATER } from './board-layout.lib.js'
 
 const log = (message) => {
   console.log(`[${new Date().toISOString()}] ${message}`);
@@ -15,10 +16,19 @@ export function initializeServerState() {
     adminId: null,
     submarines: [createSubmarine('A'), createSubmarine('B')],
     ready: [],
+    board: generateBoard(),
+    gameState: 'choosingStartPositions',
+    gameStateData: {
+      choosingStartPositions: {
+        playerIdsReadyToContinue: [],
+        submarineIdsWithStartPositionChosen: [],
+      },
+    },
   };
 }
 
 function createSubmarine(id) {
+  const engineLayoutGenerator = new EngineLayoutGenerator();
   return {
     id: id,
     name: `Sub ${id}`,
@@ -26,6 +36,18 @@ function createSubmarine(id) {
     xo: null,
     sonar: null,
     eng: null,
+    engineLayout: engineLayoutGenerator.generateLayout(),
+    actionGauges: {mine: 0, torpedo: 0, drone: 0, sonar: 0, silence: 0},
+    row: 0,
+    col: 0,
+    health: 4,
+    submarineState: 'waitingForAction',
+    submarineStateData: {
+      doingPostMovementActions: {
+        engineerCrossedOutSystem: false,
+        xoChargedGauge: false,
+      }
+    },
   }
 }
 
@@ -142,23 +164,11 @@ export function createAndRunServer(serverState, port) {
           serverState.submarines.forEach(sub => {
             sub.engineLayout = engineLayoutGenerator.generateLayout();
           });
+          serverState.board = generateBoard();
+          serverState.gameState = "choosingStartPositions";
           serverState.version++;
-          log('Broadcasting state update: in_game');
+          log('Broadcasting state update: in_game, choosingStartPositions');
           ioServer.emit("state", serverState);
-
-          // This is a placeholder until I implement actual game logic elsewhere.
-          setTimeout(() => {
-            const winner = Math.floor(Math.random() * 10) % 2;
-            log(`Game over, winner is submarine ${winner}`);
-            ioServer.emit("game_won", winner);
-
-            log('Returning to lobby');
-            serverState.currentState = "lobby";
-            serverState.ready = [];
-            serverState.version++;
-            log('Broadcasting state update: lobby');
-            ioServer.emit("state", serverState);
-          }, 10 * 1000);
         }, 3000);
       }
 
@@ -175,6 +185,241 @@ export function createAndRunServer(serverState, port) {
       serverState.ready = serverState.ready.filter(id => id !== socket.id);
       serverState.version++;
       log('Broadcasting state update after not ready');
+      ioServer.emit("state", serverState);
+    });
+
+    socket.on("choose_initial_position", ({row, column}) => {
+      let playerName = serverState.players.find(p => p.id === socket.id).name;
+      let columnLetter = String.fromCharCode('A'.charCodeAt(0) + column);
+      log(`Player ${playerName} (${socket.id}) attempted to chose initial position row ${row}, column ${columnLetter} (${column}).`);
+
+      let sub = serverState.submarines.find(sub => sub.co === socket.id);
+      if (sub && serverState.gameState === 'choosingStartPositions') {
+        let subIdsThatHaveChosen = serverState.gameStateData[serverState.gameState].submarineIdsWithStartPositionChosen;
+        let thisSubAlreadyChose = subIdsThatHaveChosen.find(s => s === sub.id);
+        if (!thisSubAlreadyChose) {
+          let chosenPositionIsValid = 0 <= row && row <= serverState.board.length &&
+              0 <= column && column <= serverState.board[0].length;
+          if (chosenPositionIsValid && serverState.board[row][column] === WATER) {
+            sub.row = row;
+            sub.col = column;
+            serverState.gameStateData[serverState.gameState].submarineIdsWithStartPositionChosen.push(sub.id);
+
+            let allSubsHaveChosen = serverState.submarines.every(s => subIdsThatHaveChosen.find(c => c === s.id));
+            let readyPlayers = serverState.gameStateData[serverState.gameState].playerIdsReadyToContinue;
+            let allPlayersAreReady = serverState.submarines.every(s => readyPlayers.some(r => r === s.co) && readyPlayers.some(r => r === s.xo) && readyPlayers.some(r => r === s.eng) && readyPlayers.some(r => r === s.sonar));
+            if (allSubsHaveChosen && allPlayersAreReady) {
+              setTimeout(() => {
+                serverState.gameState = 'realTimePlay';
+                serverState.gameStateData.choosingStartPositions = {
+                  playerIdsReadyToContinue: [],
+                  submarineIdsWithStartPositionChosen: [],
+                };
+                log('Resuming real-time play; broadcasting state.');
+                serverState.version++;
+                ioServer.emit("state", serverState);
+              }, 3000);
+            }
+          }
+        }
+      }
+
+      log('Broadcasting state update after attempt to choose initial position');
+      serverState.version++;
+      ioServer.emit("state", serverState);
+    });
+
+    socket.on("ready_to_resume_real_time_play", () => {
+      let playerName = serverState.players.find(p => p.id === socket.id).name;
+      log(`Player ${playerName} is ready to resume real-time play`);
+
+      if (serverState.gameState !== 'realTimePlay') {
+        let stateName = Object.keys(serverState.gameStateData).find(k => k === serverState.gameState);
+        if (stateName) {
+          let playersReady = serverState.gameStateData[stateName].playerIdsReadyToContinue;
+          let playerAlreadyIndicatedReadiness = playersReady.some(r => r === socket.id);
+          if (!playerAlreadyIndicatedReadiness) {
+            playersReady.push(socket.id);
+
+            let subIdsThatHaveChosen = serverState.gameStateData[serverState.gameState].submarineIdsWithStartPositionChosen;
+            let allSubsHaveChosen = serverState.submarines.every(s => subIdsThatHaveChosen.find(c => c === s.id));
+            let readyPlayers = serverState.gameStateData[serverState.gameState].playerIdsReadyToContinue;
+            let allPlayersAreReady = serverState.submarines.every(s => readyPlayers.some(r => r === s.co) && readyPlayers.some(r => r === s.xo) && readyPlayers.some(r => r === s.eng) && readyPlayers.some(r => r === s.sonar));
+            if (allSubsHaveChosen && allPlayersAreReady) {
+              setTimeout(() => {
+                serverState.gameState = 'realTimePlay';
+                serverState.gameStateData.choosingStartPositions = {
+                  playerIdsReadyToContinue: [],
+                  submarineIdsWithStartPositionChosen: [],
+                };
+                log('Resuming real-time play; broadcasting state.');
+                serverState.version++;
+                ioServer.emit("state", serverState);
+              }, 3000);
+            }
+          }
+        }
+      }
+
+      log('Broadcasting state update after player indicated readiness for real-time play')
+      serverState.version++;
+      ioServer.emit("state", serverState);
+    });
+
+    socket.on("move", (direction) => {
+      let playerName = serverState.players.find(p => p.id === socket.id).name;
+      log(`Player ${playerName} (${socket.id}) attempted to move ${direction}.`);
+      
+      if (serverState.currentState !== 'in_game')
+        return;
+
+      if (serverState.gameState !== 'realTimePlay')
+        return;
+
+      let movingSub = serverState.submarines.find(sub => sub.co === socket.id);
+      if (movingSub && movingSub.submarineState === 'waitingForAction') {
+        const rowDeltas = {N: -1, S: 1, E: 0, W:  0};
+        const colDeltas = {N:  0, S: 0, E: 1, W: -1};
+        if (direction == 'N' || direction == 'S' || direction == 'E' || direction == 'W') {
+          let newRow = movingSub.row + rowDeltas[direction];
+          let newCol = movingSub.col + colDeltas[direction];
+          if (0 <= newRow && newRow <= serverState.board.length &&
+              0 <= newCol && newCol <= serverState.board[0].length &&
+              serverState.board[newRow][newCol] === WATER) {
+            movingSub.row = newRow;
+            movingSub.col = newCol;
+            movingSub.submarineState = 'doingPostMovementActions';
+            // Reset, since might be set from prior movement.
+            movingSub.submarineStateData[movingSub.submarineState] = {
+              engineerCrossedOutSystem: false,
+              xoChargedGauge: sub.actionGauges.mine === 3 &&
+                sub.actionGauges.torpedo === 3 &&
+                sub.actionGauges.sonar === 3 &&
+                sub.actionGauges.silence === 5 &&
+                sub.actionGauges.drone === 3,
+            };
+            serverState.version++;
+          }
+        }
+      }
+
+      log('Broadcasting state update after attempted movement.');
+      ioServer.emit("state", serverState);
+    });
+
+    socket.on('charge_gauge', (gauge) => {
+      let playerName = serverState.players.find(p => p.id === socket.id).name;
+      log(`Player ${playerName} (${socket.id}) attempted to charge gauge ${gauge}.`);
+
+      let sub = serverState.submarines.find(s => s.sonar === socket.id);
+      if (sub && sub.submarineState === 'doingPostMovementActions') {
+        let stateData = sub.submarineStateData[sub.submarineState];
+        if (!stateData.xoChargedGauge) {
+          let gaugeIsValid = Object.keys(sub.actionGauges).some(k => k === gauge);
+          if (gaugeIsValid) {
+            let max = 3;
+            if (gauge === 'silence')
+              max = 5;
+
+            if (sub.actionGauges[gauge] < max) {
+              sub.actionGauges[gauge]++;
+              stateData.xoChargedGauge = true;
+
+              if (stateData.xoChargedGauge && stateData.engineerCrossedOutSystem) {
+                // Reset for next time.
+                stateData.xoChargedGauge = false;
+                stateData.engineerCrossedOutSystem = false;
+                // Back to normal state.
+                sub.submarineState = 'waitingForAction';
+              }
+
+              serverState.version++;
+            }
+          }
+        }
+      }
+
+      log('Broadcasting state update after attempt to charge gauge.');
+      ioServer.emit("state", serverState);
+    });
+
+    socket.on('cross_off_system', ({direction, slotId}) => {
+      let playerName = serverState.players.find(p => p.id === socket.id).name;
+      log(`Player ${playerName} (${socket.id}) attempted to cross off slot ${direction}, ${slotId}.`);
+
+      let sub = serverState.submarines.find(s => s.eng === socket.id);
+      if (sub && sub.submarineState === 'doingPostMovementActions') {
+        let stateData = sub.submarineStateData[sub.submarineState];
+        if (!stateData.engineerCrossedOutSystem) {
+          let slotAlreadyCrossedOut = sub.layout.crossedOutSlots.some(slot => slot.direction === direction && slot.slotId === slotId);
+          if (!slotAlreadyCrossedOut) {
+            slotAlreadyCrossedOut.push({direction, slotId});
+            stateData.engineerCrossedOutSystem = true;
+
+            if (stateData.xoChargedGauge && stateData.engineerCrossedOutSystem) {
+              // Reset for the future.
+              stateData.engineerCrossedOutSystem = false;
+              stateData.xoChargedGauge = false;
+              // Change state.
+              sub.submarineState = 'waitingForAction';
+            }
+
+            // Now check for different outcomes based on what was crossed off.
+            // - Circuit completed => clear that circuit.
+            // - All slots in a direction are crossed off => take one damage.
+            // - All radiation symbols are crossed off => take one damage.
+            // - Damage taken => clear all crossed-off slots.
+
+            clearedCircuits = sub.engineLayout.circuits.where(circuit => circuit.connections.every(connection => sub.engineLayout.crossedOutSlots.some(slot => connection.direction === slot.direction && connection.slotId === slot.slotId)));
+            clearedCircuits.forEach(circuit => circuit.connections.forEach(connection => {
+              let indexOfCrossedOutSlot = sub.engineLayout.crossedOutSlots.findIndex(slot => slot.direction === connection.direction && slot.slotId === connection.slotId);
+              sub.engineLayout.crossedOutSlots.splice(indexOfCrossedOutSlot, 1);
+            }));
+
+            let directionData = sub.engineLayout.directions[direction];
+            let frameSlotKeys = Object.keys(directionData.frameSlots);
+            let allFrameSlotsCrossedOut = frameSlotKeys.every(frameSlotKey => sub.engineLayout.crossedOutSlots.some(crossedOutSlot =>
+              crossedOutSlot.slotId === frameSlotKey && crossedOutSlot.direction == direction
+            ));
+            let reactorSlotKeys = Object.keys(directionData.reactorSlots);
+            let allReactorSlotsCrossedOut = reactorSlotKeys.every(reactorSlotKey => sub.engineLayout.crossedOutSlots.some(crossedOutSlot => 
+              crossedOutSlot.slotId === reactorSlotKey && crossedOutSlot.direction === direction
+            ));
+            let entireDirectionCrossedOut = allFrameSlotsCrossedOut && allReactorSlotsCrossedOut;
+
+            let directionKeys = Object.keys(sub.engineLayout.directions);
+            let allReactorsCrossedOut = directionKeys.every(d => {
+              let directionData = sub.engineLayout.directions[d];
+              let reactorSlotKeys = Object.keys(directionData.reactorSlots);
+              return reactorSlotKeys.every(slotId =>
+                directionData.reactorSlots[slotId] !== 'reactor' ||
+                sub.engineLayout.crossedOutSlots.some(crossedOutSlot =>
+                  crossedOutSlot.slotId === slotId && crossedOutSlot.direction === d
+                )
+              );
+            });
+
+            if (entireDirectionCrossedOut) {
+              sub.health--;
+              sub.engineLayout.crossedOutSlots.splice(0, sub.engineLayout.crossedOutSlots.length);
+            }
+            if (allReactorsCrossedOut) {
+              sub.health--;
+              sub.engineLayout.crossedOutSlots.splice(0, sub.engineLayout.crossedOutSlots.length);
+            }
+            sub.health = Math.max(0, sub.health);
+
+            if (sub.health === 0) {
+              ioServer.emit("game_won", serverState.submarines.find(s => s.id !== sub.id).id);
+              serverState.currentState = 'lobby';
+            }
+
+            serverState.version++;
+          }
+        }
+      }
+
+      log('Broadcasting state update after attempt to cross off slot.');
       ioServer.emit("state", serverState);
     });
 

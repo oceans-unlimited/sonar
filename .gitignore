@@ -60,7 +60,6 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
->>>>>>> origin/main
 
 # Specific files
 GEMINI.md

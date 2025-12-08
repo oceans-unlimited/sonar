@@ -1,6 +1,6 @@
 import { initializeServerState, createAndRunServer } from '../src/server.lib.js';
 import { io } from 'socket.io-client';
-import { test, afterEach, expect } from 'vitest';
+import { test, afterEach, expect, assert } from 'vitest';
 
 const PORT = 3001;
 const SERVER_URL = `http://localhost:${PORT}`;
@@ -91,6 +91,22 @@ async function chooseInitialPositions(testData, sub0Position, sub1Position) {
 
   await expect.poll(() => null, {timeout: 4000}).toSatisfy(() =>
     testData.state.gameState === 'realTimePlay'
+  );
+}
+
+async function move(testData, subIndex, direction, gaugeToIncrement, slotIdToCrossOff) {
+  let gaugeBeforeMoveNext = testData.state.submarines[subIndex].actionGauges[gaugeToIncrement];
+  assert(gaugeBeforeMoveNext === 0 || gaugeBeforeMoveNext > 0);
+  testData.subs[subIndex].co.emit("move", direction);
+  await expect.poll(() => null).toSatisfy(() =>
+    testData.state.submarines[subIndex].submarineState === 'doingPostMovementActions'
+  );
+  let versionBeforePostMoveActions = testData.state.version;
+  testData.subs[subIndex].xo.emit("charge_gauge", gaugeToIncrement);
+  testData.subs[subIndex].eng.emit("cross_off_system", {direction: direction, slotId: slotIdToCrossOff});
+  await expect.poll(() => null).toSatisfy(() =>
+    testData.state.version > versionBeforePostMoveActions &&
+    testData.state.submarines[subIndex].submarineState === 'waitingForAction'
   );
 }
 
@@ -271,3 +287,40 @@ test('Invalid, duplicate, and out-of-order commands are ignored.', async () => {
     testData.state.submarines[0].submarineState === 'waitingForAction'
   );
 }, 10000);
+
+test('Crossing out whole direction results in loss of health.', async () => {
+  let testData = await startGame();
+  await chooseInitialPositions(testData, {row: 8, column: 6}, {row: 0, column: 0});
+  // This crossed-out slot should be removed after taking damage.
+  await move(testData, 0, 'W', 'torpedo', 'slot01');
+  // Move until all slots in single direction get crossed out.
+  await move(testData, 0, 'N', 'silence', 'slot01');
+  await move(testData, 0, 'N', 'silence', 'slot02');
+  await move(testData, 0, 'N', 'silence', 'slot03');
+  await move(testData, 0, 'N', 'silence', 'reactor01');
+  await move(testData, 0, 'N', 'silence', 'reactor02');
+  await move(testData, 0, 'N', 'mine', 'reactor03');
+
+  await expect.poll(() => null).toSatisfy(() =>
+    testData.state.submarines[0].engineLayout.crossedOutSlots.length === 0
+    && testData.state.submarines[0].health === 3
+  );
+}, 10000);
+
+// Tests to be added later. These tests will require a static engine layout, and I don't want to think through that right now. In theory, though, code is implemented.
+
+// test('Crossing out all reactors results in loss of health.', async() => {
+
+// }, 10000);
+
+// test('Crossing out circuit restores slots.', async () => {
+
+// }, 10000);
+
+// test('Losing all health results in game loss.', async () => {
+
+// }, 10000)
+
+// test('After all moves are charged, ', async () => {
+
+// }, 10000);

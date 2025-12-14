@@ -139,8 +139,6 @@ export function createAndRunServer(logicalServer, port) {
     log(`Player connected: ${socket.id} (${logicalServer.playerName(socket.id)})`);
     socket.emit("player_id", socket.id);
     ioServer.emit("state", logicalServer.serverState);
-
-    console.log(`Player connected: ${socket.id}`);
   });
 
   // Start and return the actual server.

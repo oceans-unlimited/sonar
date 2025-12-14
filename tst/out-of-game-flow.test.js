@@ -1,7 +1,7 @@
 import { createAndRunServer } from '../src/server.lib.js';
 import { LogicalServer } from '../src/logical-server.lib.js';
 import { io } from 'socket.io-client';
-import { test, afterEach, expect } from 'vitest';
+import { test, afterEach, expect, assert } from 'vitest';
 
 const PORT = 3000;
 const SERVER_URL = `http://localhost:${PORT}`;

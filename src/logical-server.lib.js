@@ -4,7 +4,7 @@ import { W as WATER, L as LAND } from "./board-layout.lib.js";
 
 export class LogicalServer {
   usedPlayerNumbers = {};
-  serverState = {
+  state = {
     version: 0,
     currentState: "lobby",
     players: [],
@@ -25,7 +25,7 @@ export class LogicalServer {
   }
 
   playerName(playerId) {
-    return this.serverState.players.find(p => p.id === playerId)?.name;
+    return this.state.players.find(p => p.id === playerId)?.name;
   }
   
   createSubmarine(id) {
@@ -56,132 +56,132 @@ export class LogicalServer {
   disconnect(playerId) {
     delete this.usedPlayerNumbers[playerId];
     // Remove player record
-    this.serverState.players = this.serverState.players.filter(p => p.id !== playerId);
+    this.state.players = this.state.players.filter(p => p.id !== playerId);
     // Remove from ready list
-    this.serverState.ready = this.serverState.ready.filter(id => id !== playerId);
+    this.state.ready = this.state.ready.filter(id => id !== playerId);
     // Vacate any roles held by this player
-    this.serverState.submarines.forEach(submarine =>
+    this.state.submarines.forEach(submarine =>
       Object.keys(submarine).forEach(role => {
         if (submarine[role] === playerId) submarine[role] = null;
       })
     );
-    if (this.serverState.adminId && this.serverState.adminId === playerId) {
-      this.serverState.adminId = null;
+    if (this.state.adminId && this.state.adminId === playerId) {
+      this.state.adminId = null;
     }
-    this.serverState.version++;
+    this.state.version++;
   }
 
   changeName(playerId, new_name) {
-    if (this.serverState.currentState !== "lobby") return;
+    if (this.state.currentState !== "lobby") return;
 
-    const player = this.serverState.players.find(p => p.id === playerId);
+    const player = this.state.players.find(p => p.id === playerId);
     if (!player) return;
     player.name = new_name;
-    this.serverState.version++;
+    this.state.version++;
   }
 
   selectRole(playerId, submarine, role) {
-    if (this.serverState.currentState !== "lobby") return;
+    if (this.state.currentState !== "lobby") return;
 
     if (
       0 <= submarine &&
-      submarine < this.serverState.submarines.length &&
-      !this.serverState.submarines[submarine][role]
+      submarine < this.state.submarines.length &&
+      !this.state.submarines[submarine][role]
     ) {
       // leave existing role
-      this.serverState.submarines.forEach(submarineObj =>
+      this.state.submarines.forEach(submarineObj =>
         Object.keys(submarineObj).forEach(rk => {
           if (submarineObj[rk] === playerId) submarineObj[rk] = null;
         })
       );
       // go to new role
-      this.serverState.submarines[submarine][role] = playerId;
+      this.state.submarines[submarine][role] = playerId;
 
       // un-ready the player
-      this.serverState.ready = this.serverState.ready.filter(id => id !== playerId);
+      this.state.ready = this.state.ready.filter(id => id !== playerId);
     }
-    this.serverState.version++;
+    this.state.version++;
   }
 
   leaveRole(playerId) {
-    if (this.serverState.currentState !== "lobby") return;
+    if (this.state.currentState !== "lobby") return;
 
-    this.serverState.submarines.forEach(submarine =>
+    this.state.submarines.forEach(submarine =>
       Object.keys(submarine).forEach(role => {
         if (submarine[role] === playerId) submarine[role] = null;
       })
     );
 
-    this.serverState.ready = this.serverState.ready.filter(id => id !== playerId);
+    this.state.ready = this.state.ready.filter(id => id !== playerId);
 
-    this.serverState.version++;
+    this.state.version++;
   }
 
   ready(playerId, allRolesReadyCallback, gameStartedCallback) {
-    if (this.serverState.currentState !== "lobby") return;
+    if (this.state.currentState !== "lobby") return;
 
-    if (this.serverState.submarines.some(sub =>
+    if (this.state.submarines.some(sub =>
       Object.keys(sub).some(role => sub[role] === playerId)
-    ) && !this.serverState.ready.includes(playerId)) {
-      this.serverState.ready.push(playerId);
+    ) && !this.state.ready.includes(playerId)) {
+      this.state.ready.push(playerId);
     }
 
-    const allRolesAreReady = this.serverState.submarines.every(sub =>
-      ['co','xo','sonar','eng'].every(rk => this.serverState.ready.includes(sub[rk]))
+    const allRolesAreReady = this.state.submarines.every(sub =>
+      ['co','xo','sonar','eng'].every(rk => this.state.ready.includes(sub[rk]))
     );
-    if (allRolesAreReady && this.serverState.currentState === "lobby") {
+    if (allRolesAreReady && this.state.currentState === "lobby") {
       allRolesReadyCallback();
-      this.serverState.currentState = "game_beginning";
-      this.serverState.version++;
+      this.state.currentState = "game_beginning";
+      this.state.version++;
       setTimeout(() => {
-        this.serverState.currentState = "in_game";
+        this.state.currentState = "in_game";
         const engineLayoutGenerator = new EngineLayoutGenerator();
-        this.serverState.submarines.forEach(sub => {
+        this.state.submarines.forEach(sub => {
           sub.engineLayout = engineLayoutGenerator.generateLayout();
         });
-        this.serverState.board = generateBoard();
-        this.serverState.gameState = "choosingStartPositions";
-        this.serverState.version++;
+        this.state.board = generateBoard();
+        this.state.gameState = "choosingStartPositions";
+        this.state.version++;
         gameStartedCallback();
       }, 3000);
     }
 
-    this.serverState.version++;
+    this.state.version++;
   }
 
   notReady(playerId) {
-    if (this.serverState.currentState !== "lobby")
+    if (this.state.currentState !== "lobby")
       return;
 
-    this.serverState.ready = this.serverState.ready.filter(id => id !== playerId);
-    this.serverState.version++;
+    this.state.ready = this.state.ready.filter(id => id !== playerId);
+    this.state.version++;
   }
 
   chooseInitialPosition(playerId, row, column, resumingRealtimePlayCallback) {
-    let sub = this.serverState.submarines.find(sub => sub.co === playerId);
-    if (sub && this.serverState.gameState === 'choosingStartPositions') {
-      let subIdsThatHaveChosen = this.serverState.gameStateData[this.serverState.gameState].submarineIdsWithStartPositionChosen;
+    let sub = this.state.submarines.find(sub => sub.co === playerId);
+    if (sub && this.state.gameState === 'choosingStartPositions') {
+      let subIdsThatHaveChosen = this.state.gameStateData[this.state.gameState].submarineIdsWithStartPositionChosen;
       let thisSubAlreadyChose = subIdsThatHaveChosen.find(s => s === sub.id);
       if (!thisSubAlreadyChose) {
-        let chosenPositionIsValid = 0 <= row && row <= this.serverState.board.length &&
-            0 <= column && column <= this.serverState.board[0].length;
-        if (chosenPositionIsValid && this.serverState.board[row][column] === WATER) {
+        let chosenPositionIsValid = 0 <= row && row <= this.state.board.length &&
+            0 <= column && column <= this.state.board[0].length;
+        if (chosenPositionIsValid && this.state.board[row][column] === WATER) {
           sub.row = row;
           sub.col = column;
-          this.serverState.gameStateData[this.serverState.gameState].submarineIdsWithStartPositionChosen.push(sub.id);
+          this.state.gameStateData[this.state.gameState].submarineIdsWithStartPositionChosen.push(sub.id);
 
-          let allSubsHaveChosen = this.serverState.submarines.every(s => subIdsThatHaveChosen.find(c => c === s.id));
-          let readyPlayers = this.serverState.gameStateData[this.serverState.gameState].playerIdsReadyToContinue;
-          let allPlayersAreReady = this.serverState.submarines.every(s => readyPlayers.some(r => r === s.co) && readyPlayers.some(r => r === s.xo) && readyPlayers.some(r => r === s.eng) && readyPlayers.some(r => r === s.sonar));
+          let allSubsHaveChosen = this.state.submarines.every(s => subIdsThatHaveChosen.find(c => c === s.id));
+          let readyPlayers = this.state.gameStateData[this.state.gameState].playerIdsReadyToContinue;
+          let allPlayersAreReady = this.state.submarines.every(s => readyPlayers.some(r => r === s.co) && readyPlayers.some(r => r === s.xo) && readyPlayers.some(r => r === s.eng) && readyPlayers.some(r => r === s.sonar));
           if (allSubsHaveChosen && allPlayersAreReady) {
             setTimeout(() => {
-              this.serverState.gameState = 'realTimePlay';
-              this.serverState.gameStateData.choosingStartPositions = {
+              this.state.gameState = 'realTimePlay';
+              this.state.gameStateData.choosingStartPositions = {
                 playerIdsReadyToContinue: [],
                 submarineIdsWithStartPositionChosen: [],
               };
 
-              this.serverState.version++;
+              this.state.version++;
               resumingRealtimePlayCallback();
             }, 3000);
           }
@@ -189,30 +189,30 @@ export class LogicalServer {
       }
     }
 
-    this.serverState.version++;
+    this.state.version++;
   }
 
   readyToResumeRealTimePlay(playerId, resumingRealTimePlayCallback) {
-    if (this.serverState.gameState !== 'realTimePlay') {
-      let stateName = Object.keys(this.serverState.gameStateData).find(k => k === this.serverState.gameState);
+    if (this.state.gameState !== 'realTimePlay') {
+      let stateName = Object.keys(this.state.gameStateData).find(k => k === this.state.gameState);
       if (stateName) {
-        let playersReady = this.serverState.gameStateData[stateName].playerIdsReadyToContinue;
+        let playersReady = this.state.gameStateData[stateName].playerIdsReadyToContinue;
         let playerAlreadyIndicatedReadiness = playersReady.some(r => r === playerId);
         if (!playerAlreadyIndicatedReadiness) {
           playersReady.push(playerId);
 
-          let subIdsThatHaveChosen = this.serverState.gameStateData[this.serverState.gameState].submarineIdsWithStartPositionChosen;
-          let allSubsHaveChosen = this.serverState.submarines.every(s => subIdsThatHaveChosen.find(c => c === s.id));
-          let readyPlayers = this.serverState.gameStateData[this.serverState.gameState].playerIdsReadyToContinue;
-          let allPlayersAreReady = this.serverState.submarines.every(s => readyPlayers.some(r => r === s.co) && readyPlayers.some(r => r === s.xo) && readyPlayers.some(r => r === s.eng) && readyPlayers.some(r => r === s.sonar));
+          let subIdsThatHaveChosen = this.state.gameStateData[this.state.gameState].submarineIdsWithStartPositionChosen;
+          let allSubsHaveChosen = this.state.submarines.every(s => subIdsThatHaveChosen.find(c => c === s.id));
+          let readyPlayers = this.state.gameStateData[this.state.gameState].playerIdsReadyToContinue;
+          let allPlayersAreReady = this.state.submarines.every(s => readyPlayers.some(r => r === s.co) && readyPlayers.some(r => r === s.xo) && readyPlayers.some(r => r === s.eng) && readyPlayers.some(r => r === s.sonar));
           if (allSubsHaveChosen && allPlayersAreReady) {
             setTimeout(() => {
-              this.serverState.gameState = 'realTimePlay';
-              this.serverState.gameStateData.choosingStartPositions = {
+              this.state.gameState = 'realTimePlay';
+              this.state.gameStateData.choosingStartPositions = {
                 playerIdsReadyToContinue: [],
                 submarineIdsWithStartPositionChosen: [],
               };
-              this.serverState.version++;
+              this.state.version++;
               resumingRealTimePlayCallback();
             }, 3000);
           }
@@ -220,26 +220,26 @@ export class LogicalServer {
       }
     }
 
-    this.serverState.version++;
+    this.state.version++;
   }
 
   move(playerId, direction) {
-    if (this.serverState.currentState !== 'in_game')
+    if (this.state.currentState !== 'in_game')
       return;
 
-    if (this.serverState.gameState !== 'realTimePlay')
+    if (this.state.gameState !== 'realTimePlay')
       return;
 
-    let movingSub = this.serverState.submarines.find(sub => sub.co === playerId);
+    let movingSub = this.state.submarines.find(sub => sub.co === playerId);
     if (movingSub && movingSub.submarineState === 'waitingForAction') {
       const rowDeltas = {N: -1, S: 1, E: 0, W:  0};
       const colDeltas = {N:  0, S: 0, E: 1, W: -1};
       if (direction == 'N' || direction == 'S' || direction == 'E' || direction == 'W') {
         let newRow = movingSub.row + rowDeltas[direction];
         let newCol = movingSub.col + colDeltas[direction];
-        if (0 <= newRow && newRow <= this.serverState.board.length &&
-            0 <= newCol && newCol <= this.serverState.board[0].length &&
-            this.serverState.board[newRow][newCol] === WATER) {
+        if (0 <= newRow && newRow <= this.state.board.length &&
+            0 <= newCol && newCol <= this.state.board[0].length &&
+            this.state.board[newRow][newCol] === WATER) {
           movingSub.row = newRow;
           movingSub.col = newCol;
           movingSub.submarineState = 'doingPostMovementActions';
@@ -257,11 +257,11 @@ export class LogicalServer {
       }
     }
 
-    this.serverState.version++;
+    this.state.version++;
   }
 
   chargeGauge(playerId, gauge) {
-    let sub = this.serverState.submarines.find(s => s.xo === playerId);
+    let sub = this.state.submarines.find(s => s.xo === playerId);
     if (sub && sub.submarineState === 'doingPostMovementActions') {
       let stateData = sub.submarineStateData[sub.submarineState];
       if (!stateData.xoChargedGauge) {
@@ -288,11 +288,11 @@ export class LogicalServer {
       }
     }
 
-    this.serverState.version++;
+    this.state.version++;
   }
 
   crossOffSystem(playerId, direction, slotId, gameOverCallback) {
-    let sub = this.serverState.submarines.find(s => s.eng === playerId);
+    let sub = this.state.submarines.find(s => s.eng === playerId);
     if (sub && sub.submarineState === 'doingPostMovementActions') {
       let stateData = sub.submarineStateData[sub.submarineState];
       if (!stateData.engineerCrossedOutSystem && direction === stateData.directionMoved) {
@@ -358,16 +358,16 @@ export class LogicalServer {
           sub.health = Math.max(0, sub.health);
 
           if (sub.health === 0) {
-            let winner = this.serverState.submarines.find(s => s.id !== sub.id).id;
+            let winner = this.state.submarines.find(s => s.id !== sub.id).id;
             gameOverCallback(winner)
-            this.serverState.currentState = 'lobby';
+            this.state.currentState = 'lobby';
           }
 
         }
       }
     }
 
-    this.serverState.version++;
+    this.state.version++;
   }
 
   addPlayer(playerId) {
@@ -377,15 +377,15 @@ export class LogicalServer {
     this.usedPlayerNumbers[playerId] = playerNumber;
     
     const playerName = `Player ${playerNumber}`;
-    this.serverState.players.push({
+    this.state.players.push({
       id: playerId,
       name: playerName,
       connectionOrder: Date.now(),
       ready: false,
     });
 
-    if (!this.serverState.adminId) this.serverState.adminId = playerId;
+    if (!this.state.adminId) this.state.adminId = playerId;
 
-    this.serverState.version++;
+    this.state.version++;
   }
 }

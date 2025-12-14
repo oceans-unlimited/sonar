@@ -138,8 +138,6 @@ export function createAndRunServer(logicalServer, port) {
 
     log(`Player connected: ${socket.id} (${logicalServer.playerName(socket.id)})`);
     socket.emit("player_id", socket.id);
-    logicalServer.serverState.version++;
-    log('Broadcasting state update after new connection');
     ioServer.emit("state", logicalServer.serverState);
 
     console.log(`Player connected: ${socket.id}`);

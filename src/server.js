@@ -1,3 +1,4 @@
-import { initializeServerState, createAndRunServer } from "./server.lib.js";
+import { createAndRunServer } from "./server.lib.js";
+import { LogicalServer } from "./logical-server.lib.js";
 
-createAndRunServer(initializeServerState(), 3000);
+createAndRunServer(new LogicalServer(), 3000);

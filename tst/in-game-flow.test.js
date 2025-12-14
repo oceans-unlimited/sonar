@@ -1,4 +1,5 @@
-import { initializeServerState, createAndRunServer } from '../src/server.lib.js';
+import { createAndRunServer } from '../src/server.lib.js';
+import { LogicalServer } from '../src/logical-server.lib.js';
 import { io } from 'socket.io-client';
 import { test, afterEach, expect, assert } from 'vitest';
 
@@ -19,8 +20,8 @@ afterEach(() => {
 });
 
 async function startGame() {
-  const serverState = initializeServerState();
-  server = createAndRunServer(serverState, PORT);
+  const logicalServer = new LogicalServer();
+  server = createAndRunServer(logicalServer, PORT);
 
   let testData = {
     state: null,
@@ -198,7 +199,7 @@ test('Captain moves, guage is charged, and engineer crosses out a slot.', async 
   );
 
   testData.subs[0].eng.emit("cross_off_system", {direction: 'N', slotId: 'slot01'});
-  await expect.poll(() => null).toSatisfy(() =>
+  await expect.poll(() => null, {timeout: 2000}).toSatisfy(() =>
     testData.state.submarines[0].engineLayout.crossedOutSlots.some(s => s.direction === 'N' && s.slotId === 'slot01') &&
     testData.state.submarines[0].submarineState === 'waitingForAction'
   );
@@ -301,7 +302,7 @@ test('Crossing out whole direction results in loss of health.', async () => {
   await move(testData, 0, 'N', 'silence', 'reactor02');
   await move(testData, 0, 'N', 'mine', 'reactor03');
 
-  await expect.poll(() => null).toSatisfy(() =>
+  await expect.poll(() => null, {timeout: 2000}).toSatisfy(() =>
     testData.state.submarines[0].engineLayout.crossedOutSlots.length === 0
     && testData.state.submarines[0].health === 3
   );

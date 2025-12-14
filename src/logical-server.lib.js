@@ -1,6 +1,6 @@
-import { EngineLayoutGenerator } from "./engineLayout.lib";
-import { generateBoard } from "./board-layout.lib";
-import { W as WATER, L as LAND } from "./board-layout.lib";
+import { EngineLayoutGenerator } from "./engineLayout.lib.js";
+import { generateBoard } from "./board-layout.lib.js";
+import { W as WATER, L as LAND } from "./board-layout.lib.js";
 
 export class LogicalServer {
   usedPlayerNumbers = {};

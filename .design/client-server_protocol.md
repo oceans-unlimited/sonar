@@ -80,6 +80,7 @@ The in-game protocol will be somewhat more involved, but in general will be simi
 Everything revolves around the actions performed by the CO and XO.
 
 CO has the following actions.
+* Choose starting point (once, at beginning of game).
 * Move
 * Surface (by choice)
 * Surface (due to blackout)
@@ -94,6 +95,55 @@ XO can only activate two systems.
 * Drone
 
 Note: the pause action that the captain can execute is technically part of these actions as well.
+
+* Choose a starting location.
+  - All players join the server, select roles, indicate ready, and game begins.
+  - Players are presented with a screen saying "waiting for captains to select starting positions".
+  - Captains select locations.
+  - All other players select "ready to resume".
+  - Captains/XOs are now able to perform actions.
+
+* Captain moves the ship in a valid direction.
+  - Captains/XOs are able to perform actions.
+  - Engineer attempts cross-out, is denied.
+  - XO attempts charge, is denied.
+  - Captain moves the ship in a direction.
+  - Engineer crosses out icon in movement direction's area.
+  - Engineer attempts another cross-out, is denied.
+  - Captain attempts to move in valid direction, is denied.
+  - XO charges a guage.
+  - Captain attempts to move again, is no longer denied.
+
+Q: Is pausing within the game a part of outer flow, or inner flow?
+R: Knowing "current state" is different than knowing "in-game state".
+C: In-game and "current" states are represented separately.
+
+Q: How do I represent actions that pause the entire game, as opposed to actions that only pause on team?
+R: Each sub must have its own state, which is different from in-game state.
+
+R: This flow of captain action depends on engineering, CO, and XO.
+R: That means I need to know how the map and the engineering diagrams get represented.
+R: That also means I need to represent all the possible outcomes of engineer crossing things out.
+R: That, in turn, means I need to represent winning a game correctly.
+
+Q: How do I send this class over JSON?
+R: I can use stringify, etc. to do that.
+Q: How do I cast it to the correct type once on the other side?
+R: I can create a constructor taking in the raw JSON version of my object and use that.
+
+Q: What should I do with the limited time I have left?
+R: I should just outline the different flows.
+
+C: Each action should have its own associated state data for each different kind of state.
+C: For actions that affect both submarines, there is a higher-level in-game state.
+
+C: The existing EngineLayoutGenerator doesn't provide a representation of what things are marked off, and what things are not.
+R: I could augment it in some way. I could also use custom data representation, and map to/from on client side.
+
+Step 1: add the standard board as a grid.
+- API should reflect sectors/rows/cols as necessary for sending coordinates.
+Step 2: augment the engine layout so it can handle being marked off.
+- Might have to refactor some of the code so that the representation is easier to work with.
 
 ## Testing
 

@@ -1,8 +1,10 @@
-import { initializeServerState, createAndRunServer } from '../src/server.lib.js';
+import { createAndRunServer } from '../src/server.lib.js';
+import { LogicalServer } from '../src/logical-server.lib.js';
 import { io } from 'socket.io-client';
-import { test, afterEach, expect } from 'vitest';
+import { test, afterEach, expect, assert } from 'vitest';
 
-const SERVER_URL = "http://localhost:3000";
+const PORT = 3000;
+const SERVER_URL = `http://localhost:${PORT}`;
 const DEFAULT_OPTIONS = {autoConnect: false};
 
 let server = null;
@@ -14,8 +16,8 @@ afterEach(() => {
 });
 
 test('First player connects.', async () => {
-  const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  const logicalServer = new LogicalServer();
+  server = createAndRunServer(logicalServer, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
   
   let id = null;
@@ -35,42 +37,20 @@ test('First player connects.', async () => {
   expect(state.players[0].name).toBe(`Player 1`);
 });
 
-test('Second player connects.', async() => {
-  const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
-  const firstClient = io(SERVER_URL, DEFAULT_OPTIONS);
-  const secondClient = io(SERVER_URL, DEFAULT_OPTIONS);
-  
-  let ids = [];
-  let latest_state = null;
-
-  function configureClient(client) {
-    client.on("player_id", player_id => ids.push(player_id));
-    client.on("state", state => {
-      latest_state = state;
-    });
-  }
-
-  configureClient(firstClient);
-  configureClient(secondClient);
-
-  firstClient.connect();
-  await expect.poll(() => null, {timeout: 1000}).toSatisfy(() => latest_state);
-  secondClient.connect();
-  await expect
-    .poll(() => null, { timeout: 1000 })
-    .toSatisfy(() =>
-      ids.length == 2 && latest_state.players.length == 2);
-  expect(latest_state.adminId).toBe(ids[0]);
-  expect(latest_state.players[0].id).toBe(ids[0]);
-  expect(latest_state.players[0].name).toBe(`Player 1`);
-  expect(latest_state.players[1].id).toBe(ids[1]);
-  expect(latest_state.players[1].name).toBe(`Player 2`);
+test('Second player has incrementing number in name.', async() => {
+  const server = new LogicalServer(); 
+  server.addPlayer('first');
+  server.addPlayer('second');
+  expect(server.state.adminId).toBe('first');
+  expect(server.state.players[0].id).toBe('first');
+  expect(server.state.players[0].name).toBe(`Player 1`);
+  expect(server.state.players[1].id).toBe('second');
+  expect(server.state.players[1].name).toBe(`Player 2`);
 });
 
 test('Player changes name.', async () => {
-  const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  const logicalServer = new LogicalServer();
+  server = createAndRunServer(logicalServer, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -84,8 +64,8 @@ test('Player changes name.', async () => {
 });
 
 test('Player selects role.', async () => {
-  const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  const logicalServer = new LogicalServer();
+  server = createAndRunServer(logicalServer, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -101,8 +81,8 @@ test('Player selects role.', async () => {
 });
 
 test('Player selects different role than they already selected.', async () => {
-  const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  const logicalServer = new LogicalServer();
+  server = createAndRunServer(logicalServer, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -123,8 +103,8 @@ test('Player selects different role than they already selected.', async () => {
 });
 
 test('Player selects same role as they already selected.', async () => {
-  const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  const logicalServer = new LogicalServer();
+  server = createAndRunServer(logicalServer, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -147,8 +127,8 @@ test('Player selects same role as they already selected.', async () => {
 });
 
 test('Player selects role that is already filled by another player.', async () => {
-  const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  const logicalServer = new LogicalServer();
+  server = createAndRunServer(logicalServer, PORT);
   const firstClient = io(SERVER_URL, DEFAULT_OPTIONS);
   const secondClient = io(SERVER_URL, DEFAULT_OPTIONS);
   
@@ -177,8 +157,8 @@ test('Player selects role that is already filled by another player.', async () =
 });
 
 test('Player leaves role.', async () => {
-  const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  const logicalServer = new LogicalServer();
+  server = createAndRunServer(logicalServer, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -196,8 +176,8 @@ test('Player leaves role.', async () => {
 });
 
 test('Player is ready to start before they selected a role.', async () => {
-  const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  const logicalServer = new LogicalServer();
+  server = createAndRunServer(logicalServer, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -216,8 +196,8 @@ test('Player is ready to start before they selected a role.', async () => {
 });
 
 test('Player is ready to start after they selected a role.', async () => {
-  const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  const logicalServer = new LogicalServer();
+  server = createAndRunServer(logicalServer, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -234,8 +214,8 @@ test('Player is ready to start after they selected a role.', async () => {
 });
 
 test('Player is ready, then is ready again.', async () => {
-  const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  const logicalServer = new LogicalServer();
+  server = createAndRunServer(logicalServer, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -258,8 +238,8 @@ test('Player is ready, then is ready again.', async () => {
 });
 
 test('Player is not ready.', async () => {
-  const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  const logicalServer = new LogicalServer();
+  server = createAndRunServer(logicalServer, PORT);
   const client = io(SERVER_URL, DEFAULT_OPTIONS);
 
   let state = null;
@@ -280,51 +260,48 @@ test('Player is not ready.', async () => {
 });
 
 test('All roles are ready to start the game.', async () => {
-  const serverState = initializeServerState();
-  server = createAndRunServer(serverState);
+  const logicalServer = new LogicalServer();
 
-  let state = null;
-  let ids = [null, null, null, null, null, null, null, null];
-  function configureClient(client, index) {
-    client.on("player_id", player_id => ids[index] = player_id);
-    client.on("state", serverState => {
-      state = serverState;
-    });
-  }
-  
-  let clients = []
-  for (let i = 0; i < 8; ++i) {
-    clients[i] = io(SERVER_URL, DEFAULT_OPTIONS);
-    configureClient(clients[i], i);
-    clients[i].connect();
-  }
+  logicalServer.addPlayer('sub0co');
+  logicalServer.addPlayer('sub0xo');
+  logicalServer.addPlayer('sub0sonar');
+  logicalServer.addPlayer('sub0eng');
+  logicalServer.addPlayer('sub1co');
+  logicalServer.addPlayer('sub1xo');
+  logicalServer.addPlayer('sub1sonar');
+  logicalServer.addPlayer('sub1eng');
 
-  clients[0].emit("select_role", {submarine: 0, role: "co"});
-  clients[1].emit("select_role", {submarine: 0, role: "xo"});
-  clients[2].emit("select_role", {submarine: 0, role: "sonar"});
-  clients[3].emit("select_role", {submarine: 0, role: "radio"});
-  clients[4].emit("select_role", {submarine: 1, role: "co"});
-  clients[5].emit("select_role", {submarine: 1, role: "xo"});
-  clients[6].emit("select_role", {submarine: 1, role: "sonar"});
-  clients[7].emit("select_role", {submarine: 1, role: "radio"});
-  // make sure they're all selected
-  await expect.poll(() => null, {timeout: 1000})
-    .toSatisfy(() => {
-      var sub0 = state.submarines[0];
-      var sub1 = state.submarines[1];
-      return sub0.co && sub0.xo && sub0.sonar && sub0.radio &&
-        sub1.co && sub1.xo && sub1.sonar && sub1.radio;
-    });
+  logicalServer.selectRole('sub0co', 0, 'co');
+  logicalServer.selectRole('sub0xo', 0, 'xo');
+  logicalServer.selectRole('sub0sonar', 0, 'sonar');
+  logicalServer.selectRole('sub0eng', 0, 'eng');
+  logicalServer.selectRole('sub1co', 1, 'co');
+  logicalServer.selectRole('sub1xo', 1, 'xo');
+  logicalServer.selectRole('sub1sonar', 1, 'sonar');
+  logicalServer.selectRole('sub1eng', 1, 'eng');
 
-  for (let i = 0; i < 8; ++i) {
-    clients[i].emit("ready");
-  }
+  let allRolesReady = false;
+  let gameStarted = false;
 
-  await expect.poll(() => null, {timeout:1000}).toSatisfy(() =>
-    state.currentState === "game_beginning"
-  );
+  let allRolesReadyCallback = () => allRolesReady = true;
+  let gameStartedCallback = () => gameStarted = true;
+
+  logicalServer.ready('sub0co', allRolesReadyCallback, gameStartedCallback);
+  logicalServer.ready('sub0xo', allRolesReadyCallback, gameStartedCallback);
+  logicalServer.ready('sub0sonar', allRolesReadyCallback, gameStartedCallback);
+  logicalServer.ready('sub0eng', allRolesReadyCallback, gameStartedCallback);
+  logicalServer.ready('sub1co', allRolesReadyCallback, gameStartedCallback);
+  logicalServer.ready('sub1xo', allRolesReadyCallback, gameStartedCallback);
+  logicalServer.ready('sub1sonar', allRolesReadyCallback, gameStartedCallback);
+  assert(!allRolesReady);
+  assert(!gameStarted);
+  logicalServer.ready('sub1eng', allRolesReadyCallback, gameStartedCallback);
+  assert(allRolesReady);
+  assert(logicalServer.state.currentState === "game_beginning");
+  assert(!gameStarted);
 
   await expect.poll(() => null, {timeout: 4000}).toSatisfy(() =>
-    state.currentState === "in_game"
+    logicalServer.state.currentState === "in_game"
+    && gameStarted
   );
 });

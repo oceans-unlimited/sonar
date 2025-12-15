@@ -11,7 +11,8 @@ class EngineLayoutGenerator {
     const layout = {
       sessionId: this.generateSessionId(),
       directions: {},
-      circuits: []
+      circuits: [],
+      crossedOutSlots: [], // {direction, slotId}
     };
 
     // Initialize directions

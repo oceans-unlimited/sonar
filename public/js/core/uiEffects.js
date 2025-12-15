@@ -30,6 +30,35 @@ export function applyFlickerEffect(app, targets, amplitude = 0.02, frequency = 1
   return flickerCallback;
 }
 
+export function applyTintColor(target, colorOrName) {
+    let color = null;
+    if (typeof colorOrName === 'number') {
+        color = colorOrName;
+    } else if (typeof colorOrName === 'string') {
+        const key = colorOrName.toLowerCase();
+        if (SystemColors[key] !== undefined) color = SystemColors[key];
+        else if (Colors[key] !== undefined) color = Colors[key];
+        else if (/^#?[0-9a-f]{6}$/i.test(colorOrName)) {
+            const hex = colorOrName.startsWith('#') ? colorOrName.slice(1) : colorOrName;
+            color = parseInt(hex, 16);
+        } else {
+            color = Colors.text; // fallback
+        }
+    } else {
+        color = Colors.text; // fallback default
+    }
+
+    target.tint = color;
+
+    const remove = () => {
+        target.tint = 0xFFFFFF;
+    };
+
+    return {
+        remove,
+    };
+}
+
 export function applyGlowEffect(target, app, colorOrName) {
     // Resolve colorOrName which can be:
     // - numeric 0xRRGGBB
@@ -69,7 +98,7 @@ export function applyGlowEffect(target, app, colorOrName) {
         let time = 0;
         pulseTicker = () => {
             time += 0.05;
-            glow.outerStrength = 2 + Math.sin(time) * 1.5;
+            glow.outerStrength = 1 + Math.sin(time) * 1.5;
         };
         app.ticker.add(pulseTicker);
     };
@@ -128,7 +157,6 @@ export function createButtonStateManager(button, app, disabledTexture) {
     // anchor.set(0.5) so (0,0) is the visual center — use that instead of
     // width/2,height/2 which incorrectly offsets when anchor is centered.
     disabledOverlay.position.set(0, 0);
-    // Match overlay size to the button so it fully covers it when shown.
     disabledOverlay.visible = false;
     disabledOverlay.eventMode = 'none'; // Ensure clicks pass through
     button.addChild(disabledOverlay);
@@ -163,13 +191,23 @@ export function createButtonStateManager(button, app, disabledTexture) {
     button.cursor = 'default';
   };
 
+  const setNeutral = () => {
+    isPushed = false;
+    button.alpha = 1.0;
+    glow.off();
+    disabledOverlay.visible = false;
+    button.eventMode = 'none';
+    button.cursor = 'default';
+  };
+
   // Initial state
-  setActive();
+  setDisabled();
 
   return {
     setActive,
     setDisabled,
     setPushed,
+    setNeutral,
     isPushed: () => isPushed,
   };
 }

@@ -11,7 +11,8 @@ import { AudioManager } from './core/audioManager.js';
   document.body.appendChild(app.canvas);
 
   const audioManager = new AudioManager();
-  await audioManager.loadBeep('assets/audio/beep_01.wav');
+  await audioManager.loadSound('beep', 'assets/audio/beep_01.wav');
+  await audioManager.loadSound('teletype', 'assets/audio/teletype02.wav');
 
   // Pre-load any assets needed for the scenes
   const assets = {
@@ -44,6 +45,28 @@ import { AudioManager } from './core/audioManager.js';
       weapons: await Assets.load('assets/ui/weapons.svg'),
       reactor: await Assets.load('assets/ui/reactor.svg'),
       disabled: await Assets.load('assets/ui/disabled.svg'),
+      ping_sys: await Assets.load('assets/ui/ping_sys.svg'),
+      four_gauge: await Assets.load('assets/ui/4_gauge.svg'),
+      four_gauge_fill1: await Assets.load('assets/ui/4_gauge_fill1.svg'),
+      four_gauge_fill2: await Assets.load('assets/ui/4_gauge_fill2.svg'),
+      four_gauge_fill3: await Assets.load('assets/ui/4_gauge_fill3.svg'),
+      four_gauge_fill4: await Assets.load('assets/ui/4_gauge_fill4.svg'),
+      drone_sys: await Assets.load('assets/ui/drone_sys.svg'),
+      three_gauge: await Assets.load('assets/ui/3_gauge.svg'),
+      three_gauge_fill1: await Assets.load('assets/ui/3_gauge_fill1.svg'),
+      three_gauge_fill2: await Assets.load('assets/ui/3_gauge_fill2.svg'),
+      three_gauge_fill3: await Assets.load('assets/ui/3_gauge_fill3.svg'),
+      mine_sys: await Assets.load('assets/ui/mine_sys.svg'),
+      torpedo_sys: await Assets.load('assets/ui/torpedo_sys.svg'),
+      stealth_sys: await Assets.load('assets/ui/stealth_sys.svg'),
+      six_gauge: await Assets.load('assets/ui/6_gauge.svg'),
+      six_gauge_fill1: await Assets.load('assets/ui/6_gauge_fill1.svg'),
+      six_gauge_fill2: await Assets.load('assets/ui/6_gauge_fill2.svg'),
+      six_gauge_fill3: await Assets.load('assets/ui/6_gauge_fill3.svg'),
+      six_gauge_fill4: await Assets.load('assets/ui/6_gauge_fill4.svg'),
+      six_gauge_fill5: await Assets.load('assets/ui/6_gauge_fill5.svg'),
+      six_gauge_fill6: await Assets.load('assets/ui/6_gauge_fill6.svg'),
+      scenario_sys: await Assets.load('assets/ui/scenario_sys.svg'),
   };
 
   await SceneManager.init(app, assets, socketManager, audioManager);
@@ -65,5 +88,8 @@ import { AudioManager } from './core/audioManager.js';
   });
   document.getElementById('sceneEngineBtn').addEventListener('click', () => {
     SceneManager.changeScene('engine');
+  });
+  document.getElementById('sceneXoBtn').addEventListener('click', () => {
+    SceneManager.changeScene('xo');
   });
 })();

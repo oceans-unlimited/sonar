@@ -9,7 +9,7 @@ import { applyFlickerEffect } from "./core/uiEffects.js";
 import { socketManager } from './core/socketManager.js';
 
 
-export async function createTitleScene(app, assets) {
+export async function createTitleScene(app, assets, audioManager) {
   const scene = new Container();
 
   // Background gradient overlay
@@ -46,9 +46,6 @@ export async function createTitleScene(app, assets) {
   });
   rays.filters = [godray];
 
-  const audioManager = new AudioManager();
-  await audioManager.loadBeep('assets/audio/beep_01.wav');
-
   const style = new TextStyle({
     fontFamily: 'Orbitron',
     fontSize: 24,
@@ -62,13 +59,15 @@ export async function createTitleScene(app, assets) {
     'INITIALIZING SYSTEMS...\nESTABLISHING SATELLITE UPLINK...',
     style,
     audioManager,
-    { speed: 40, pitchRange: [0.9, 1.3] }
+    { speed: 50 }
   );
+  tw.start();
 
   tw.container.x = 60;
   tw.container.y = 100;
   scene.addChild(tw.container);
 
+  let menuCreated = false;
   const tickerCallback = (ticker) => {
     rays.y += 0.05 * ticker.deltaTime; //slow drift
     if (rays.y > 0) rays.y = -app.screen.height * 0.5;
@@ -81,8 +80,12 @@ export async function createTitleScene(app, assets) {
 
     tw.update(app.ticker.deltaMS);
 
-    if (tw.isDone && !scene.menu) {
-      createMenu();
+    if (tw.isDone && !menuCreated) {
+        menuCreated = true;
+        setTimeout(() => {
+            tw.clear();
+            createMenu();
+        }, 1000);
     }
   };
   app.ticker.add(tickerCallback);

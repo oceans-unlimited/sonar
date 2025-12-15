@@ -10,6 +10,7 @@ import { createTitleScene } from '../titleScene.js';
 import { createDebugRotationScene } from '../scenes/debugRotationScene.js';
 import { createBootScene } from '../scenes/bootScene.js';
 import { createEngineScene } from '../scenes/engineScene.js';
+import { createXOScene } from '../scenes/xoScene.js';
 import { mockLayout } from '../mockEngineLayout.js';
 
 const scenes = {
@@ -19,6 +20,7 @@ const scenes = {
     conn: createConnScene,
     lobby: createLobbyScene,
     engine: createEngineScene,
+    xo: createXOScene,
     debugRotation: createDebugRotationScene,
 };
 

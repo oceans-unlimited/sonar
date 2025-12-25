@@ -151,9 +151,6 @@ export async function createLobbyScene(app, assets) {
   /*----------------------------------------------------------
     Responsiveness
   ----------------------------------------------------------*/
-  app.renderer.on("resize", () => {
-    positionColumns(container, app.screen.width, colWidth, colSpacing);
-  });
 
   return root;
 }
@@ -518,21 +515,13 @@ function createUnassignedPanel(app, assets) {
 ------------------------------------------------------------*/
 function positionColumns(container, screenWidth, colWidth, spacing) {
   const totalWidth = 3 * colWidth + 2 * spacing;
-  let startX = (screenWidth - totalWidth) / 2;
-  if (screenWidth < 768) {
-    // Stack vertically
-    let y = 80;
-    container.children.forEach((c) => {
-      c.x = (screenWidth - colWidth) / 2;
-      c.y = y;
-      y += 440;
-    });
-  } else {
-    container.children.forEach((c, i) => {
-      c.x = startX + i * (colWidth + spacing);
-      c.y = 80;
-    });
-  }
+  const startX = (screenWidth - totalWidth) / 2;
+
+  // Always arrange horizontally (Landscape Lock)
+  container.children.forEach((c, i) => {
+    c.x = startX + i * (colWidth + spacing);
+    c.y = 80;
+  });
 }
 
 /*------------------------------------------------------------

@@ -3,31 +3,22 @@
 import * as PIXI from "pixi.js";
 import { Colors, Font, SystemColors } from "../core/uiStyle.js";
 import {
-  createNoiseOverlay,
-  createScanlinesOverlay,
-  applyTintColor,
-  createButtonStateManager,
-  applyGlowEffect,
+    createNoiseOverlay,
+    createScanlinesOverlay,
+    applyTintColor,
+    createButtonStateManager,
+    applyGlowEffect,
 } from "../core/uiEffects.js";
 
 function positionColumns(container, screenWidth, colWidth, spacing) {
-  const totalWidth = 3 * colWidth + 2 * spacing;
-  let startX = (screenWidth - totalWidth) / 2;
-  if (screenWidth < 768) {
-    // Stack vertically
-    let y = 80;
-    container.children.forEach((c) => {
-      c.x = (screenWidth - colWidth) / 2;
-      c.y = y;
-      y += c.height + spacing;
-    });
-  } else {
-    // Arrange horizontally
+    const totalWidth = 3 * colWidth + 2 * spacing;
+    const startX = (screenWidth - totalWidth) / 2;
+
+    // Always arrange horizontally (Landscape Lock)
     container.children.forEach((c, i) => {
-      c.x = startX + i * (colWidth + spacing);
-      c.y = 80;
+        c.x = startX + i * (colWidth + spacing);
+        c.y = 80;
     });
-  }
 }
 
 function createSubsystemRow(subsystemLabel, iconTexture, gaugeTexture, fillTextures, colorName, app, assets, allSubsystems, statusTextContent = "READY") {
@@ -264,16 +255,12 @@ export async function createXOScene(app, assets) {
 
     positionColumns(container, app.screen.width, colWidth, colSpacing);
 
-    app.renderer.on("resize", () => {
-        positionColumns(container, app.screen.width, colWidth, colSpacing);
-    });
-
     return root;
 }
 
 function createScenarioSubsystem(assets, colorName, app, allSubsystems) {
     // ... (switch statement remains the same)
-    const gaugeType = 'four'; 
+    const gaugeType = 'four';
 
     let gaugeTexture, fillTextures;
 

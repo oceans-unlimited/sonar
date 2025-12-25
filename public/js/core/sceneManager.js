@@ -87,6 +87,16 @@ export const SceneManager = {
             this.onStateUpdate(state);
         });
 
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (this.currentSceneName) {
+                    this.changeScene(this.currentSceneName);
+                }
+            }, 200);
+        });
+
         await this.changeScene('boot'); // Start with the boot scene
     },
 

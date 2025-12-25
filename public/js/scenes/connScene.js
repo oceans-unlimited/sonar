@@ -2,7 +2,7 @@
 
 import * as PIXI from 'pixi.js';
 import { Colors, Font, SystemColors, Layout } from '../core/uiStyle.js';
-import { createNoiseOverlay, createScanlinesOverlay, applyFlickerEffect, applyTintColor } from '../core/uiEffects.js';
+import { createNoiseOverlay, createScanlinesOverlay, applyFlickerEffect, applyTintColor, setupDraggableSidePanel } from '../core/uiEffects.js';
 import { MapRenderer } from '../renderers/mapRenderer.js';
 
 export function createConnScene(app, assets) {
@@ -36,16 +36,15 @@ export function createConnScene(app, assets) {
         tileSize: 90
     });
     mapViewWindow.addChild(mapRenderer.container);
-    mapRenderer.setMask(0, 0, windowWidth, windowHeight);
+    mapRenderer.updateBounds(windowWidth, windowHeight); // Initial bounds & zoom levels
     mapRenderer.centerOnPosition({ x: 7, y: 7 }); // Start centered
 
     // --- Overlays (Grid, Data) ---
     // Note: Grid coordinate labels are now handled internally by MapRenderer.
     // Position/Target Data Overlay and other UI elements are initialized below.
 
-    // --- Controls Drawer ---
+    // --- Controls Panel ---
     const controls = new PIXI.Container();
-    controls.x = app.screen.width - (IS_MOBILE ? DRAWER_PEEK : CONTROLS_WIDTH);
     scene.addChild(controls);
 
     const controlsBg = new PIXI.Graphics()
@@ -53,25 +52,14 @@ export function createConnScene(app, assets) {
         .fill({ color: Colors.background, alpha: 0.9 })
         .stroke({ color: Colors.border, width: 2 });
     controls.addChild(controlsBg);
+    controlsBg.eventMode = 'static';
+    controlsBg.cursor = 'grab';
 
-    // Drawer Logic
-    let drawerOpen = true; // Default open
-
-    const toggleDrawer = (open) => {
-        drawerOpen = open;
-        const targetX = open ? app.screen.width - CONTROLS_WIDTH : app.screen.width - DRAWER_PEEK;
-        // Simple animation (direct assignment for now, could be tweened)
-        controls.x = targetX;
-    };
-
-    // Auto-hide drawer on map drag
-    mapRenderer.onStartDrag = () => {
-        if (drawerOpen) toggleDrawer(false);
-    };
-
-    mapRenderer.onInactivity = () => {
-        if (!drawerOpen) toggleDrawer(true);
-    };
+    const sidePanelManager = setupDraggableSidePanel(app, controls, controlsBg, mapViewWindow, {
+        width: CONTROLS_WIDTH,
+        threshold: 15,
+        holdTime: 300
+    });
 
     // --- Game Info Header (Inside Drawer) ---
     const game_info = new PIXI.Container();
@@ -122,31 +110,56 @@ export function createConnScene(app, assets) {
     helmContainer.y = 0;
     buttonsContainer.addChild(helmContainer);
 
-    const dpadSize = 40;
-    const dpadSpacing = 45;
+    const dpadSpacingX = 70; // Increased spacing
+    const dpadSpacingY = 55;
+
+    // N, W, E, S with arrow rotations and labels
     const directions = [
-        { label: 'N', x: dpadSpacing, y: 0 },
-        { label: 'W', x: 0, y: dpadSpacing },
-        { label: 'E', x: dpadSpacing * 2, y: dpadSpacing },
-        { label: 'S', x: dpadSpacing, y: dpadSpacing * 2 }
+        { label: 'N', x: dpadSpacingX, y: 0, rot: -Math.PI / 2 },
+        { label: 'W', x: 0, y: dpadSpacingY, rot: Math.PI },
+        { label: 'E', x: dpadSpacingX * 2, y: dpadSpacingY, rot: 0 },
+        { label: 'S', x: dpadSpacingX, y: dpadSpacingY * 2, rot: Math.PI / 2 }
     ];
 
     directions.forEach(dir => {
         const dBtn = new PIXI.Container();
-        dBtn.x = dir.x + (CONTROLS_WIDTH - 40 - dpadSpacing * 3) / 2;
+        // Center the D-Pad within the controls panel
+        dBtn.x = dir.x + (CONTROLS_WIDTH - 40 - dpadSpacingX * 2) / 2;
         dBtn.y = dir.y;
 
-        const bg = new PIXI.Graphics()
-            .roundRect(0, 0, dpadSize, dpadSize, 4)
-            .fill({ color: Colors.border, alpha: 0.8 })
-            .stroke({ color: Colors.text, width: 1 });
+        // Button background
+        const bg = new PIXI.Sprite(assets.button);
+        bg.anchor.set(0.5);
+        bg.scale.set(0.65);
+        applyTintColor(bg, Colors.border);
 
-        const t = new PIXI.Text({ text: dir.label, style: { fontFamily: Font.family, fontSize: 16, fill: Colors.text } });
+        // Arrow and Label layout
+        const arrow = new PIXI.Sprite(assets.arrow);
+        arrow.anchor.set(0.5);
+        arrow.scale.set(0.4);
+        arrow.rotation = dir.rot;
+        applyTintColor(arrow, Colors.text);
+
+        const t = new PIXI.Text({
+            text: dir.label,
+            style: {
+                fontFamily: 'Goldman',
+                fontSize: 18,
+                fill: Colors.text
+            }
+        });
         t.anchor.set(0.5);
-        t.x = dpadSize / 2;
-        t.y = dpadSize / 2;
 
-        dBtn.addChild(bg, t);
+        // Format: '< W', '^ N', 'E >', 'V S'
+        if (dir.label === 'E') {
+            t.x = -12;
+            arrow.x = 12;
+        } else {
+            arrow.x = -12;
+            t.x = 12;
+        }
+
+        dBtn.addChild(bg, arrow, t);
         dBtn.eventMode = 'static';
         dBtn.cursor = 'pointer';
         helmContainer.addChild(dBtn);
@@ -222,6 +235,7 @@ export function createConnScene(app, assets) {
     const flickerCallback = applyFlickerEffect(app, allText);
     scene.on('destroyed', () => {
         app.ticker.remove(flickerCallback);
+        sidePanelManager.destroy();
     });
 
     return root;

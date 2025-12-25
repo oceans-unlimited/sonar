@@ -1,4 +1,5 @@
 import * as PIXI from 'pixi.js';
+import { animateMapZoom } from '../core/mapEffects.js';
 
 export class MapRenderer {
     constructor(app, assets, config = {}) {
@@ -41,7 +42,8 @@ export class MapRenderer {
         this.verticalLabels.mask = this.vLabelMask;
         this.container.addChild(this.hLabelMask, this.vLabelMask);
 
-        this.currentScale = 90;
+        this.currentScale = 90; // Default
+        this.zoomLevels = [90, 60, 30]; // Initial levels, will be refined in updateBounds
         this.dragging = false;
         this.dragStart = new PIXI.Point();
         this.dragStartPos = new PIXI.Point();
@@ -51,6 +53,7 @@ export class MapRenderer {
         this.renderMap();
         this.setupInteractions();
         this.setupKeyboardControls();
+        this.setupZoomControls();
 
         // Sync labels with mapContent
         this.app.ticker.add(() => {
@@ -133,12 +136,92 @@ export class MapRenderer {
         }
     }
 
-    setScale(scale) {
-        if ([30, 60, 90].includes(scale)) {
-            this.currentScale = scale;
+    updateBounds(width, height) {
+        this.setMask(0, 0, width, height);
+
+        // Calculate Min Scale to fit columns A-O (15 columns)
+        const columns = this.config.gridSize;
+        const availableWidth = width - this.labelGutter;
+        const minScale = Math.floor(availableWidth / columns);
+
+        // 3 Zoom Levels: Large (90), Small (minScale), and Intermediate
+        const intermediate = Math.floor((90 + minScale) / 2);
+        this.zoomLevels = [90, intermediate, minScale];
+
+        // Ensure current scale isn't smaller than min
+        if (this.currentScale < minScale) {
+            this.currentScale = minScale;
             this.renderMap();
-            this.clampPosition();
         }
+        this.clampPosition();
+    }
+
+    setScale(targetScale) {
+        animateMapZoom(this.app, this, targetScale);
+    }
+
+    setupZoomControls() {
+        // Mouse Wheel (Global)
+        const onWheel = (e) => {
+            e.preventDefault();
+            const direction = e.deltaY > 0 ? -1 : 1;
+            this.stepZoom(direction);
+        };
+        window.addEventListener('wheel', onWheel, { passive: false });
+
+        // Touch Gestures (Pinch/Spread) - Only on Map
+        let initialDistance = 0;
+        this.container.on('touchstart', (e) => {
+            const touches = e.nativeEvent.touches;
+            if (touches && touches.length === 2) {
+                const dx = touches[0].clientX - touches[1].clientX;
+                const dy = touches[0].clientY - touches[1].clientY;
+                initialDistance = Math.sqrt(dx * dx + dy * dy);
+            }
+        });
+
+        this.container.on('touchmove', (e) => {
+            const touches = e.nativeEvent.touches;
+            if (touches && touches.length === 2) {
+                const dx = touches[0].clientX - touches[1].clientX;
+                const dy = touches[0].clientY - touches[1].clientY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                const delta = distance - initialDistance;
+                if (Math.abs(delta) > 50) { // Threshold for gesture
+                    this.stepZoom(delta > 0 ? 1 : -1);
+                    initialDistance = distance;
+                }
+            }
+        });
+
+        this.container.on('destroyed', () => {
+            window.removeEventListener('wheel', onWheel);
+        });
+    }
+
+    stepZoom(direction) {
+        // direction: 1 for zoom in, -1 for zoom out
+        const currentIndex = this.zoomLevels.indexOf(this.findClosestLevel(this.currentScale));
+        let nextIndex = currentIndex - direction; // Zoom in decreases scale index (moves towards 90)
+
+        // zoomLevels is [Large, Intermediate, Small]
+        // Index 0: 90 (Large)
+        // Index 1: Intermediate
+        // Index 2: Small
+        // Zoom IN (direction 1): move towards index 0
+        // Zoom OUT (direction -1): move towards index 2
+
+        nextIndex = Math.max(0, Math.min(this.zoomLevels.length - 1, nextIndex));
+        if (nextIndex !== currentIndex) {
+            this.setScale(this.zoomLevels[nextIndex]);
+        }
+    }
+
+    findClosestLevel(scale) {
+        return this.zoomLevels.reduce((prev, curr) => {
+            return (Math.abs(curr - scale) < Math.abs(prev - scale) ? curr : prev);
+        });
     }
 
     setMask(x, y, width, height) {

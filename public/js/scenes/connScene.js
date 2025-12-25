@@ -18,35 +18,17 @@ export function createConnScene(app, assets) {
 
     // --- Layout Constants (based on SVG) ---
     const IS_MOBILE = app.screen.width < 800;
-    const HEADER_HEIGHT = 60;
     const CONTROLS_WIDTH = IS_MOBILE ? 270 : 300;
     const DRAWER_PEEK = 40; // How much the drawer peeks out when closed
-
-    // --- Header ---
-    const header = new PIXI.Container();
-    header.y = 0;
-    scene.addChild(header);
-
-    const headerBg = new PIXI.Graphics()
-        .rect(0, 0, app.screen.width, HEADER_HEIGHT)
-        .fill({ color: Colors.background, alpha: 0.8 })
-        .stroke({ color: Colors.border, width: 1 });
-    header.addChild(headerBg);
-
-    // Sub Profile (Top Left)
-    // MOVED TO CONTROLS DRAWER
-
-    // Captain Badge (Top Right)
-    // MOVED TO CONTROLS DRAWER
 
     // --- Map View Window ---
     const mapViewWindow = new PIXI.Container();
     mapViewWindow.x = 0;
-    mapViewWindow.y = HEADER_HEIGHT;
+    mapViewWindow.y = 0;
     scene.addChild(mapViewWindow);
 
     const windowWidth = IS_MOBILE ? app.screen.width : app.screen.width - CONTROLS_WIDTH;
-    const windowHeight = app.screen.height - HEADER_HEIGHT;
+    const windowHeight = app.screen.height;
 
     // --- Map Renderer Integration ---
     const mapRenderer = new MapRenderer(app, assets, {
@@ -57,57 +39,9 @@ export function createConnScene(app, assets) {
     mapRenderer.setMask(0, 0, windowWidth, windowHeight);
     mapRenderer.centerOnPosition({ x: 7, y: 7 }); // Start centered
 
-    // --- Overlays (Grid, Labels) ---
-    const mapOverlay = new PIXI.Container();
-    mapViewWindow.addChild(mapOverlay);
-
-    const gridLines = new PIXI.Graphics();
-    const labels = new PIXI.Container();
-    mapOverlay.addChild(gridLines, labels);
-
-    const renderOverlays = () => {
-        const { gridSize } = mapRenderer.config;
-        const scale = mapRenderer.currentScale;
-        const totalSize = gridSize * scale;
-
-        gridLines.clear();
-        for (let i = 0; i <= gridSize; i++) {
-            gridLines.moveTo(i * scale, 0).lineTo(i * scale, totalSize);
-            gridLines.moveTo(0, i * scale).lineTo(totalSize, i * scale);
-        }
-        gridLines.stroke({ width: 1, color: Colors.dim, alpha: 0.5 });
-
-        labels.removeChildren();
-        const style = { fontFamily: Font.family, fontSize: scale / 4, fill: Colors.dim };
-        for (let i = 0; i < gridSize; i++) {
-            const char = String.fromCharCode(65 + i);
-            const l1 = new PIXI.Text({ text: char, style });
-            l1.anchor.set(0.5);
-            l1.x = i * scale + scale / 2;
-            l1.y = -scale / 4;
-            labels.addChild(l1);
-
-            const l2 = new PIXI.Text({ text: (i + 1).toString(), style });
-            l2.anchor.set(0.5);
-            l2.x = -scale / 4;
-            l2.y = i * scale + scale / 2;
-            labels.addChild(l2);
-        }
-    };
-
-    renderOverlays();
-
-    // Sync overlay with map container
-    const syncOverlay = () => {
-        if (!mapRenderer.container || mapRenderer.container.destroyed) {
-            app.ticker.remove(syncOverlay);
-            return;
-        }
-        // mapRenderer uses an inner container (mapContent) for the map, which moves
-        mapOverlay.x = mapRenderer.mapContent.x;
-        mapOverlay.y = mapRenderer.mapContent.y;
-    };
-    app.ticker.add(syncOverlay);
+    // --- Overlays (Grid, Data) ---
+    // Note: Grid coordinate labels are now handled internally by MapRenderer.
+    // Position/Target Data Overlay and other UI elements are initialized below.
 
     // --- Controls Drawer ---
     const controls = new PIXI.Container();
@@ -273,7 +207,6 @@ export function createConnScene(app, assets) {
 
     // Flicker effect on text
     const allText = []; // Collect all text objects
-    header.children.filter(c => c instanceof PIXI.Text).forEach(c => allText.push(c));
     game_info.children.filter(c => c instanceof PIXI.Text).forEach(c => allText.push(c));
     dataOverlay.children.filter(c => c instanceof PIXI.Text).forEach(c => allText.push(c));
     buttonsContainer.children.forEach(group => {
@@ -289,7 +222,6 @@ export function createConnScene(app, assets) {
     const flickerCallback = applyFlickerEffect(app, allText);
     scene.on('destroyed', () => {
         app.ticker.remove(flickerCallback);
-        app.ticker.remove(syncOverlay);
     });
 
     return root;

@@ -13,7 +13,7 @@ export class MapRenderer {
 
         // this.container will now be the static Viewport
         this.container = new PIXI.Container();
-        
+
         // this.mapContent will be the moving part
         this.mapContent = new PIXI.Container();
         this.container.addChild(this.mapContent);
@@ -24,9 +24,22 @@ export class MapRenderer {
         this.mapContent.addChild(this.mapGrid);
         this.mapContent.addChild(this.decorationGrid);
 
+        // Labels containers (static viewport children)
+        this.horizontalLabels = new PIXI.Container();
+        this.verticalLabels = new PIXI.Container();
+        this.container.addChild(this.horizontalLabels, this.verticalLabels);
+
         this.mask = new PIXI.Graphics();
         this.container.addChild(this.mask);
         this.mapContent.mask = this.mask;
+
+        // Mask for labels (to keep them in their gutters)
+        this.labelGutter = 30; // space for labels
+        this.hLabelMask = new PIXI.Graphics();
+        this.vLabelMask = new PIXI.Graphics();
+        this.horizontalLabels.mask = this.hLabelMask;
+        this.verticalLabels.mask = this.vLabelMask;
+        this.container.addChild(this.hLabelMask, this.vLabelMask);
 
         this.currentScale = 90;
         this.dragging = false;
@@ -38,6 +51,13 @@ export class MapRenderer {
         this.renderMap();
         this.setupInteractions();
         this.setupKeyboardControls();
+
+        // Sync labels with mapContent
+        this.app.ticker.add(() => {
+            if (this.container.destroyed) return;
+            this.horizontalLabels.x = this.mapContent.x;
+            this.verticalLabels.y = this.mapContent.y;
+        });
     }
 
     initTextures() {
@@ -63,9 +83,11 @@ export class MapRenderer {
     renderMap() {
         this.mapGrid.removeChildren();
         this.decorationGrid.removeChildren();
+        this.horizontalLabels.removeChildren();
+        this.verticalLabels.removeChildren();
 
         const { gridSize } = this.config;
-        
+
         // Simple grid rendering for now
         for (let row = 0; row < gridSize; row++) {
             for (let col = 0; col < gridSize; col++) {
@@ -73,11 +95,41 @@ export class MapRenderer {
                     .rect(0, 0, this.currentScale, this.currentScale)
                     .fill({ color: 0x003300, alpha: 0.3 })
                     .stroke({ width: 1, color: 0x005500 });
-                
+
                 tile.x = col * this.currentScale;
                 tile.y = row * this.currentScale;
                 this.mapGrid.addChild(tile);
             }
+        }
+
+        // Render Coordinate Labels (A-O, 1-15)
+        const labelStyle = {
+            fontFamily: 'Goldman', // Requested font
+            fontSize: Math.max(12, this.currentScale / 4),
+            fill: 0x00ff00,
+            dropShadow: { blur: 2, color: 0x000000, distance: 1 }
+        };
+
+        for (let i = 0; i < gridSize; i++) {
+            // Horizontal (A, B, C...)
+            const hText = new PIXI.Text({
+                text: String.fromCharCode(65 + i),
+                style: labelStyle
+            });
+            hText.anchor.set(0.5);
+            hText.x = i * this.currentScale + this.currentScale / 2;
+            hText.y = this.labelGutter / 2;
+            this.horizontalLabels.addChild(hText);
+
+            // Vertical (1, 2, 3...)
+            const vText = new PIXI.Text({
+                text: (i + 1).toString(),
+                style: labelStyle
+            });
+            vText.anchor.set(0.5);
+            vText.x = this.labelGutter / 2;
+            vText.y = i * this.currentScale + this.currentScale / 2;
+            this.verticalLabels.addChild(vText);
         }
     }
 
@@ -91,10 +143,25 @@ export class MapRenderer {
 
     setMask(x, y, width, height) {
         this.mask.clear()
-            .rect(x, y, width, height)
+            .rect(x + this.labelGutter, y + this.labelGutter, width - this.labelGutter, height - this.labelGutter)
             .fill(0xffffff);
-        this.maskWidth = width;
-        this.maskHeight = height;
+
+        // Also update labels masks
+        this.hLabelMask.clear()
+            .rect(x + this.labelGutter, y, width - this.labelGutter, this.labelGutter)
+            .fill(0xffffff);
+        this.vLabelMask.clear()
+            .rect(x, y + this.labelGutter, this.labelGutter, height - this.labelGutter)
+            .fill(0xffffff);
+
+        this.maskWidth = width - this.labelGutter;
+        this.maskHeight = height - this.labelGutter;
+
+        // Adjust mapContent offset to account for gutters
+        this.mapContent.x = x + this.labelGutter;
+        this.mapContent.y = y + this.labelGutter;
+        this.horizontalLabels.y = y;
+        this.verticalLabels.x = x;
 
         // Ensure interactions work over the entire visible area
         this.container.hitArea = new PIXI.Rectangle(x, y, width, height);
@@ -148,7 +215,7 @@ export class MapRenderer {
         const speed = 15;
         this.app.ticker.add(() => {
             if (!this.container || this.container.destroyed) return;
-            
+
             let dx = 0;
             let dy = 0;
             if (keys.ArrowUp) dy += speed;
@@ -210,10 +277,12 @@ export class MapRenderer {
         const MAP_WIDTH = this.config.gridSize * this.currentScale;
         const MAP_HEIGHT = this.config.gridSize * this.currentScale;
 
-        const minX = Math.min(0, this.maskWidth - MAP_WIDTH);
-        const maxX = 0;
-        const minY = Math.min(0, this.maskHeight - MAP_HEIGHT);
-        const maxY = 0;
+        // Account for gutter in limits
+        // Inner coordinates relative to (gutter, gutter)
+        const minX = Math.min(this.labelGutter, this.maskWidth + this.labelGutter - MAP_WIDTH);
+        const maxX = this.labelGutter;
+        const minY = Math.min(this.labelGutter, this.maskHeight + this.labelGutter - MAP_HEIGHT);
+        const maxY = this.labelGutter;
 
         this.mapContent.x = Math.max(minX, Math.min(maxX, this.mapContent.x));
         this.mapContent.y = Math.max(minY, Math.min(maxY, this.mapContent.y));
@@ -222,8 +291,8 @@ export class MapRenderer {
     centerOnPosition(pos = this.targetPos) {
         this.targetPos = pos;
 
-        const centerX = this.maskWidth / 2;
-        const centerY = this.maskHeight / 2;
+        const centerX = this.maskWidth / 2 + this.labelGutter;
+        const centerY = this.maskHeight / 2 + this.labelGutter;
 
         const mapX = pos.x * this.currentScale + this.currentScale / 2;
         const mapY = pos.y * this.currentScale + this.currentScale / 2;

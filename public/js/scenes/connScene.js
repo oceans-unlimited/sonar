@@ -1,201 +1,344 @@
-// C:/web_dev_ai/sonar/public/js/scenes/connScene.js
+// public/js/scenes/connScene.js
 
 import * as PIXI from 'pixi.js';
-// TODO: Move these styles to a central uiStyle.js
-const Colors = {
-    grid: 0x222222,
-    sector: 0x00ff00,
-    coordinatesText: 0x00ff00,
-    sectorText: 0xffffff
-};
-
-const Font = {
-    family: 'Goldman',
-    size: 14,
-};
-
-const Layout = {
-    margin: 20,
-};
-// End of styles to move
-
-import { createNoiseOverlay, createScanlinesOverlay, applyFlickerEffect } from '../core/uiEffects.js';
+import { Colors, Font, SystemColors, Layout } from '../core/uiStyle.js';
+import { createNoiseOverlay, createScanlinesOverlay, applyFlickerEffect, applyTintColor } from '../core/uiEffects.js';
+import { MapRenderer } from '../renderers/mapRenderer.js';
 
 export function createConnScene(app, assets) {
+    const root = new PIXI.Container();
     const scene = new PIXI.Container();
+    root.addChild(scene);
 
-    const GRID_SIZE = 15;
-    const TILE_SIZE = 32;
-    const MAP_WIDTH = GRID_SIZE * TILE_SIZE;
-    const MAP_HEIGHT = GRID_SIZE * TILE_SIZE;
+    // --- Background ---
+    const bg = new PIXI.Graphics()
+        .rect(0, 0, app.screen.width, app.screen.height)
+        .fill({ color: Colors.background, alpha: 0.95 });
+    scene.addChild(bg);
 
-    // Map container for scrolling
-    const mapContainer = new PIXI.Container();
-    scene.addChild(mapContainer);
+    // --- Layout Constants (based on SVG) ---
+    const IS_MOBILE = app.screen.width < 800;
+    const HEADER_HEIGHT = 60;
+    const CONTROLS_WIDTH = IS_MOBILE ? 270 : 300;
+    const DRAWER_PEEK = 40; // How much the drawer peeks out when closed
 
-    // --- Map Sprites ---
-    const mapGrid = new PIXI.Container();
-    const backgroundTextures = [
-        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(0, 0, TILE_SIZE, TILE_SIZE) }),
-        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(TILE_SIZE, 0, TILE_SIZE, TILE_SIZE) }),
-        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(TILE_SIZE * 2, 0, TILE_SIZE, TILE_SIZE) }),
-        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(0, TILE_SIZE, TILE_SIZE, TILE_SIZE) }),
-    ];
+    // --- Header ---
+    const header = new PIXI.Container();
+    header.y = 0;
+    scene.addChild(header);
 
-    const foregroundTextures = [
-        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(TILE_SIZE, TILE_SIZE, TILE_SIZE, TILE_SIZE) }),
-        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(TILE_SIZE * 2, TILE_SIZE, TILE_SIZE, TILE_SIZE) }),
-        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(0, TILE_SIZE * 2, TILE_SIZE, TILE_SIZE) }),
-        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(TILE_SIZE, TILE_SIZE * 2, TILE_SIZE, TILE_SIZE) }),
-        new PIXI.Texture({ source: assets.map_sprites.source, frame: new PIXI.Rectangle(0, TILE_SIZE * 3, TILE_SIZE, TILE_SIZE) }),
-    ];
+    const headerBg = new PIXI.Graphics()
+        .rect(0, 0, app.screen.width, HEADER_HEIGHT)
+        .fill({ color: Colors.background, alpha: 0.8 })
+        .stroke({ color: Colors.border, width: 1 });
+    header.addChild(headerBg);
 
-    for (let row = 0; row < GRID_SIZE; row++) {
-        for (let col = 0; col < GRID_SIZE; col++) {
-            const randomTexture = backgroundTextures[Math.floor(Math.random() * backgroundTextures.length)];
-            const tile = new PIXI.Sprite(randomTexture);
-            tile.x = col * TILE_SIZE;
-            tile.y = row * TILE_SIZE;
-            mapGrid.addChild(tile);
+    // Sub Profile (Top Left)
+    // MOVED TO CONTROLS DRAWER
 
-            // Add a small circular dot at the center of each grid space
-            const dot = new PIXI.Graphics();
-            dot.circle(col * TILE_SIZE + TILE_SIZE / 2, row * TILE_SIZE + TILE_SIZE / 2, 2)
-                .fill({ color: Colors.grid, alpha: 0.5 });
-            mapGrid.addChild(dot);
-        }
-    }
+    // Captain Badge (Top Right)
+    // MOVED TO CONTROLS DRAWER
 
-    // Add a few random foreground sprites
-    for (let i = 0; i < 5; i++) {
-        const randomRow = Math.floor(Math.random() * GRID_SIZE);
-        const randomCol = Math.floor(Math.random() * GRID_SIZE);
-        const randomTexture = foregroundTextures[Math.floor(Math.random() * foregroundTextures.length)];
-        const foregroundSprite = new PIXI.Sprite(randomTexture);
-        foregroundSprite.x = randomCol * TILE_SIZE;
-        foregroundSprite.y = randomRow * TILE_SIZE;
-        mapGrid.addChild(foregroundSprite);
-    }
+    // --- Map View Window ---
+    const mapViewWindow = new PIXI.Container();
+    mapViewWindow.x = 0;
+    mapViewWindow.y = HEADER_HEIGHT;
+    scene.addChild(mapViewWindow);
 
-    mapContainer.addChild(mapGrid);
+    const windowWidth = IS_MOBILE ? app.screen.width : app.screen.width - CONTROLS_WIDTH;
+    const windowHeight = app.screen.height - HEADER_HEIGHT;
 
-    // --- Overlay Grid ---
-    const overlay = new PIXI.Container();
-    mapContainer.addChild(overlay);
+    // --- Map Renderer Integration ---
+    const mapRenderer = new MapRenderer(app, assets, {
+        gridSize: 15,
+        tileSize: 90
+    });
+    mapViewWindow.addChild(mapRenderer.container);
+    mapRenderer.setMask(0, 0, windowWidth, windowHeight);
+    mapRenderer.centerOnPosition({ x: 7, y: 7 }); // Start centered
+
+    // --- Overlays (Grid, Labels) ---
+    const mapOverlay = new PIXI.Container();
+    mapViewWindow.addChild(mapOverlay);
 
     const gridLines = new PIXI.Graphics();
-    overlay.addChild(gridLines);
+    const labels = new PIXI.Container();
+    mapOverlay.addChild(gridLines, labels);
 
-    // Draw grid lines
-    for (let i = 0; i <= GRID_SIZE; i++) {
-        gridLines.moveTo(i * TILE_SIZE, 0);
-        gridLines.lineTo(i * TILE_SIZE, MAP_HEIGHT);
-        gridLines.moveTo(0, i * TILE_SIZE);
-        gridLines.lineTo(MAP_WIDTH, i * TILE_SIZE);
-    }
-    gridLines.stroke({ width: 1, color: Colors.grid, alpha: 0.8 });
+    const renderOverlays = () => {
+        const { gridSize } = mapRenderer.config;
+        const scale = mapRenderer.currentScale;
+        const totalSize = gridSize * scale;
 
-    // --- Coordinate Labels ---
-    const labelStyle = {
-        fontFamily: Font.family,
-        fontSize: 14,
-        fill: Colors.coordinatesText,
+        gridLines.clear();
+        for (let i = 0; i <= gridSize; i++) {
+            gridLines.moveTo(i * scale, 0).lineTo(i * scale, totalSize);
+            gridLines.moveTo(0, i * scale).lineTo(totalSize, i * scale);
+        }
+        gridLines.stroke({ width: 1, color: Colors.dim, alpha: 0.5 });
+
+        labels.removeChildren();
+        const style = { fontFamily: Font.family, fontSize: scale / 4, fill: Colors.dim };
+        for (let i = 0; i < gridSize; i++) {
+            const char = String.fromCharCode(65 + i);
+            const l1 = new PIXI.Text({ text: char, style });
+            l1.anchor.set(0.5);
+            l1.x = i * scale + scale / 2;
+            l1.y = -scale / 4;
+            labels.addChild(l1);
+
+            const l2 = new PIXI.Text({ text: (i + 1).toString(), style });
+            l2.anchor.set(0.5);
+            l2.x = -scale / 4;
+            l2.y = i * scale + scale / 2;
+            labels.addChild(l2);
+        }
     };
 
-    // Horizontal labels (A–O)
-    for (let i = 0; i < GRID_SIZE; i++) {
-        const label = new PIXI.Text({
-            text: String.fromCharCode('A'.charCodeAt(0) + i),
-            style: labelStyle,
-        });
-        label.x = i * TILE_SIZE + TILE_SIZE / 2;
-        label.y = -20;
-        label.anchor.set(0.5);
-        overlay.addChild(label);
-    }
+    renderOverlays();
 
-    // Vertical labels (1–15)
-    for (let i = 0; i < GRID_SIZE; i++) {
-        const label = new PIXI.Text({ text: String(i + 1), style: labelStyle });
-        label.x = -20;
-        label.y = i * TILE_SIZE + TILE_SIZE / 2;
-        label.anchor.set(0.5);
-        overlay.addChild(label);
-    }
+    // Sync overlay with map container
+    const syncOverlay = () => {
+        if (!mapRenderer.container || mapRenderer.container.destroyed) {
+            app.ticker.remove(syncOverlay);
+            return;
+        }
+        // mapRenderer uses an inner container (mapContent) for the map, which moves
+        mapOverlay.x = mapRenderer.mapContent.x;
+        mapOverlay.y = mapRenderer.mapContent.y;
+    };
+    app.ticker.add(syncOverlay);
 
-    // --- Sector Lines and Labels ---
-    const sectorLines = new PIXI.Graphics();
-    overlay.addChild(sectorLines);
-    const sectorLabelStyle = {
-        fontFamily: Font.family,
-        fontSize: 64,
-        fill: { color: Colors.sectorText, alpha: 0.38 }
+    // --- Controls Drawer ---
+    const controls = new PIXI.Container();
+    controls.x = app.screen.width - (IS_MOBILE ? DRAWER_PEEK : CONTROLS_WIDTH);
+    scene.addChild(controls);
+
+    const controlsBg = new PIXI.Graphics()
+        .rect(0, 0, CONTROLS_WIDTH, app.screen.height)
+        .fill({ color: Colors.background, alpha: 0.9 })
+        .stroke({ color: Colors.border, width: 2 });
+    controls.addChild(controlsBg);
+
+    // Drawer Logic
+    let drawerOpen = true; // Default open
+
+    const toggleDrawer = (open) => {
+        drawerOpen = open;
+        const targetX = open ? app.screen.width - CONTROLS_WIDTH : app.screen.width - DRAWER_PEEK;
+        // Simple animation (direct assignment for now, could be tweened)
+        controls.x = targetX;
     };
 
-    for (let i = 0; i < 3; i++) {
-        for (let j = 0; j < 3; j++) {
-            const sectorX = j * 5 * TILE_SIZE;
-            const sectorY = i * 5 * TILE_SIZE;
-            const sectorNum = i * 3 + j + 1;
+    // Auto-hide drawer on map drag
+    mapRenderer.onStartDrag = () => {
+        if (drawerOpen) toggleDrawer(false);
+    };
 
-            sectorLines.rect(sectorX, sectorY, 5 * TILE_SIZE, 5 * TILE_SIZE);
+    mapRenderer.onInactivity = () => {
+        if (!drawerOpen) toggleDrawer(true);
+    };
 
-            const label = new PIXI.Text({ text: String(sectorNum), style: sectorLabelStyle });
-            label.x = sectorX + (5 * TILE_SIZE) / 2;
-            label.y = sectorY + (5 * TILE_SIZE) / 2;
-            label.anchor.set(0.5);
-            overlay.addChild(label);
-        }
-    }
-    sectorLines.stroke({width: 2, color: Colors.sector, alpha: 1.0});
+    // --- Game Info Header (Inside Drawer) ---
+    const game_info = new PIXI.Container();
+    game_info.x = 0;
+    game_info.y = 10;
+    controls.addChild(game_info);
 
-    // --- Scrolling Logic ---
-    mapContainer.eventMode = 'static';
-    mapContainer.on('pointerdown', onDragStart, mapContainer);
-    mapContainer.on('pointerup', onDragEnd, mapContainer);
-    mapContainer.on('pointerupoutside', onDragEnd, mapContainer);
-    mapContainer.on('pointermove', onDragMove, mapContainer);
+    // Sub Profile
+    const subProfile = new PIXI.Sprite(assets.sub_profileA);
+    subProfile.scale.set(0.6);
+    subProfile.x = 10;
+    subProfile.y = 0;
+    game_info.addChild(subProfile);
 
-    let dragging = false;
-    let dragStart = new PIXI.Point();
-    let dragStartPos = new PIXI.Point();
+    const subLabel = new PIXI.Text({
+        text: 'USS OKLAHOMA',
+        style: { fontFamily: Font.family, fontSize: 10, fill: Colors.text }
+    });
+    subLabel.x = 10;
+    subLabel.y = 37;
+    game_info.addChild(subLabel);
 
-    function onDragStart(event) {
-        dragging = true;
-        dragStart.copyFrom(event.global);
-        dragStartPos.copyFrom(this.position);
-    }
+    // Captain Badge
+    const cptBadge = new PIXI.Sprite(assets.captain_badge);
+    cptBadge.scale.set(1); // Increased scale to match profile
+    cptBadge.anchor.set(1, 0);
+    cptBadge.x = CONTROLS_WIDTH - 10;
+    cptBadge.y = 0;
+    game_info.addChild(cptBadge);
 
-    function onDragEnd() {
-        dragging = false;
-    }
+    const cptLabel = new PIXI.Text({
+        text: 'COMMANDER',
+        style: { fontFamily: Font.family, fontSize: 10, fill: Colors.text }
+    });
+    cptLabel.anchor.set(1, 0);
+    cptLabel.x = CONTROLS_WIDTH - 10;
+    cptLabel.y = 37;
+    game_info.addChild(cptLabel);
 
-    function onDragMove(event) {
-        if (dragging) {
-            const newPos = event.global;
-            const dx = newPos.x - dragStart.x;
-            const dy = newPos.y - dragStart.y;
-            this.x = dragStartPos.x + dx;
-            this.y = dragStartPos.y + dy;
-            this.x = Math.min(Layout.margin, Math.max(app.screen.width - MAP_WIDTH - Layout.margin, this.x));
-            this.y = Math.min(Layout.margin, Math.max(app.screen.height - MAP_HEIGHT - Layout.margin, this.y));
-        }
-    }
+    // --- Buttons Container ---
+    const buttonsContainer = new PIXI.Container();
+    buttonsContainer.x = 20;
+    buttonsContainer.y = 80;
+    controls.addChild(buttonsContainer);
 
-    // Center map
-    mapContainer.x = (app.screen.width - MAP_WIDTH) / 2;
-    mapContainer.y = (app.screen.height - MAP_HEIGHT) / 2;
+    // 1. Helm Control (D-Pad style)
+    const helmContainer = new PIXI.Container();
+    helmContainer.y = 0;
+    buttonsContainer.addChild(helmContainer);
 
-    // --- Overlays ---
+    const dpadSize = 40;
+    const dpadSpacing = 45;
+    const directions = [
+        { label: 'N', x: dpadSpacing, y: 0 },
+        { label: 'W', x: 0, y: dpadSpacing },
+        { label: 'E', x: dpadSpacing * 2, y: dpadSpacing },
+        { label: 'S', x: dpadSpacing, y: dpadSpacing * 2 }
+    ];
+
+    directions.forEach(dir => {
+        const dBtn = new PIXI.Container();
+        dBtn.x = dir.x + (CONTROLS_WIDTH - 40 - dpadSpacing * 3) / 2;
+        dBtn.y = dir.y;
+
+        const bg = new PIXI.Graphics()
+            .roundRect(0, 0, dpadSize, dpadSize, 4)
+            .fill({ color: Colors.border, alpha: 0.8 })
+            .stroke({ color: Colors.text, width: 1 });
+
+        const t = new PIXI.Text({ text: dir.label, style: { fontFamily: Font.family, fontSize: 16, fill: Colors.text } });
+        t.anchor.set(0.5);
+        t.x = dpadSize / 2;
+        t.y = dpadSize / 2;
+
+        dBtn.addChild(bg, t);
+        dBtn.eventMode = 'static';
+        dBtn.cursor = 'pointer';
+        helmContainer.addChild(dBtn);
+    });
+
+    const helmOffset = 150;
+    const rowWidth = CONTROLS_WIDTH - 40;
+
+    // Row 1: Torpedo
+    const torpedoRow = createControlRow(
+        'TORPEDO',
+        assets.torpedo_sys,
+        assets.button,
+        [SystemColors.weapons, SystemColors.weapons, SystemColors.weapons],
+        rowWidth
+    );
+    torpedoRow.y = helmOffset;
+    buttonsContainer.addChild(torpedoRow);
+
+    // Row 2: Mine
+    const mineRow = createControlRow(
+        'MINE',
+        assets.mine_sys,
+        assets.button,
+        [SystemColors.weapons, SystemColors.weapons, SystemColors.weapons],
+        rowWidth
+    );
+    mineRow.y = helmOffset + 80;
+    buttonsContainer.addChild(mineRow);
+
+    // Row 3: Vessel (Stealth)
+    const vesselRow = createControlRow(
+        'VESSEL',
+        assets.stealth_sys,
+        assets.button,
+        [SystemColors.stealth, Colors.text, Colors.text], // Default color for buttons
+        rowWidth
+    );
+    vesselRow.y = helmOffset + 160;
+    buttonsContainer.addChild(vesselRow);
+
+    // --- Data Overlay (Bottom Left) ---
+    const dataOverlay = new PIXI.Container();
+    dataOverlay.x = 20;
+    dataOverlay.y = app.screen.height - 100;
+    scene.addChild(dataOverlay);
+
+    const posText = new PIXI.Text({
+        text: 'POSITION: H8\nSECTOR: 5',
+        style: { fontFamily: Font.family, fontSize: 16, fill: Colors.roleSonar }
+    });
+    dataOverlay.addChild(posText);
+
+    // --- Effects ---
     const noise = createNoiseOverlay(assets.noise, app);
-    const scan = createScanlinesOverlay(assets.scanlines, app);
-    scene.addChild(noise, scan);
+    const scanLines = createScanlinesOverlay(assets.scanlines, app);
+    scene.addChild(noise, scanLines);
 
-    // --- Animation ---
-    const allText = overlay.children.filter(c => c instanceof PIXI.Text);
+    // Flicker effect on text
+    const allText = []; // Collect all text objects
+    header.children.filter(c => c instanceof PIXI.Text).forEach(c => allText.push(c));
+    game_info.children.filter(c => c instanceof PIXI.Text).forEach(c => allText.push(c));
+    dataOverlay.children.filter(c => c instanceof PIXI.Text).forEach(c => allText.push(c));
+    buttonsContainer.children.forEach(group => {
+        if (group instanceof PIXI.Container) {
+            group.children.filter(c => c instanceof PIXI.Text).forEach(c => allText.push(c));
+        }
+    });
+    // Add helm labels
+    helmContainer.children.forEach(btn => {
+        btn.children.filter(c => c instanceof PIXI.Text).forEach(c => allText.push(c));
+    });
+
     const flickerCallback = applyFlickerEffect(app, allText);
+    scene.on('destroyed', () => {
+        app.ticker.remove(flickerCallback);
+        app.ticker.remove(syncOverlay);
+    });
 
-    scene.on('destroyed', () => app.ticker.remove(flickerCallback));
+    return root;
+}
 
-    return scene;
+function createControlRow(label, iconTexture, buttonTexture, colors, width) {
+    const row = new PIXI.Container();
+    const mainColor = colors[0];
+
+    // Label
+    const labelTxt = new PIXI.Text({
+        text: label.toUpperCase(),
+        style: { fontFamily: Font.family, fontSize: 13, fill: mainColor }
+    });
+    row.addChild(labelTxt);
+
+    // Line
+    const line = new PIXI.Graphics()
+        .rect(0, labelTxt.height + 2, width, 1)
+        .fill({ color: mainColor, alpha: 0.5 });
+    row.addChild(line);
+
+    const yOffset = labelTxt.height + 15;
+    const slotWidth = width / 3;
+
+    // Helper to create button
+    const createBtn = (texture, color, slotIndex) => {
+        const btn = new PIXI.Sprite(texture);
+        btn.anchor.set(0.5);
+        btn.scale.set(0.5);
+        btn.x = slotWidth * slotIndex + slotWidth / 2;
+        btn.y = yOffset + 20; // Center in the vertical space roughly
+        applyTintColor(btn, color);
+
+        btn.eventMode = 'static';
+        btn.cursor = 'pointer';
+
+        // Simple hover effect
+        btn.on('pointerover', () => { btn.alpha = 1.0; });
+        btn.on('pointerout', () => { btn.alpha = 0.8; });
+        btn.alpha = 0.8;
+
+        row.addChild(btn);
+        return btn;
+    };
+
+    createBtn(iconTexture, colors[0], 0);
+    createBtn(buttonTexture, colors[1], 1);
+    createBtn(buttonTexture, colors[2], 2);
+
+    return row;
 }

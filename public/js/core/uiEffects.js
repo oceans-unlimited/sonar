@@ -5,29 +5,36 @@ import { GlowFilter } from 'pixi-filters';
 import { Colors, SystemColors } from './uiStyle.js';
 
 export function createNoiseOverlay(texture, app, width, height) {
-  const sprite = new PIXI.TilingSprite({texture, width, height});
-  sprite.alpha = 0.05;
-  sprite.eventMode = 'none';
-  return sprite;
+    const sprite = new PIXI.TilingSprite({ texture, width, height });
+    sprite.alpha = 0.05;
+    sprite.eventMode = 'none';
+    return sprite;
 }
 
 export function createScanlinesOverlay(texture, app, width, height) {
-  const sprite = new PIXI.TilingSprite({texture, width, height});
-  sprite.alpha = 0.03;
-  sprite.eventMode = 'none';
-  return sprite;
+    const sprite = new PIXI.TilingSprite({ texture, width, height });
+    sprite.alpha = 0.03;
+    sprite.eventMode = 'none';
+    return sprite;
 }
 
 export function applyFlickerEffect(app, targets, amplitude = 0.02, frequency = 10) {
-  const flickerCallback = () => {
-    const flicker = 1 + Math.sin(app.ticker.lastTime * frequency * 0.001) * amplitude;
-    for (const obj of targets) {
-        obj.alpha = flicker;
-    }
-  };
-  app.ticker.add(flickerCallback);
+    const flickerCallback = () => {
+        const flicker = 1 + Math.sin(app.ticker.lastTime * frequency * 0.001) * amplitude;
+        let anyAlive = false;
+        for (const obj of targets) {
+            if (obj && !obj.destroyed) {
+                obj.alpha = flicker;
+                anyAlive = true;
+            }
+        }
+        if (!anyAlive && targets.length > 0) {
+            app.ticker.remove(flickerCallback);
+        }
+    };
+    app.ticker.add(flickerCallback);
 
-  return flickerCallback;
+    return flickerCallback;
 }
 
 export function applyTintColor(target, colorOrName) {
@@ -134,6 +141,16 @@ export function applyGlowEffect(target, app, colorOrName) {
 }
 
 export function createButtonStateManager(button, app, disabledTexture) {
+    if (!button) {
+        console.warn("createButtonStateManager called without a button object");
+        return {
+            setActive: () => { },
+            setDisabled: () => { },
+            setPushed: () => { },
+            setNeutral: () => { },
+            isPushed: () => false,
+        };
+    }
     // Resolve glow color: prefer a system name on the button (e.g. button.system)
     // falling back to Colors.text.
     let glowColor = Colors.text;
@@ -149,10 +166,10 @@ export function createButtonStateManager(button, app, disabledTexture) {
     }
 
     const glow = applyGlowEffect(button, app, glowColor);
-  glow.off();
+    glow.off();
 
-  const disabledOverlay = new PIXI.Sprite(disabledTexture);
-  disabledOverlay.anchor.set(0.5);
+    const disabledOverlay = new PIXI.Sprite(disabledTexture);
+    disabledOverlay.anchor.set(0.5);
     // Position overlay at the button's local center. Buttons are created with
     // anchor.set(0.5) so (0,0) is the visual center — use that instead of
     // width/2,height/2 which incorrectly offsets when anchor is centered.
@@ -162,54 +179,54 @@ export function createButtonStateManager(button, app, disabledTexture) {
     button.addChild(disabledOverlay);
     button.disabledOverlay = disabledOverlay;
 
-  let isPushed = false;
+    let isPushed = false;
 
-  const setActive = () => {
-    isPushed = false;
-    button.alpha = 1;
-    glow.steadyOn(1); // Slight glow
-    disabledOverlay.visible = false;
-    button.eventMode = 'static';
-    button.cursor = 'pointer';
-  };
+    const setActive = () => {
+        isPushed = false;
+        button.alpha = 1;
+        glow.steadyOn(1); // Slight glow
+        disabledOverlay.visible = false;
+        button.eventMode = 'static';
+        button.cursor = 'pointer';
+    };
 
-  const setDisabled = () => {
-    isPushed = false;
-    button.alpha = 0.5;
-    glow.off();
-    disabledOverlay.visible = false;
-    button.eventMode = 'none';
-    button.cursor = 'default';
-  };
+    const setDisabled = () => {
+        isPushed = false;
+        button.alpha = 0.5;
+        glow.off();
+        disabledOverlay.visible = false;
+        button.eventMode = 'none';
+        button.cursor = 'default';
+    };
 
-  const setPushed = () => {
-    isPushed = true;
-    button.alpha = 0.3;
-    glow.off();
-    disabledOverlay.visible = true;
-    button.eventMode = 'none';
-    button.cursor = 'default';
-  };
+    const setPushed = () => {
+        isPushed = true;
+        button.alpha = 0.3;
+        glow.off();
+        disabledOverlay.visible = true;
+        button.eventMode = 'none';
+        button.cursor = 'default';
+    };
 
-  const setNeutral = () => {
-    isPushed = false;
-    button.alpha = 1.0;
-    glow.off();
-    disabledOverlay.visible = false;
-    button.eventMode = 'none';
-    button.cursor = 'default';
-  };
+    const setNeutral = () => {
+        isPushed = false;
+        button.alpha = 1.0;
+        glow.off();
+        disabledOverlay.visible = false;
+        button.eventMode = 'none';
+        button.cursor = 'default';
+    };
 
-  // Initial state
-  setDisabled();
+    // Initial state
+    setDisabled();
 
-  return {
-    setActive,
-    setDisabled,
-    setPushed,
-    setNeutral,
-    isPushed: () => isPushed,
-  };
+    return {
+        setActive,
+        setDisabled,
+        setPushed,
+        setNeutral,
+        isPushed: () => isPushed,
+    };
 }
 
 export function applyColorBlink(targets, app, foregroundColor, backgroundColor, flickerCount = 2, flickOn = true) {

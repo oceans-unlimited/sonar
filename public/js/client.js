@@ -69,6 +69,7 @@ import { AudioManager } from './core/audioManager.js';
     scenario_sys: await Assets.load('assets/ui/scenario_sys.svg'),
     button: await Assets.load('assets/ui/button.svg'),
     captain_badge: await Assets.load('assets/ui/cpt.svg'),
+    arrow: await Assets.load('assets/ui/arrow.svg'),
   };
 
   await SceneManager.init(app, assets, socketManager, audioManager);

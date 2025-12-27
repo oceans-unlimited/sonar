@@ -1,3 +1,8 @@
+/**
+ * Map Effects
+ * Visual-only animations for the map.
+ */
+
 export function animateMapZoom(app, mapRenderer, targetScale, duration = 400) {
     if (mapRenderer.zoomTicker) {
         app.ticker.remove(mapRenderer.zoomTicker);
@@ -7,7 +12,6 @@ export function animateMapZoom(app, mapRenderer, targetScale, duration = 400) {
     const diff = targetScale - startScale;
     let elapsed = 0;
 
-    // Smooth acceleration/deceleration using cubic easing
     const easeInOutCubic = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
     mapRenderer.zoomTicker = (delta) => {

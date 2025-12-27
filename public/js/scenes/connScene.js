@@ -1,290 +1,48 @@
 // public/js/scenes/connScene.js
-
 import * as PIXI from 'pixi.js';
-import { Colors, Font, SystemColors, Layout } from '../core/uiStyle.js';
-import { createNoiseOverlay, createScanlinesOverlay, applyFlickerEffect, applyTintColor, setupDraggableSidePanel } from '../core/uiEffects.js';
-import { MapRenderer } from '../renderers/mapRenderer.js';
+import { ConnRenderer } from '../renderers/connRenderer.js';
+import { ConnController } from '../controllers/connController.js';
+import { MapSystem } from '../features/map/MapSystem.js';
+import { setupDraggableSidePanel } from '../ui/behaviors/draggablePanel.js';
+import { applyFlickerEffect } from '../ui/effects/flickerEffect.js';
 
-export function createConnScene(app, assets) {
-    const root = new PIXI.Container();
+/**
+ * Conn Scene (Lifecycle Orchestration)
+ */
+export async function createConnScene(app, assets) {
     const scene = new PIXI.Container();
-    root.addChild(scene);
 
-    // --- Background ---
-    const bg = new PIXI.Graphics()
-        .rect(0, 0, app.screen.width, app.screen.height)
-        .fill({ color: Colors.background, alpha: 0.95 });
-    scene.addChild(bg);
+    // 1. Initialize Feature Base (Map)
+    const mapSystem = new MapSystem(app, assets);
 
-    // --- Layout Constants (based on SVG) ---
-    const IS_MOBILE = app.screen.width < 800;
-    const CONTROLS_WIDTH = IS_MOBILE ? 270 : 300;
-    const DRAWER_PEEK = 40; // How much the drawer peeks out when closed
+    // 2. Initialize Renderer
+    const renderer = new ConnRenderer(app, assets);
+    const view = renderer.render(scene);
 
-    // --- Map View Window ---
-    const mapViewWindow = new PIXI.Container();
-    mapViewWindow.x = 0;
-    mapViewWindow.y = 0;
-    scene.addChild(mapViewWindow);
+    // Mount Map into the renderer's container
+    view.mapContainer.addChild(mapSystem.container);
 
-    const windowWidth = IS_MOBILE ? app.screen.width : app.screen.width - CONTROLS_WIDTH;
-    const windowHeight = app.screen.height;
+    // 3. Initialize Controller
+    const controller = new ConnController(app, renderer, mapSystem);
+    controller.init();
 
-    // --- Map Renderer Integration ---
-    const mapRenderer = new MapRenderer(app, assets, {
-        gridSize: 15,
-        tileSize: 90
-    });
-    mapViewWindow.addChild(mapRenderer.container);
-    mapRenderer.updateBounds(windowWidth, windowHeight); // Initial bounds & zoom levels
-    mapRenderer.centerOnPosition({ x: 7, y: 7 }); // Start centered
-
-    // --- Overlays (Grid, Data) ---
-    // Note: Grid coordinate labels are now handled internally by MapRenderer.
-    // Position/Target Data Overlay and other UI elements are initialized below.
-
-    // --- Controls Panel ---
-    const controls = new PIXI.Container();
-    scene.addChild(controls);
-
-    const controlsBg = new PIXI.Graphics()
-        .rect(0, 0, CONTROLS_WIDTH, app.screen.height)
-        .fill({ color: Colors.background, alpha: 0.9 })
-        .stroke({ color: Colors.border, width: 2 });
-    controls.addChild(controlsBg);
-    controlsBg.eventMode = 'static';
-    controlsBg.cursor = 'grab';
-
-    const sidePanelManager = setupDraggableSidePanel(app, controls, controlsBg, mapViewWindow, {
+    // 4. Attach Behaviors
+    // Draggable Panel (Structural behavior remains in the scene)
+    const CONTROLS_WIDTH = app.screen.width < 800 ? 270 : 300;
+    const sidePanelManager = setupDraggableSidePanel(app, view.controlsPanel, view.controlsPanel, view.mapContainer, {
         width: CONTROLS_WIDTH,
         threshold: 15,
         holdTime: 300
     });
 
-    // --- Game Info Header (Inside Drawer) ---
-    const game_info = new PIXI.Container();
-    game_info.x = 0;
-    game_info.y = 10;
-    controls.addChild(game_info);
+    // Effects
+    const flickerCallback = applyFlickerEffect(app, [view.controlsPanel, view.dataOverlay]);
 
-    // Sub Profile
-    const subProfile = new PIXI.Sprite(assets.sub_profileA);
-    subProfile.scale.set(0.6);
-    subProfile.x = 10;
-    subProfile.y = 0;
-    game_info.addChild(subProfile);
-
-    const subLabel = new PIXI.Text({
-        text: 'USS OKLAHOMA',
-        style: { fontFamily: Font.family, fontSize: 10, fill: Colors.text }
-    });
-    subLabel.x = 10;
-    subLabel.y = 37;
-    game_info.addChild(subLabel);
-
-    // Captain Badge
-    const cptBadge = new PIXI.Sprite(assets.captain_badge);
-    cptBadge.scale.set(1); // Increased scale to match profile
-    cptBadge.anchor.set(1, 0);
-    cptBadge.x = CONTROLS_WIDTH - 10;
-    cptBadge.y = 0;
-    game_info.addChild(cptBadge);
-
-    const cptLabel = new PIXI.Text({
-        text: 'COMMANDER',
-        style: { fontFamily: Font.family, fontSize: 10, fill: Colors.text }
-    });
-    cptLabel.anchor.set(1, 0);
-    cptLabel.x = CONTROLS_WIDTH - 10;
-    cptLabel.y = 37;
-    game_info.addChild(cptLabel);
-
-    // --- Buttons Container ---
-    const buttonsContainer = new PIXI.Container();
-    buttonsContainer.x = 20;
-    buttonsContainer.y = 80;
-    controls.addChild(buttonsContainer);
-
-    // 1. Helm Control (D-Pad style)
-    const helmContainer = new PIXI.Container();
-    helmContainer.y = 0;
-    buttonsContainer.addChild(helmContainer);
-
-    const dpadSpacingX = 70; // Increased spacing
-    const dpadSpacingY = 55;
-
-    // N, W, E, S with arrow rotations and labels
-    const directions = [
-        { label: 'N', x: dpadSpacingX, y: 0, rot: -Math.PI / 2 },
-        { label: 'W', x: 0, y: dpadSpacingY, rot: Math.PI },
-        { label: 'E', x: dpadSpacingX * 2, y: dpadSpacingY, rot: 0 },
-        { label: 'S', x: dpadSpacingX, y: dpadSpacingY * 2, rot: Math.PI / 2 }
-    ];
-
-    directions.forEach(dir => {
-        const dBtn = new PIXI.Container();
-        // Center the D-Pad within the controls panel
-        dBtn.x = dir.x + (CONTROLS_WIDTH - 40 - dpadSpacingX * 2) / 2;
-        dBtn.y = dir.y;
-
-        // Button background
-        const bg = new PIXI.Sprite(assets.button);
-        bg.anchor.set(0.5);
-        bg.scale.set(0.65);
-        applyTintColor(bg, Colors.border);
-
-        // Arrow and Label layout
-        const arrow = new PIXI.Sprite(assets.arrow);
-        arrow.anchor.set(0.5);
-        arrow.scale.set(0.4);
-        arrow.rotation = dir.rot;
-        applyTintColor(arrow, Colors.text);
-
-        const t = new PIXI.Text({
-            text: dir.label,
-            style: {
-                fontFamily: 'Goldman',
-                fontSize: 18,
-                fill: Colors.text
-            }
-        });
-        t.anchor.set(0.5);
-
-        // Format: '< W', '^ N', 'E >', 'V S'
-        if (dir.label === 'E') {
-            t.x = -12;
-            arrow.x = 12;
-        } else {
-            arrow.x = -12;
-            t.x = 12;
-        }
-
-        dBtn.addChild(bg, arrow, t);
-        dBtn.eventMode = 'static';
-        dBtn.cursor = 'pointer';
-        helmContainer.addChild(dBtn);
-    });
-
-    const helmOffset = 150;
-    const rowWidth = CONTROLS_WIDTH - 40;
-
-    // Row 1: Torpedo
-    const torpedoRow = createControlRow(
-        'TORPEDO',
-        assets.torpedo_sys,
-        assets.button,
-        [SystemColors.weapons, SystemColors.weapons, SystemColors.weapons],
-        rowWidth
-    );
-    torpedoRow.y = helmOffset;
-    buttonsContainer.addChild(torpedoRow);
-
-    // Row 2: Mine
-    const mineRow = createControlRow(
-        'MINE',
-        assets.mine_sys,
-        assets.button,
-        [SystemColors.weapons, SystemColors.weapons, SystemColors.weapons],
-        rowWidth
-    );
-    mineRow.y = helmOffset + 80;
-    buttonsContainer.addChild(mineRow);
-
-    // Row 3: Vessel (Stealth)
-    const vesselRow = createControlRow(
-        'VESSEL',
-        assets.stealth_sys,
-        assets.button,
-        [SystemColors.stealth, Colors.text, Colors.text], // Default color for buttons
-        rowWidth
-    );
-    vesselRow.y = helmOffset + 160;
-    buttonsContainer.addChild(vesselRow);
-
-    // --- Data Overlay (Bottom Left) ---
-    const dataOverlay = new PIXI.Container();
-    dataOverlay.x = 20;
-    dataOverlay.y = app.screen.height - 100;
-    scene.addChild(dataOverlay);
-
-    const posText = new PIXI.Text({
-        text: 'POSITION: H8\nSECTOR: 5',
-        style: { fontFamily: Font.family, fontSize: 16, fill: Colors.roleSonar }
-    });
-    dataOverlay.addChild(posText);
-
-    // --- Effects ---
-    const noise = createNoiseOverlay(assets.noise, app);
-    const scanLines = createScanlinesOverlay(assets.scanlines, app);
-    scene.addChild(noise, scanLines);
-
-    // Flicker effect on text
-    const allText = []; // Collect all text objects
-    game_info.children.filter(c => c instanceof PIXI.Text).forEach(c => allText.push(c));
-    dataOverlay.children.filter(c => c instanceof PIXI.Text).forEach(c => allText.push(c));
-    buttonsContainer.children.forEach(group => {
-        if (group instanceof PIXI.Container) {
-            group.children.filter(c => c instanceof PIXI.Text).forEach(c => allText.push(c));
-        }
-    });
-    // Add helm labels
-    helmContainer.children.forEach(btn => {
-        btn.children.filter(c => c instanceof PIXI.Text).forEach(c => allText.push(c));
-    });
-
-    const flickerCallback = applyFlickerEffect(app, allText);
     scene.on('destroyed', () => {
         app.ticker.remove(flickerCallback);
         sidePanelManager.destroy();
+        mapSystem.destroy();
     });
 
-    return root;
-}
-
-function createControlRow(label, iconTexture, buttonTexture, colors, width) {
-    const row = new PIXI.Container();
-    const mainColor = colors[0];
-
-    // Label
-    const labelTxt = new PIXI.Text({
-        text: label.toUpperCase(),
-        style: { fontFamily: Font.family, fontSize: 13, fill: mainColor }
-    });
-    row.addChild(labelTxt);
-
-    // Line
-    const line = new PIXI.Graphics()
-        .rect(0, labelTxt.height + 2, width, 1)
-        .fill({ color: mainColor, alpha: 0.5 });
-    row.addChild(line);
-
-    const yOffset = labelTxt.height + 15;
-    const slotWidth = width / 3;
-
-    // Helper to create button
-    const createBtn = (texture, color, slotIndex) => {
-        const btn = new PIXI.Sprite(texture);
-        btn.anchor.set(0.5);
-        btn.scale.set(0.5);
-        btn.x = slotWidth * slotIndex + slotWidth / 2;
-        btn.y = yOffset + 20; // Center in the vertical space roughly
-        applyTintColor(btn, color);
-
-        btn.eventMode = 'static';
-        btn.cursor = 'pointer';
-
-        // Simple hover effect
-        btn.on('pointerover', () => { btn.alpha = 1.0; });
-        btn.on('pointerout', () => { btn.alpha = 0.8; });
-        btn.alpha = 0.8;
-
-        row.addChild(btn);
-        return btn;
-    };
-
-    createBtn(iconTexture, colors[0], 0);
-    createBtn(buttonTexture, colors[1], 1);
-    createBtn(buttonTexture, colors[2], 2);
-
-    return row;
+    return scene;
 }

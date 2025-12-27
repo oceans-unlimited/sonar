@@ -1,3 +1,6 @@
+import { simulationClock } from "../core/clock/simulationClock.js";
+import { interruptManager } from "../features/interrupts/InterruptManager.js";
+
 /**
  * Engine Controller
  * Handles logic for the Engineer scene.
@@ -11,9 +14,34 @@ export class EngineController {
 
     init() {
         console.log("[EngineController] Initialized.");
+
+        // Interrupt Handling
+        interruptManager.subscribe((event, payload) => {
+            if (event === 'interruptStarted') {
+                this.showInterruptOverlay();
+            } else if (event === 'interruptEnded') {
+                this.hideInterruptOverlay();
+            }
+        });
+    }
+
+    showInterruptOverlay() {
+        if (this.renderer.scene) {
+            this.renderer.scene.emit('show_interrupt_overlay', {
+                availableButtons: [], // Engineer has no interrupt control buttons
+                onInterrupt: null
+            });
+        }
+    }
+
+    hideInterruptOverlay() {
+        if (this.renderer.scene) {
+            this.renderer.scene.emit('hide_interrupt_overlay');
+        }
     }
 
     handleButtonPress(direction, slotId, system) {
+        if (!simulationClock.isRunning()) return;
         const key = `${direction}_${slotId}`;
         console.log(`[EngineController] Button pressed: ${key} (${system})`);
 

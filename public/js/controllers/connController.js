@@ -2,6 +2,10 @@
  * Conn Controller
  * Handles logic for the Captain's scene.
  */
+import { simulationClock } from "../core/clock/simulationClock.js";
+import { interruptManager } from "../features/interrupts/InterruptManager.js";
+import { interruptController } from "../features/interrupts/InterruptController.js";
+
 export class ConnController {
     constructor(app, renderer, mapSystem) {
         this.app = app;
@@ -39,14 +43,53 @@ export class ConnController {
             row.btn1.on('pointerdown', () => this.handleSystemAction(systemKey, 0));
             row.btn2.on('pointerdown', () => this.handleSystemAction(systemKey, 1));
         });
+
+        // 3. Interrupt Handling
+        interruptManager.subscribe((event, payload) => {
+            if (event === 'interruptStarted') {
+                this.showInterruptOverlay();
+            } else if (event === 'interruptEnded') {
+                this.hideInterruptOverlay();
+            }
+        });
+    }
+
+    showInterruptOverlay() {
+        if (this.renderer.scene) {
+            this.renderer.scene.emit('show_interrupt_overlay', {
+                availableButtons: ['pause', 'hold', 'abort'], // Captain has full control
+                onInterrupt: (action) => this.handleInterruptAction(action)
+            });
+        }
+    }
+
+    hideInterruptOverlay() {
+        if (this.renderer.scene) {
+            this.renderer.scene.emit('hide_interrupt_overlay');
+        }
+    }
+
+    handleInterruptAction(action) {
+        console.log(`[ConnController] Interrupt action: ${action}`);
+        if (action === 'pause') {
+            interruptController.resolvePause();
+        } else if (action === 'hold') {
+            // Stub for hold
+            console.log("Stub: Hold action");
+        } else if (action === 'abort') {
+            // Stub for abort
+            console.log("Stub: Abort action");
+        }
     }
 
     handleMove(direction) {
+        if (!simulationClock.isRunning()) return;
         console.log(`[ConnController] Stub: Moving ${direction}`);
         this.mapSystem.controller.sendMove(direction);
     }
 
     handleSystemAction(system, actionIndex) {
+        if (!simulationClock.isRunning()) return;
         console.log(`[ConnController] Stub: System ${system} Action ${actionIndex}`);
     }
 }

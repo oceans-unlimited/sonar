@@ -4,6 +4,7 @@ import { EngineRenderer } from '../renderers/engineRenderer.js';
 import { EngineController } from '../controllers/engineController.js';
 import { createButtonStateManager } from '../ui/behaviors/buttonStateManager.js';
 import { applyFlickerEffect } from '../ui/effects/flickerEffect.js';
+import { renderInterruptUI } from '../renderers/interrupts/interruptRenderer.js';
 
 /**
  * Engine Scene (Lifecycle Orchestration)
@@ -66,6 +67,23 @@ export function createEngineScene(app, assets, audioManager, state) {
     scene.on('destroyed', () => {
         app.ticker.remove(flickerCallback);
         window.removeEventListener('keydown', handleKeyDown);
+    });
+
+    // Interrupt Overlay Management
+    let interruptOverlay = null;
+
+    scene.on('show_interrupt_overlay', (options) => {
+        if (interruptOverlay) return;
+        interruptOverlay = renderInterruptUI(app, { ...options, center: true });
+        scene.addChild(interruptOverlay);
+    });
+
+    scene.on('hide_interrupt_overlay', () => {
+        if (interruptOverlay) {
+            scene.removeChild(interruptOverlay);
+            interruptOverlay.destroy({ children: true });
+            interruptOverlay = null;
+        }
     });
 
     return scene;

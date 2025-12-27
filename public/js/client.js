@@ -2,6 +2,9 @@ import { Application, Assets } from 'pixi.js';
 import { SceneManager } from './core/sceneManager.js';
 import { socketManager } from './core/socketManager.js';
 import { AudioManager } from './core/audioManager.js';
+import { interruptController } from './features/interrupts/InterruptController.js';
+
+window.interruptController = interruptController;
 
 (async () => {
   // Create a new application
@@ -94,5 +97,9 @@ import { AudioManager } from './core/audioManager.js';
   });
   document.getElementById('sceneXoBtn').addEventListener('click', () => {
     SceneManager.changeScene('xo');
+  });
+
+  document.getElementById('triggerPauseBtn').addEventListener('click', () => {
+    window.interruptController.requestPause();
   });
 })();

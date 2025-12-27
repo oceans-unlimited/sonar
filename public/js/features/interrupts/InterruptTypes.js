@@ -1,0 +1,9 @@
+/**
+ * Enum for interrupt types in the game.
+ */
+export const InterruptTypes = {
+    TORPEDO_RESOLUTION: 'TORPEDO_RESOLUTION',
+    SONAR_PING: 'SONAR_PING',
+    SCENARIO_ACTION: 'SCENARIO_ACTION',
+    PAUSE: 'PAUSE'
+};

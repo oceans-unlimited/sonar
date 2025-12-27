@@ -19,6 +19,7 @@ export class EngineRenderer {
     }
 
     render(parent) {
+        this.scene = parent;
         this.views.container = new PIXI.Container();
         parent.addChild(this.views.container);
 

@@ -23,6 +23,7 @@ export class ConnRenderer {
     }
 
     render(parent) {
+        this.scene = parent;
         const root = new PIXI.Container();
         this.views.root = root;
         parent.addChild(root);

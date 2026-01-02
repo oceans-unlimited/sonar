@@ -2,10 +2,10 @@
 import { Graphics, FillGradient, Assets, Sprite, Text, Container, TextStyle } from "pixi.js";
 import { GodrayFilter } from "pixi-filters";
 import { AudioManager } from './core/audioManager.js';
-import { TypewriterText } from './core/typewriter.js';
+import { TypewriterText } from './ui/effects/typewriter.js';
 import { Colors, Font, Layout } from "./core/uiStyle.js";
 import { SceneManager } from './core/sceneManager.js';
-import { applyFlickerEffect } from "./core/uiEffects.js";
+import { applyFlickerEffect } from "./ui/effects/flickerEffect.js";
 import { socketManager } from './core/socketManager.js';
 
 
@@ -72,20 +72,20 @@ export async function createTitleScene(app, assets, audioManager) {
     rays.y += 0.05 * ticker.deltaTime; //slow drift
     if (rays.y > 0) rays.y = -app.screen.height * 0.5;
 
-  // subtle flicker/pulse
+    // subtle flicker/pulse
     rays.alpha = 0.1 + Math.sin(ticker.lastTime * 0.001) * 0.05;
 
-  // animate godray phase
+    // animate godray phase
     godray.time += 0.01 * ticker.deltaTime;
 
     tw.update(app.ticker.deltaMS);
 
     if (tw.isDone && !menuCreated) {
-        menuCreated = true;
-        setTimeout(() => {
-            tw.clear();
-            createMenu();
-        }, 1000);
+      menuCreated = true;
+      setTimeout(() => {
+        tw.clear();
+        createMenu();
+      }, 1000);
     }
   };
   app.ticker.add(tickerCallback);
@@ -124,7 +124,7 @@ export async function createTitleScene(app, assets, audioManager) {
       }
     }
 
-    const cursor = new Text({ text: ">", style: { fontFamily: Font.family, fontSize: Font.size, fill: Colors.text }});
+    const cursor = new Text({ text: ">", style: { fontFamily: Font.family, fontSize: Font.size, fill: Colors.text } });
     cursor.x = menuTexts[0].x - 20;
     cursor.y = menuTexts[0].y;
     menu.addChild(cursor);

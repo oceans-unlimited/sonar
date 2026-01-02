@@ -1,7 +1,8 @@
 //Computer terminal style startup and game menus
 import * as PIXI from "pixi.js";
 import { Colors, Font, Layout } from "../core/uiStyle.js";
-import { createNoiseOverlay, createScanlinesOverlay, applyFlickerEffect } from "../core/uiEffects.js";
+import { createNoiseOverlay, createScanlinesOverlay } from "../ui/effects/noiseOverlay.js";
+import { applyFlickerEffect } from "../ui/effects/flickerEffect.js";
 
 export function createMenuScene(app, assets) {
   const root = new PIXI.Container();
@@ -49,16 +50,16 @@ export function createMenuScene(app, assets) {
   for (const item of items) {
     // Stop adding items if they would overflow the panel height
     if (offsetY > Layout.menuHeight - Font.lineHeight) {
-        break;
+      break;
     }
-    const text = new PIXI.Text({ 
-        text: item.toUpperCase(), 
-        style: {
-          fontFamily: Font.family,
-          fontSize: Font.size,
-          fill: Colors.text,
-          letterSpacing: Font.letterSpacing,
-        }
+    const text = new PIXI.Text({
+      text: item.toUpperCase(),
+      style: {
+        fontFamily: Font.family,
+        fontSize: Font.size,
+        fill: Colors.text,
+        letterSpacing: Font.letterSpacing,
+      }
     });
     text.x = Layout.margin + Layout.panelPadding + 20;
     text.y = offsetY;
@@ -70,7 +71,7 @@ export function createMenuScene(app, assets) {
   let flickerCallback;
   // --- Cursor ---
   if (menuTexts.length > 0) {
-    const cursor = new PIXI.Text({ text: ">", style: { fontFamily: Font.family, fontSize: Font.size, fill: Colors.text }});
+    const cursor = new PIXI.Text({ text: ">", style: { fontFamily: Font.family, fontSize: Font.size, fill: Colors.text } });
     cursor.x = Layout.margin + Layout.panelPadding;
     cursor.y = menuTexts[0].y;
     root.addChild(cursor);
@@ -81,9 +82,9 @@ export function createMenuScene(app, assets) {
   }
 
   root.on('destroyed', () => {
-      if(flickerCallback) {
-          app.ticker.remove(flickerCallback);
-      }
+    if (flickerCallback) {
+      app.ticker.remove(flickerCallback);
+    }
   });
 
 

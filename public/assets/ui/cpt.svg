@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="7.4370785mm"
+   height="7.0812273mm"
+   viewBox="0 0 7.4370784 7.0812274"
+   version="1.1"
+   id="svg1"
+   xml:space="preserve"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><defs
+     id="defs1"><linearGradient
+       id="linearGradient12"><stop
+         style="stop-color:#ffffff;stop-opacity:1;"
+         offset="0"
+         id="stop12" /><stop
+         style="stop-color:#ffffff;stop-opacity:0;"
+         offset="1"
+         id="stop13" /></linearGradient><linearGradient
+       xlink:href="#linearGradient12"
+       id="linearGradient9"
+       x1="202.54645"
+       y1="141.78018"
+       x2="214.19832"
+       y2="154.06158"
+       gradientUnits="userSpaceOnUse" /><linearGradient
+       xlink:href="#linearGradient6"
+       id="linearGradient7"
+       x1="202.54645"
+       y1="141.78018"
+       x2="214.19832"
+       y2="154.06158"
+       gradientUnits="userSpaceOnUse" /><linearGradient
+       id="linearGradient6"><stop
+         style="stop-color:#000000;stop-opacity:1;"
+         offset="0"
+         id="stop6" /><stop
+         style="stop-color:#000000;stop-opacity:0;"
+         offset="1"
+         id="stop7" /></linearGradient></defs><g
+     id="layer5"
+     transform="translate(-214.16967,-0.99515302)"><g
+       id="g77"><path
+         style="display:inline;vector-effect:non-scaling-stroke;fill:url(#linearGradient9);fill-opacity:1;fill-rule:evenodd;stroke:url(#linearGradient7);stroke-width:0.264583;stroke-linecap:round;-inkscape-stroke:hairline"
+         id="path6"
+         d="m 212.52367,152.46667 c -0.25696,0.18561 -5.09254,-3.30521 -5.40953,-3.30608 -0.31699,-8.7e-4 -5.17166,3.46335 -5.4276,3.27632 -0.25594,-0.18702 1.56976,-5.86466 1.47263,-6.1664 -0.0971,-0.30174 -4.89197,-3.84831 -4.79319,-4.14951 0.0988,-0.30121 6.0627,-0.31935 6.31966,-0.50497 0.25696,-0.18562 2.14826,-5.84174 2.46525,-5.84087 0.31699,8.7e-4 2.1772,5.66729 2.43314,5.85432 0.25593,0.18702 6.21967,0.23791 6.31679,0.53966 0.0971,0.30174 -4.71712,3.82192 -4.8159,4.12313 -0.0988,0.30121 1.69571,5.98878 1.43875,6.1744 z"
+         transform="matrix(0.42405984,0,0,0.42405984,130.05127,-56.58164)" /></g></g></svg>

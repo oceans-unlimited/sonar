@@ -17,6 +17,7 @@ export const Colors = {
   active: 0xffffff
 };
 
+// Thin line, great for body text
 export const Font = {
   family: "Orbitron",
   size: 22,
@@ -25,12 +26,13 @@ export const Font = {
   uppercase: true,
 };
 
+// Bolder weight, good for titles, headings
 export const headerFont = {
   family: "Goldman",
   size: 30,
   lineHeight: 30,
   letterSpacing: 2,
-  uppercase: true,  
+  uppercase: true,
 }
 
 export const Layout = {

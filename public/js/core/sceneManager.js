@@ -12,6 +12,8 @@ import { createBootScene } from '../scenes/bootScene.js';
 import { createEngineScene } from '../scenes/engineScene.js';
 import { createXOScene } from '../scenes/xoScene.js';
 import { mockLayout } from '../mockEngineLayout.js';
+import { gamePhaseManager, GamePhases } from './clock/gamePhaseManager.js';
+import { ClockEvents } from './clock/clockEvents.js';
 
 const scenes = {
     boot: createBootScene,
@@ -87,13 +89,41 @@ export const SceneManager = {
             this.onStateUpdate(state);
         });
 
+        gamePhaseManager.subscribe((event, payload) => {
+            if (event === ClockEvents.PHASE_CHANGE) {
+                this.handlePhaseChange(payload.phase);
+            }
+        });
+
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (this.currentSceneName) {
+                    this.changeScene(this.currentSceneName);
+                }
+            }, 200);
+        });
+
         await this.changeScene('boot'); // Start with the boot scene
     },
 
     onStateUpdate(state) {
-        if (state.currentState === 'lobby' && this.currentSceneName !== 'lobby') {
+        if (state.currentState === 'lobby') {
+            gamePhaseManager.setPhase(GamePhases.LOBBY);
+        } else if (state.currentState === 'in_game' || state.currentState === 'game_beginning') {
+            gamePhaseManager.setPhase(GamePhases.LIVE);
+        } else if (state.currentState === 'game_over') {
+            gamePhaseManager.setPhase(GamePhases.GAME_OVER);
+        }
+    },
+
+    handlePhaseChange(phase) {
+        if (phase === GamePhases.LOBBY && this.currentSceneName !== 'lobby') {
             this.changeScene('lobby');
-        } else if (state.currentState === 'in_game' && this.currentSceneName !== 'conn') {
+        } else if (phase === GamePhases.LIVE && this.currentSceneName !== 'conn') {
+            // Note: In a more complex setup, we might differentiate between different live scenes.
+            // For now, mapping LIVE to conn scene as per existing logic.
             this.changeScene('conn');
         }
     },

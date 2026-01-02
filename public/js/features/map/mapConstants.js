@@ -1,0 +1,9 @@
+export const MapConstants = {
+    DEFAULT_SCALE: 90,
+    GRID_SIZE: 15,
+    LABEL_GUTTER: 30,
+    MIN_ZOOM_THRESHOLD: 50,
+    INACTIVITY_TIMEOUT: 2000,
+    ZOOM_ANIMATION_DURATION: 400,
+    PAN_SPEED: 15
+};

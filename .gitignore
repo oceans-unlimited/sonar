@@ -64,3 +64,4 @@ Thumbs.db
 # Specific files
 GEMINI.md
 llms*.txt
+.agent/

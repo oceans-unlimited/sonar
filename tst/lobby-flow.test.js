@@ -25,7 +25,7 @@ describe('8-Player Lobby Flow', () => {
         const serverUrl = `http://localhost:${port}`;
 
         // Create 8 clients and get their player IDs
-        const result = await create8Clients(serverUrl, { autoConnect: false, forceNew: true });
+        const result = await create8Clients(serverUrl, { forceNew: true });
         clients = result.clients;
         playerIds = result.playerIds;
     });

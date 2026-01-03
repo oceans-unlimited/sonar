@@ -56,6 +56,7 @@ Files:
     - TORPEDO_RESOLUTION
     - SONAR_PING
     - SCENARIO_ACTION
+    - START_POSITIONS (triggered at game start; resolved when captains choose positions)
   - **Out-of-game interrupts** (require all-player ready-up):
     - PAUSE (manual button via connController)
     - PLAYER_DISCONNECT (tracks roster of disconnected players)

@@ -89,22 +89,30 @@ export async function create8Clients(serverUrl, options = { autoConnect: false }
         });
     }
 
-    // Now connect all clients
-    for (const client of clients) {
-        client.connect();
-        await waitForConnection(client);
+    // Now connect all clients if autoConnect is true (default)
+    const shouldAutoConnect = options.autoConnect !== false;
+    if (shouldAutoConnect) {
+        for (const client of clients) {
+            client.connect();
+            await waitForConnection(client);
+        }
     }
 
     // Wait for all player IDs to be assigned (with timeout)
-    const startTime = Date.now();
-    const timeout = 3000;
+    // ONLY if we connected. If not, this will happen when the caller connects.
+    if (shouldAutoConnect) {
+        const startTime = Date.now();
+        const timeout = 3000;
 
-    while (playerIds.some(id => id === null)) {
-        if (Date.now() - startTime > timeout) {
-            throw new Error(`Timeout waiting for player IDs. Got: ${playerIds.filter(id => id !== null).length}/8`);
+        while (playerIds.some(id => id === null)) {
+            if (Date.now() - startTime > timeout) {
+                throw new Error(`Timeout waiting for player IDs. Got: ${playerIds.filter(id => id !== null).length}/8`);
+            }
+            await sleep(50);
         }
-        await sleep(50);
     }
+
+    return { clients, playerIds };
 
     return { clients, playerIds };
 }

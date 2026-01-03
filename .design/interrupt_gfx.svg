@@ -23,14 +23,14 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
-     inkscape:zoom="1.2593452"
-     inkscape:cx="444.67552"
-     inkscape:cy="202.88321"
-     inkscape:window-width="1584"
-     inkscape:window-height="796"
-     inkscape:window-x="26"
-     inkscape:window-y="23"
-     inkscape:window-maximized="0"
+     inkscape:zoom="2.3182469"
+     inkscape:cx="375.28359"
+     inkscape:cy="162.62289"
+     inkscape:window-width="1600"
+     inkscape:window-height="767"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
      inkscape:current-layer="layer2" />
   <defs
      id="defs1">
@@ -128,42 +128,24 @@
      inkscape:label="ping_rx"
      style="fill:#00ff00"
      transform="translate(-27.600377,-70.249858)">
-    <text
-       xml:space="preserve"
-       style="font-size:3.90517px;line-height:0px;text-align:end;writing-mode:lr-tb;direction:ltr;text-orientation:upright;text-anchor:end;display:inline;opacity:1;fill:none;stroke:#00ff00;stroke-width:0.48815;stroke-dasharray:none"
-       x="121.40956"
-       y="110.77614"
-       id="text10"
-       inkscape:label="TRUE"><tspan
-         sodipodi:role="line"
-         id="tspan10"
-         style="stroke-width:0.48815"
-         x="0"
-         y="0">TRUE</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-size:3.90517px;line-height:0px;text-align:end;writing-mode:lr-tb;direction:ltr;text-orientation:upright;text-anchor:end;opacity:1;fill:none;stroke:#00ff00;stroke-width:0.48815;stroke-dasharray:none"
-       x="122.27145"
-       y="125.75775"
-       id="text11"
-       inkscape:label="FALSE"><tspan
-         sodipodi:role="line"
-         id="tspan11"
-         style="fill:none;stroke:#ff0000;stroke-width:0.48815"
-         x="122.27145"
-         y="125.75775">FALSE</tspan></text>
     <path
-       id="path8"
-       style="baseline-shift:baseline;display:inline;overflow:visible;opacity:1;vector-effect:none;fill:#00ff00;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
-       d="m 77.074365,106.85549 v 9.24027 h -4.017842 l -5.892664,0.15399 0.03514,1.3224 5.875094,-0.15399 h 4.000272 v 9.84539 h -9.736356 v 1.3224 h 9.736356 v 9.39478 h 1.32395 v -9.39478 h 9.396843 v 9.39478 h 1.321883 v -9.39478 h 9.345683 v -1.3224 h -9.345683 v -9.84539 h 9.18962 v -1.3224 h -9.18962 v -9.24027 h -1.321883 v 9.24027 h -9.396843 v -9.24027 z m 1.32395,10.56267 h 9.396843 v 9.84539 h -9.396843 z"
-       inkscape:label="mini_map_grid"
-       transform="translate(-1.1875e-6)" />
+       style="font-size:3.90517px;line-height:0px;text-align:end;text-orientation:upright;text-anchor:end;fill:none;stroke:#ff0000;stroke-width:0.48815"
+       d="m 110.97353,122.91087 h 1.63605 v 0.32416 h -1.25087 v 0.839 h 1.12884 v 0.32416 h -1.12884 v 1.35956 h -0.38518 z m 2.83926,0.37945 -0.52247,1.41677 h 1.04684 z m -0.21738,-0.37945 h 0.43666 l 1.08498,2.84688 h -0.40043 l -0.25933,-0.73031 H 113.174 l -0.25933,0.73031 h -0.40615 z m 1.93733,0 h 0.38518 v 2.52272 h 1.38626 v 0.32416 h -1.77144 z m 3.88229,0.0934 v 0.37565 q -0.21929,-0.10488 -0.41378,-0.15636 -0.1945,-0.0515 -0.37565,-0.0515 -0.31462,0 -0.48624,0.12204 -0.1697,0.12203 -0.1697,0.34704 0,0.18878 0.1125,0.28602 0.11441,0.0953 0.43094,0.15446 l 0.23263,0.0477 q 0.43095,0.082 0.63498,0.28983 0.20593,0.20594 0.20593,0.55298 0,0.41378 -0.27839,0.62735 -0.27649,0.21356 -0.81231,0.21356 -0.20212,0 -0.43094,-0.0458 -0.22691,-0.0458 -0.47099,-0.13539 v -0.39662 q 0.23454,0.13157 0.45955,0.19831 0.225,0.0667 0.44238,0.0667 0.32988,0 0.50912,-0.12966 0.17924,-0.12967 0.17924,-0.36993 0,-0.20975 -0.12966,-0.32797 -0.12776,-0.11822 -0.42141,-0.17733 l -0.23454,-0.0458 q -0.43094,-0.0858 -0.62353,-0.26886 -0.19259,-0.18305 -0.19259,-0.50912 0,-0.37755 0.26505,-0.59493 0.26696,-0.21738 0.73413,-0.21738 0.20021,0 0.40806,0.0362 0.20784,0.0362 0.42522,0.10869 z m 0.77226,-0.0934 h 1.80004 v 0.32416 h -1.41486 v 0.84281 h 1.35575 v 0.32416 h -1.35575 v 1.03159 h 1.44918 v 0.32416 h -1.83436 z"
+       id="text11"
+       inkscape:label="FALSE"
+       aria-label="FALSE" />
+    <path
+       d="m 110.97353,107.92925 h 2.40831 v 0.32416 h -1.01061 v 2.52273 h -0.38709 v -2.52273 h -1.01061 z m 4.13017,1.51211 q 0.12395,0.0419 0.24026,0.17924 0.11823,0.1373 0.23645,0.37756 l 0.3909,0.77798 h -0.41378 l -0.36421,-0.73031 q -0.1411,-0.28603 -0.27458,-0.37946 -0.13157,-0.0934 -0.36039,-0.0934 h -0.4195 v 1.20321 h -0.38518 v -2.84689 h 0.86951 q 0.48815,0 0.72841,0.20403 0.24026,0.20403 0.24026,0.61591 0,0.26886 -0.12585,0.44619 -0.12394,0.17734 -0.3623,0.24598 z m -0.96485,-1.19557 v 1.01061 h 0.48433 q 0.2784,0 0.4195,-0.12776 0.14302,-0.12966 0.14302,-0.37945 0,-0.2498 -0.14302,-0.37565 -0.1411,-0.12775 -0.4195,-0.12775 z m 2.28437,-0.31654 h 0.38709 v 1.72949 q 0,0.45764 0.16589,0.65976 0.16589,0.20022 0.53772,0.20022 0.36993,0 0.53582,-0.20022 0.1659,-0.20212 0.1659,-0.65976 v -1.72949 h 0.38708 v 1.77716 q 0,0.55679 -0.27649,0.84091 -0.27458,0.28412 -0.81231,0.28412 -0.53963,0 -0.81611,-0.28412 -0.27459,-0.28412 -0.27459,-0.84091 z m 2.90219,0 h 1.80003 v 0.32416 h -1.41486 v 0.84282 h 1.35575 v 0.32416 h -1.35575 v 1.03159 h 1.44919 v 0.32416 h -1.83436 z"
+       id="text10"
+       style="font-size:3.90517px;line-height:0px;text-align:end;text-orientation:upright;text-anchor:end;fill:none;stroke:#008000;stroke-width:0.48815"
+       inkscape:label="TRUE"
+       aria-label="TRUE" />
     <path
        id="rect6"
-       style="display:inline;opacity:1;fill:none;stroke:#00ff00;stroke-width:1.32292"
-       d="M 67.534142,106.8171 H 98.65892 v 31.12478 H 67.534142 Z"
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+       d="M 66.872916 106.15619 L 66.872916 138.60331 L 99.320548 138.60331 L 99.320548 106.15619 L 66.872916 106.15619 z M 68.195316 107.47859 L 77.074361 107.47859 L 77.074361 116.09564 L 73.056518 116.09564 L 68.195316 116.22276 L 68.195316 107.47859 z M 78.398311 107.47859 L 87.795154 107.47859 L 87.795154 116.09564 L 78.398311 116.09564 L 78.398311 107.47859 z M 89.117037 107.47859 L 97.998148 107.47859 L 97.998148 116.09564 L 89.117037 116.09564 L 89.117037 107.47859 z M 73.074088 117.41804 L 77.074361 117.41804 L 77.074361 127.26343 L 68.195316 127.26343 L 68.195316 117.54568 L 73.074088 117.41804 z M 78.398311 117.41804 L 87.795154 117.41804 L 87.795154 127.26343 L 78.398311 127.26343 L 78.398311 117.41804 z M 89.117037 117.41804 L 97.998148 117.41804 L 97.998148 127.26343 L 89.117037 127.26343 L 89.117037 117.41804 z M 68.195316 128.58583 L 77.074361 128.58583 L 77.074361 137.28143 L 68.195316 137.28143 L 68.195316 128.58583 z M 78.398311 128.58583 L 87.795154 128.58583 L 87.795154 137.28143 L 78.398311 137.28143 L 78.398311 128.58583 z M 89.117037 128.58583 L 97.998148 128.58583 L 97.998148 137.28143 L 89.117037 137.28143 L 89.117037 128.58583 z "
        transform="translate(-1.1875e-6)"
-       inkscape:label="mini_map_scale" />
+       inkscape:label="mini_map" />
     <g
        id="g29"
        inkscape:label="selection areas">
@@ -230,7 +212,7 @@
        inkscape:label="true_row"><tspan
          x="359.73975"
          y="167.62805"
-         id="tspan1">row</tspan></text>
+         id="tspan9">row</tspan></text>
     <text
        xml:space="preserve"
        transform="matrix(0.26458333,0,0,0.26458333,33.129492,70.59225)"
@@ -239,7 +221,7 @@
        inkscape:label="true_column"><tspan
          x="343.77977"
          y="167.62805"
-         id="tspan2">column</tspan></text>
+         id="tspan10">column</tspan></text>
     <text
        xml:space="preserve"
        transform="matrix(0.26458333,0,0,0.26458333,45.901381,70.59225)"
@@ -248,7 +230,7 @@
        inkscape:label="true_sector"><tspan
          x="349.36975"
          y="167.62805"
-         id="tspan3">sector</tspan></text>
+         id="tspan11">sector</tspan></text>
     <text
        xml:space="preserve"
        transform="matrix(0.26458333,0,0,0.26458333,17.899261,84.993268)"
@@ -257,7 +239,7 @@
        inkscape:label="false_row"><tspan
          x="359.73975"
          y="167.62805"
-         id="tspan4">row</tspan></text>
+         id="tspan12">row</tspan></text>
     <text
        xml:space="preserve"
        transform="matrix(0.26458333,0,0,0.26458333,33.129492,84.993268)"
@@ -266,7 +248,7 @@
        inkscape:label="false_column"><tspan
          x="343.77977"
          y="167.62805"
-         id="tspan5">column</tspan></text>
+         id="tspan13">column</tspan></text>
     <text
        xml:space="preserve"
        transform="matrix(0.26458333,0,0,0.26458333,45.901381,84.993268)"
@@ -275,7 +257,7 @@
        inkscape:label="false_sector"><tspan
          x="349.36975"
          y="167.62805"
-         id="tspan7">sector</tspan></text>
+         id="tspan14">sector</tspan></text>
   </g>
   <g
      inkscape:groupmode="layer"
@@ -295,7 +277,7 @@
        inkscape:label="confirm"><tspan
          x="437.06835"
          y="266.74914"
-         id="tspan8">confirm</tspan></text>
+         id="tspan15">confirm</tspan></text>
     <path
        id="rect29"
        style="opacity:1;fill:none;stroke:#000000;stroke-width:0.264583"

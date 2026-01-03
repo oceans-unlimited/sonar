@@ -6,6 +6,7 @@ import { GlobalPhases, InterruptTypes, SubmarineStates } from "./constants.js";
 export class LogicalServer {
   usedPlayerNumbers = {};
   state = {
+    winner: null,
     version: 0,
     phase: GlobalPhases.LOBBY,
     activeInterrupt: null, // { type, payload }
@@ -135,7 +136,7 @@ export class LogicalServer {
     this.state.version++;
   }
 
-  ready(playerId, allRolesReadyCallback, gameStartedCallback) {
+  ready(playerId) {
     if (this.state.phase !== GlobalPhases.LOBBY) return;
 
     if (this.state.submarines.some(sub =>
@@ -147,36 +148,38 @@ export class LogicalServer {
     const allRolesAreReady = this.state.submarines.every(sub =>
       ['co', 'xo', 'sonar', 'eng'].every(rk => this.state.ready.includes(sub[rk]))
     );
+    
     if (allRolesAreReady && this.state.phase === GlobalPhases.LOBBY) {
-      allRolesReadyCallback();
       this.state.phase = GlobalPhases.GAME_BEGINNING;
-      this.state.version++;
-      setTimeout(() => {
-        // Instead of directly going to 'in_game' / LIVE, we go to INTERRUPT: START_POSITIONS
-        this.state.phase = GlobalPhases.INTERRUPT;
-        this.state.activeInterrupt = {
-          type: InterruptTypes.START_POSITIONS,
-          payload: { message: "Captains selecting starting positions" }
-        };
-        this.state.ready = []; // Reset ready states for initial position phase
-
-
-        const engineLayoutGenerator = new EngineLayoutGenerator();
-        this.state.submarines.forEach(sub => {
-          sub.engineLayout = engineLayoutGenerator.generateLayout();
-        });
-        this.state.board = generateBoard();
-
-        // Ensure starting tracking is clean
-        this.state.gameStateData.choosingStartPositions = {
-          playerIdsReadyToContinue: [],
-          submarineIdsWithStartPositionChosen: [],
-        };
-
-        this.state.version++;
-        gameStartedCallback();
-      }, 3000);
     }
+    
+    this.state.version++;
+  }
+
+  startGame() {
+    if (this.state.phase !== GlobalPhases.GAME_BEGINNING)
+      return;
+
+    // Instead of directly going to 'in_game' / LIVE, we go to INTERRUPT: START_POSITIONS
+    this.state.phase = GlobalPhases.INTERRUPT;
+    this.state.activeInterrupt = {
+      type: InterruptTypes.START_POSITIONS,
+      payload: { message: "Captains selecting starting positions" }
+    };
+    this.state.ready = []; // Reset ready states for initial position phase
+
+
+    const engineLayoutGenerator = new EngineLayoutGenerator();
+    this.state.submarines.forEach(sub => {
+      sub.engineLayout = engineLayoutGenerator.generateLayout();
+    });
+    this.state.board = generateBoard();
+
+    // Ensure starting tracking is clean
+    this.state.gameStateData.choosingStartPositions = {
+      playerIdsReadyToContinue: [],
+      submarineIdsWithStartPositionChosen: [],
+    };
 
     this.state.version++;
   }
@@ -189,11 +192,12 @@ export class LogicalServer {
     this.state.version++;
   }
 
-  chooseInitialPosition(playerId, row, column, resumingRealtimePlayCallback) {
+  chooseInitialPosition(playerId, row, column) {
     let sub = this.state.submarines.find(sub => sub.co === playerId);
     const isStartPositionsInterrupt = this.state.phase === GlobalPhases.INTERRUPT &&
       this.state.activeInterrupt?.type === InterruptTypes.START_POSITIONS;
 
+    let allSubsHaveChosen = false;
     if (sub && isStartPositionsInterrupt) {
       let subIdsThatHaveChosen = this.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen;
       let thisSubAlreadyChose = subIdsThatHaveChosen.find(s => s === sub.id);
@@ -207,31 +211,23 @@ export class LogicalServer {
             this.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.push(sub.id);
           }
 
-
-          let allSubsHaveChosen = this.state.submarines.every(s => subIdsThatHaveChosen.find(c => c === s.id));
-          if (allSubsHaveChosen) {
-            setTimeout(() => {
-              this.state.phase = GlobalPhases.LIVE;
-              this.state.activeInterrupt = null;
-              this.state.gameStateData.choosingStartPositions = {
-                playerIdsReadyToContinue: [],
-                submarineIdsWithStartPositionChosen: [],
-              };
-
-              this.state.version++;
-              resumingRealtimePlayCallback();
-            }, 3000);
-          }
+          allSubsHaveChosen = this.state.submarines.every(s => subIdsThatHaveChosen.find(c => c === s.id));
         }
       }
     }
 
     this.state.version++;
+    return allSubsHaveChosen;
   }
 
-  readyToResumeRealTimePlay(playerId, resumingRealTimePlayCallback) {
-    // This old method will be replaced by readyInterrupt, but keeping for compatibility until server.lib.js is updated
-    this.readyInterrupt(playerId, resumingRealTimePlayCallback);
+  resumeFromInterrupt() {
+    if (this.state.phase !== GlobalPhases.INTERRUPT)
+      return;
+
+    this.state.phase = GlobalPhases.LIVE;
+    this.state.activeInterrupt = null;
+    this.state.ready = [];
+    this.state.version++;
   }
 
   requestPause(playerId) {
@@ -246,7 +242,7 @@ export class LogicalServer {
     this.state.version++;
   }
 
-  readyInterrupt(playerId, resumeCallback) {
+  readyInterrupt(playerId) {
     if (this.state.phase !== GlobalPhases.INTERRUPT) return;
     if (this.state.ready.includes(playerId)) return;
 
@@ -261,32 +257,16 @@ export class LogicalServer {
       })
     );
 
-    if (allPlayersReady) {
-      setTimeout(() => {
-        this.state.phase = GlobalPhases.LIVE;
-        this.state.activeInterrupt = null;
-        this.state.ready = [];
-        this.state.version++;
-        resumeCallback();
-      }, 3000); // 3s countdown transition
-    }
+    return allPlayersReady;
   }
 
-  submitSonarResponse(playerId, response, resumeCallback) {
+  submitSonarResponse(playerId, response) {
     const rxSub = this.state.submarines.find(sub => sub.co === playerId);
     if (!rxSub || !this.state.activeInterrupt || this.state.activeInterrupt.type !== InterruptTypes.SONAR_PING) return;
 
     // Update active interrupt with response
     this.state.activeInterrupt.payload.response = response;
     this.state.version++;
-
-    // Auto-resume after short delay as per requirements
-    setTimeout(() => {
-      this.state.phase = GlobalPhases.LIVE;
-      this.state.activeInterrupt = null;
-      this.state.version++;
-      resumeCallback();
-    }, 3000);
   }
 
 
@@ -355,7 +335,7 @@ export class LogicalServer {
     this.state.version++;
   }
 
-  crossOffSystem(playerId, direction, slotId, gameOverCallback) {
+  crossOffSystem(playerId, direction, slotId) {
     let sub = this.state.submarines.find(s => s.eng === playerId);
     if (sub && sub.submarineState === 'doingPostMovementActions') {
       let stateData = sub.submarineStateData[sub.submarineState];
@@ -422,9 +402,8 @@ export class LogicalServer {
           sub.health = Math.max(0, sub.health);
 
           if (sub.health === 0) {
-            let winner = this.state.submarines.find(s => s.id !== sub.id).id;
-            gameOverCallback(winner)
-            this.state.phase = GlobalPhases.LOBBY;
+            this.state.winner = this.state.submarines.find(s => s.id !== sub.id).id;
+            this.state.phase = GlobalPhases.GAME_OVER;
           }
 
         }

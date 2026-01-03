@@ -33,8 +33,11 @@ export async function createXOScene(app, assets) {
     let interruptOverlay = null;
 
     scene.on('show_interrupt_overlay', (options) => {
-        if (interruptOverlay) return;
-        interruptOverlay = renderInterruptUI(app, { ...options, center: true });
+        if (interruptOverlay) {
+            scene.removeChild(interruptOverlay);
+            interruptOverlay.destroy({ children: true });
+        }
+        interruptOverlay = renderInterruptUI(app, assets, { ...options, center: true });
         scene.addChild(interruptOverlay);
     });
 

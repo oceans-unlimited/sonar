@@ -14,6 +14,7 @@ import { createXOScene } from '../scenes/xoScene.js';
 import { mockLayout } from '../mockEngineLayout.js';
 import { gamePhaseManager, GamePhases } from './clock/gamePhaseManager.js';
 import { ClockEvents } from './clock/clockEvents.js';
+import { interruptManager } from '../features/interrupts/InterruptManager.js';
 
 const scenes = {
     boot: createBootScene,
@@ -109,23 +110,72 @@ export const SceneManager = {
     },
 
     onStateUpdate(state) {
-        if (state.currentState === 'lobby') {
-            gamePhaseManager.setPhase(GamePhases.LOBBY);
-        } else if (state.currentState === 'in_game' || state.currentState === 'game_beginning') {
-            gamePhaseManager.setPhase(GamePhases.LIVE);
-        } else if (state.currentState === 'game_over') {
-            gamePhaseManager.setPhase(GamePhases.GAME_OVER);
+        if (state.phase) {
+            gamePhaseManager.setPhase(GamePhases[state.phase] || state.phase);
+        }
+
+        // Sync active interrupt
+        const serverInterrupt = state.activeInterrupt;
+        const clientInterrupt = interruptManager.getActiveInterrupt();
+
+        if (serverInterrupt && !clientInterrupt) {
+            // Server has interrupt, client doesn't - Start it
+            interruptManager.requestInterrupt(serverInterrupt.type, serverInterrupt.payload);
+        } else if (!serverInterrupt && clientInterrupt) {
+            // Server has no interrupt, client does - Resolve it
+            interruptManager.resolveInterrupt(clientInterrupt.type);
+        } else if (serverInterrupt && clientInterrupt && serverInterrupt.type === clientInterrupt.type) {
+            // Types match - Update payload if needed
+            interruptManager.updateInterrupt(serverInterrupt.type, serverInterrupt.payload);
+        } else if (serverInterrupt && clientInterrupt && serverInterrupt.type !== clientInterrupt.type) {
+            // Types mismatch - End old and start new
+            interruptManager.resolveInterrupt(clientInterrupt.type);
+            interruptManager.requestInterrupt(serverInterrupt.type, serverInterrupt.payload);
         }
     },
 
     handlePhaseChange(phase) {
-        if (phase === GamePhases.LOBBY && this.currentSceneName !== 'lobby') {
-            this.changeScene('lobby');
-        } else if (phase === GamePhases.LIVE && this.currentSceneName !== 'conn') {
-            // Note: In a more complex setup, we might differentiate between different live scenes.
-            // For now, mapping LIVE to conn scene as per existing logic.
-            this.changeScene('conn');
+        if (phase === GamePhases.LOBBY) {
+            if (this.currentSceneName !== 'lobby') {
+                this.changeScene('lobby');
+            }
+            return;
         }
+
+        if (
+            phase === GamePhases.GAME_BEGINNING ||
+            phase === GamePhases.INTERRUPT ||
+            phase === GamePhases.LIVE
+        ) {
+            const role = this._getPlayerRole();
+            let targetScene = 'conn'; // Default to conn if role unknown or for co
+
+            if (role === 'xo') targetScene = 'xo';
+            else if (role === 'eng') targetScene = 'engine';
+            // sonar handled as conn for now or could have its own later
+
+            if (this.currentSceneName !== targetScene) {
+                this.changeScene(targetScene);
+            }
+        }
+    },
+
+    /**
+     * Helper to determine the current player's role from the last known state.
+     * @returns {string|null}
+     */
+    _getPlayerRole() {
+        const state = socketManager.lastState;
+        const playerId = socketManager.playerId;
+        if (!state || !playerId || !state.submarines) return null;
+
+        for (const sub of state.submarines) {
+            if (sub.co === playerId) return 'co';
+            if (sub.xo === playerId) return 'xo';
+            if (sub.eng === playerId) return 'eng';
+            if (sub.sonar === playerId) return 'sonar';
+        }
+        return null;
     },
 
     /**

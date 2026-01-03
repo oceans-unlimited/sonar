@@ -172,13 +172,13 @@ export class ConnRenderer {
         parent.addChild(mineRow);
         this.views.systemRows.set('mine', mineRow);
 
-        const vesselRow = this.createControlRow('VESSEL', this.assets.stealth_sys, [SystemColors.stealth, Colors.text, Colors.text], rowWidth);
+        const vesselRow = this.createControlRow('VESSEL', this.assets.stealth_sys, [SystemColors.stealth, Colors.text, Colors.text], rowWidth, [this.assets.pause]);
         vesselRow.y = helmOffset + 160;
         parent.addChild(vesselRow);
         this.views.systemRows.set('vessel', vesselRow);
     }
 
-    createControlRow(label, iconTexture, colors, width) {
+    createControlRow(label, iconTexture, colors, width, buttonTextures = []) {
         const row = new PIXI.Container();
         const mainColor = colors[0];
 
@@ -211,8 +211,8 @@ export class ConnRenderer {
         };
 
         row.icon = createBtn(iconTexture, colors[0], 0);
-        row.btn1 = createBtn(this.assets.button, colors[1], 1);
-        row.btn2 = createBtn(this.assets.button, colors[2], 2);
+        row.btn1 = createBtn(buttonTextures[0] || this.assets.button, colors[1], 1);
+        row.btn2 = createBtn(buttonTextures[1] || this.assets.button, colors[2], 2);
 
         return row;
     }

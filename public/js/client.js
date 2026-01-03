@@ -71,6 +71,7 @@ window.interruptController = interruptController;
     six_gauge_fill6: await Assets.load('assets/ui/6_gauge_fill6.svg'),
     scenario_sys: await Assets.load('assets/ui/scenario_sys.svg'),
     button: await Assets.load('assets/ui/button.svg'),
+    pause: await Assets.load('assets/ui/pause.svg'),
     captain_badge: await Assets.load('assets/ui/cpt.svg'),
     arrow: await Assets.load('assets/ui/arrow.svg'),
   };

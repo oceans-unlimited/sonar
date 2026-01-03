@@ -1,5 +1,6 @@
 import { simulationClock } from "../core/clock/simulationClock.js";
 import { interruptManager } from "../features/interrupts/InterruptManager.js";
+import { getInterruptUIOptions } from "../renderers/interrupts/interruptUIConfigs.js";
 
 /**
  * Engine Controller
@@ -16,20 +17,32 @@ export class EngineController {
         console.log("[EngineController] Initialized.");
 
         // Interrupt Handling
-        interruptManager.subscribe((event, payload) => {
-            if (event === 'interruptStarted') {
-                this.showInterruptOverlay();
+        interruptManager.subscribe((event, interrupt) => {
+            if (event === 'interruptStarted' || event === 'interruptUpdated') {
+                this.showInterruptOverlay(interrupt);
             } else if (event === 'interruptEnded') {
                 this.hideInterruptOverlay();
             }
         });
     }
 
-    showInterruptOverlay() {
+    showInterruptOverlay(interrupt) {
         if (this.renderer.scene) {
-            this.renderer.scene.emit('show_interrupt_overlay', {
-                availableButtons: [], // Engineer has no interrupt control buttons
-                onInterrupt: null
+            import('../core/socketManager.js').then(({ socketManager }) => {
+                const state = socketManager.lastState || {};
+                const playerId = socketManager.playerId;
+                const isReady = state.ready?.includes(playerId);
+
+                const baseOptions = getInterruptUIOptions(interrupt, isReady);
+
+                // Engineer has Ready/Quit but no Surrender
+                baseOptions.availableButtons = baseOptions.availableButtons.filter(b => b !== 'surrender');
+
+                this.renderer.scene.emit('show_interrupt_overlay', {
+                    ...baseOptions,
+                    center: true,
+                    onInterrupt: (action) => this.handleInterruptAction(action)
+                });
             });
         }
     }
@@ -37,6 +50,15 @@ export class EngineController {
     hideInterruptOverlay() {
         if (this.renderer.scene) {
             this.renderer.scene.emit('hide_interrupt_overlay');
+        }
+    }
+
+    handleInterruptAction(action) {
+        console.log(`[EngineController] Interrupt action: ${action}`);
+        if (action === 'ready' || action === 'pause') {
+            import('../core/socketManager.js').then(m => m.socketManager.ready());
+        } else if (action === 'quit' || action === 'abort') {
+            console.log("Stub: Quit action");
         }
     }
 

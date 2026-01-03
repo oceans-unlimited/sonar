@@ -5,18 +5,24 @@ import * as PIXI from "pixi.js";
  * Emits semantic events only.
  * Strictly stateless renderer.
  */
-export function buildInterruptButtons({ onInterrupt, availableButtons = [] } = {}) {
+export function buildInterruptButtons({ onInterrupt, availableButtons = [], buttonOverrides = {} } = {}) {
     const container = new PIXI.Container();
     container.label = "interrupt_buttons";
 
-    const buttonConfigs = [
+    const defaultConfigs = [
         { id: "pause", label: "PAUSE", color: 0xd97706 },
         { id: "hold", label: "HOLD", color: 0x2563eb },
         { id: "abort", label: "ABORT", color: 0xdc2626 },
+        { id: "surrender", label: "SURRENDER", color: 0x991b1b },
     ];
 
     // Filter based on available buttons for the role
-    const buttonsToShow = buttonConfigs.filter(config => availableButtons.includes(config.id));
+    const buttonsToShow = defaultConfigs
+        .filter(config => availableButtons.includes(config.id))
+        .map(config => ({
+            ...config,
+            ...(buttonOverrides[config.id] || {})
+        }));
 
     let x = 20;
 

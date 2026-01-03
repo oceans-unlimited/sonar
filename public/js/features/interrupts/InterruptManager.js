@@ -36,6 +36,18 @@ export class InterruptManager {
     }
 
     /**
+     * Updates an active interrupt's payload.
+     * @param {string} type 
+     * @param {object} payload 
+     */
+    updateInterrupt(type, payload = {}) {
+        if (this._activeInterrupt && this._activeInterrupt.type === type) {
+            this._activeInterrupt.payload = { ...this._activeInterrupt.payload, ...payload };
+            this._emit('interruptUpdated', this._activeInterrupt);
+        }
+    }
+
+    /**
      * Resolves an active interrupt.
      * @param {string} type 
      */

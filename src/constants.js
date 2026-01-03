@@ -20,5 +20,7 @@ export const GlobalPhases = {
 
 export const SubmarineStates = {
     SUBMERGED: 'SUBMERGED',
-    SURFACING: 'SURFACING'
+    SURFACING: 'SURFACING',
+    SURFACED: 'SURFACED',
+    DESTROYED: 'DESTROYED'
 };

@@ -5,6 +5,7 @@
 import { simulationClock } from "../core/clock/simulationClock.js";
 import { interruptManager } from "../features/interrupts/InterruptManager.js";
 import { interruptController } from "../features/interrupts/InterruptController.js";
+import { getInterruptUIOptions } from "../renderers/interrupts/interruptUIConfigs.js";
 
 export class ConnController {
     constructor(app, renderer, mapSystem) {
@@ -45,20 +46,29 @@ export class ConnController {
         });
 
         // 3. Interrupt Handling
-        interruptManager.subscribe((event, payload) => {
-            if (event === 'interruptStarted') {
-                this.showInterruptOverlay();
+        interruptManager.subscribe((event, interrupt) => {
+            if (event === 'interruptStarted' || event === 'interruptUpdated') {
+                this.showInterruptOverlay(interrupt);
             } else if (event === 'interruptEnded') {
                 this.hideInterruptOverlay();
             }
         });
     }
 
-    showInterruptOverlay() {
+    showInterruptOverlay(interrupt) {
         if (this.renderer.scene) {
-            this.renderer.scene.emit('show_interrupt_overlay', {
-                availableButtons: ['pause', 'hold', 'abort'], // Captain has full control
-                onInterrupt: (action) => this.handleInterruptAction(action)
+            import('../core/socketManager.js').then(({ socketManager }) => {
+                const state = socketManager.lastState || {};
+                const playerId = socketManager.playerId;
+                const isReady = state.ready?.includes(playerId);
+
+                const baseOptions = getInterruptUIOptions(interrupt, isReady);
+
+                this.renderer.scene.emit('show_interrupt_overlay', {
+                    ...baseOptions,
+                    center: true,
+                    onInterrupt: (action) => this.handleInterruptAction(action)
+                });
             });
         }
     }
@@ -71,14 +81,18 @@ export class ConnController {
 
     handleInterruptAction(action) {
         console.log(`[ConnController] Interrupt action: ${action}`);
-        if (action === 'pause') {
-            interruptController.resolvePause();
+        if (action === 'pause' || action === 'ready') {
+            // Renamed 'pause' button now acts as 'ready'
+            import('../core/socketManager.js').then(m => m.socketManager.ready());
         } else if (action === 'hold') {
             // Stub for hold
             console.log("Stub: Hold action");
-        } else if (action === 'abort') {
-            // Stub for abort
-            console.log("Stub: Abort action");
+        } else if (action === 'abort' || action === 'quit') {
+            // Stub for abort/quit
+            console.log("Stub: Quit action");
+        } else if (action === 'surrender') {
+            // Stub for surrender
+            console.log("Stub: Surrender action");
         }
     }
 
@@ -89,7 +103,18 @@ export class ConnController {
     }
 
     handleSystemAction(system, actionIndex) {
-        if (!simulationClock.isRunning()) return;
+        if (!simulationClock.isRunning()) {
+            // If already paused, clicking pause again might be intended to resume?
+            // But usually we use the overlay buttons for that.
+            return;
+        }
+
+        if (system === 'vessel' && actionIndex === 0) {
+            console.log("[ConnController] Requesting PAUSE");
+            interruptController.requestPause();
+            return;
+        }
+
         console.log(`[ConnController] Stub: System ${system} Action ${actionIndex}`);
     }
 }

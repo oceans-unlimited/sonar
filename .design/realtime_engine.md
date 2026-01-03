@@ -30,7 +30,7 @@ Files:
   - Canonical event names (CLOCK_START, CLOCK_STOP, PHASE_CHANGE)
 
 Integration:
-- core/sceneManager.js → uses gamePhaseManager for scene mounting
+- core/sceneManager.js → uses gamePhaseManager for scene mounting (routed by player role during in-game phases)
 - controllers/* → check simulationClock.isRunning() before actions
 - features/map/MapSystem.js → pauses updates via clock state
 

@@ -50,11 +50,14 @@ Those constraints in mind, here is the protocol.
     * Server sends "lobby_state" to all clients.
     * If all players are ready, server does two things.
       * It sets phase to "game beginning".
-      * It sends "game_beginning" to all clients.
-      * It uses setTimeout(3000, () => {...logic goes here...}) to do the following things:
+      * It sends "state" update with phase "GAME_BEGINNING" to all clients.
+      * Clients receive "GAME_BEGINNING" and transition to their respective scenes based on role:
+        * Captain (co) -> connScene
+        * First Officer (xo) -> xoScene
+        * Engineer (eng) -> engineScene
+      * Server uses setTimeout(3000, () => {...logic goes here...}) to do the following things:
         * It transitions to INTERRUPT phase with type START_POSITIONS.
-        * It sends "interrupt_started" with type START_POSITIONS to all clients.
-        * It sends "captains_selecting_positions" to all clients.
+        * It sends "state" update with INTERRUPT phase and type START_POSITIONS to all clients.
 * Captains select locations, and the action starts.
 * When all captains have selected positions, the START_POSITIONS interrupt is resolved and the phase transitions to LIVE. (See section on in-game protocol for details.)
 * During the game, captain requests pause (manual button via connController).

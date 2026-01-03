@@ -1,0 +1,107 @@
+# Interrupts Requirements
+
+## Global Rules
+- Every interrupt renders a full-screen overlay blocking all normal UI controls (buttons, maps, etc.).
+- In-game interrupts auto-resume after resolution.
+- Out-of-game interrupts require all players to ready-up before resuming.
+- On any out-of-game interrupt start, reset all player ready states to false.
+- Pause button disabled during any active interrupt.
+- All interrupt requests route through centralized InterruptController → InterruptManager.
+
+## TORPEDO_RESOLUTION (In-Game, Auto-Resume)
+- **Trigger**: Server detects torpedo impact.
+- **Flow**:
+  1. Pause simulation.
+  2. Play universal torpedo approach animation → hit/miss effect.
+  3. Apply damage server-side if hit.
+  4. Auto-resume after animation.
+- **UI**:
+  - Visible to all roles on both submarines.
+  - No role-specific controls or inputs.
+- **Behavior**: Purely visual + server damage; no player interaction.
+
+## SONAR_PING (In-Game, Auto-Resume)
+- **Trigger**: XO on transmitting sub activates sonar.
+- **Flow**:
+  1. Pause simulation.
+  2. Play map overlay animation (expanding arc/circle sonar wave, placeholder). Use a mini-map with ownship position and sonar ping expanding outwards for tx sub, inwards from map corners for rx sub.
+  3. Receiving captain inputs one true + one false coordinate (row/column/sector). Select true attribute first (row/column/sector) → auto-fill real value. Select false value from adjusted options. Undo support.
+  4. Transmit response to transmitting sub's Captain, XO, and Sonar Operator.
+  5. Display response briefly, persist on Sonar panel and in message log.
+  6. Auto-resume.
+- **UI**:
+  - **Receiving Captain**: Robust input interface. See interrupt_gfx.svg for reference.
+    - Select true attribute first (row/column/sector) → auto-fill real value.
+    - Select false value from adjusted options.
+    - Undo support.
+    - Submit button.
+    - Update UI with submitted values. Persist via message log.
+  - **Transmitting Captain**: Simple display of received coordinates.
+  - **Transmitting XO & Sonar Op**: Same display + persistent panel entry (sector first, then row/column). Persist via message log.
+  - **Transmitting Engineer**: Banner "Active Sonar" only.
+  - **All others on receiving sub**: Update with captain's submitted values. Persist via game message log. Wait message.
+- **Behavior**: No timer; waits for receiving captain submit. Resume after short delay.
+
+## SCENARIO_ACTION (In-Game, Auto-Resume)
+- **Trigger**: Per-map logic (e.g., XO activates charged scenario ability).
+- **Flow**:
+  1. Pause simulation.
+  2. Display generic interrupt screen with scenario text.
+  3. Play relevant animation (e.g., mine explosion overlay).
+  4. Apply effects/damage server-side.
+  5. Auto-resume after short delay.
+- **UI**:
+  - Universal generic overlay with descriptive text.
+  - No player input required.
+- **Behavior**:
+  - Flexible hook for map-specific events.
+  - XO gauge charges variable per map (default example: 4 charges for mine detonation).
+
+## START_POSITIONS (In-Game, Auto-Resume)
+- **Trigger**: Game start phase.
+- **Flow**:
+  1. Pause simulation.
+  2. Both captains select and confirm starting grid position simultaneously.
+  3. When both confirmed → 3-2-1 countdown ("Dive, Dive" or similar) → transition to LIVE.
+- **UI**:
+  - **Captains**: Unlocked map for cell selection + display of sector/row/column + toggleable Confirm button.
+    - Changing selection auto-unconfirms.
+    - Can unconfirm until both locked.
+  - **Non-Captains**: Passive overlay "Starting Positions" + "Captains choosing positions".
+- **Behavior**:
+  - Duplicate positions allowed.
+  - No validation conflict.
+
+## PAUSE (Out-of-Game, Ready-Up)
+- **Trigger**: Captain presses pause button in conn scene (only available when no interrupt active).
+- **Flow**:
+  1. Pause simulation.
+  2. Reset all ready states.
+  3. Show ready-up overlay.
+  4. On all ready → countdown animation → resume.
+- **UI** (Universal for all players):
+  - Title: "Game Paused".
+  - Ready/Not Ready toggle: Button + clickable thumb icon (fills when ready).
+  - Toggle reverses state and updates visuals.
+  - Quit button → intentional disconnect (shifts to PLAYER_DISCONNECT).
+- **Captain Extra**: Roster panel showing player roles, connection status, ready status.
+- **Behavior**: Manual administrative halt (bathroom, discussion).
+
+## PLAYER_DISCONNECT (Out-of-Game, Ready-Up)
+- **Trigger**: Server socket disconnect event (one or more players).
+- **Flow**:
+  1. Immediate pause.
+  2. Reset all ready states.
+  3. Show ready-up overlay.
+  4. On all reconnected + all ready → countdown → resume.
+  - Handles multiple disconnects without re-triggering.
+  - Transition from PAUSE if quit pressed.
+- **UI**:
+  - **Connected players**: Normal interface + ready-up overlay (identical to PAUSE).
+  - **Disconnected players** (on reconnect):
+    - Reload → title screen → start → lobby.
+    - Select role → ready-up → rejoin paused game directly.
+  - **Captains**: Roster panel (roles, connection, ready).
+- **Behavior**:
+  - Same ready-up flow as PAUSE.
+  - Roster tracks all disconnects until resolved.

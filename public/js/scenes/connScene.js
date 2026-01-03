@@ -5,6 +5,7 @@ import { ConnController } from '../controllers/connController.js';
 import { MapSystem } from '../features/map/MapSystem.js';
 import { setupDraggableSidePanel } from '../ui/behaviors/draggablePanel.js';
 import { applyFlickerEffect } from '../ui/effects/flickerEffect.js';
+import { renderInterruptUI } from '../renderers/interrupts/interruptRenderer.js';
 
 /**
  * Conn Scene (Lifecycle Orchestration)
@@ -37,6 +38,26 @@ export async function createConnScene(app, assets) {
 
     // Effects
     const flickerCallback = applyFlickerEffect(app, [view.controlsPanel, view.dataOverlay]);
+
+    // Interrupt Overlay Management
+    let interruptOverlay = null;
+
+    scene.on('show_interrupt_overlay', (options) => {
+        if (interruptOverlay) {
+            scene.removeChild(interruptOverlay);
+            interruptOverlay.destroy({ children: true });
+        }
+        interruptOverlay = renderInterruptUI(app, assets, { ...options, center: true });
+        scene.addChild(interruptOverlay);
+    });
+
+    scene.on('hide_interrupt_overlay', () => {
+        if (interruptOverlay) {
+            scene.removeChild(interruptOverlay);
+            interruptOverlay.destroy({ children: true });
+            interruptOverlay = null;
+        }
+    });
 
     scene.on('destroyed', () => {
         app.ticker.remove(flickerCallback);

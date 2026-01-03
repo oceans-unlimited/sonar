@@ -19,6 +19,7 @@ export class XORenderer {
     }
 
     render(parent) {
+        this.scene = parent;
         const root = new PIXI.Container();
         parent.addChild(root);
 

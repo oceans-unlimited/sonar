@@ -1,3 +1,7 @@
+import { simulationClock } from "../core/clock/simulationClock.js";
+import { interruptManager } from "../features/interrupts/InterruptManager.js";
+import { getInterruptUIOptions } from "../renderers/interrupts/interruptUIConfigs.js";
+
 /**
  * Engine Controller
  * Handles logic for the Engineer scene.
@@ -11,9 +15,57 @@ export class EngineController {
 
     init() {
         console.log("[EngineController] Initialized.");
+
+        // Interrupt Handling
+        interruptManager.subscribe((event, interrupt) => {
+            if (event === 'interruptStarted' || event === 'interruptUpdated') {
+                this.showInterruptOverlay(interrupt);
+            } else if (event === 'interruptEnded') {
+                this.hideInterruptOverlay();
+            }
+        });
     }
 
+    showInterruptOverlay(interrupt) {
+        if (this.renderer.scene) {
+            import('../core/socketManager.js').then(({ socketManager }) => {
+                const state = socketManager.lastState || {};
+                const playerId = socketManager.playerId;
+                const isReady = state.ready?.includes(playerId);
+
+                const baseOptions = getInterruptUIOptions(interrupt, isReady, 'eng');
+
+
+                // Engineer has Ready/Quit but no Surrender
+                baseOptions.availableButtons = baseOptions.availableButtons.filter(b => b !== 'surrender');
+
+                this.renderer.scene.emit('show_interrupt_overlay', {
+                    ...baseOptions,
+                    center: true,
+                    onInterrupt: (action) => this.handleInterruptAction(action)
+                });
+            });
+        }
+    }
+
+    hideInterruptOverlay() {
+        if (this.renderer.scene) {
+            this.renderer.scene.emit('hide_interrupt_overlay');
+        }
+    }
+
+    handleInterruptAction(action) {
+        console.log(`[EngineController] Interrupt action: ${action}`);
+        if (action === 'ready' || action === 'pause') {
+            import('../core/socketManager.js').then(m => m.socketManager.readyInterrupt());
+        } else if (action === 'quit' || action === 'abort') {
+            import('../core/socketManager.js').then(m => m.socketManager.leaveRole());
+        }
+    }
+
+
     handleButtonPress(direction, slotId, system) {
+        if (!simulationClock.isRunning()) return;
         const key = `${direction}_${slotId}`;
         console.log(`[EngineController] Button pressed: ${key} (${system})`);
 

@@ -3,22 +3,32 @@ import { LogicalServer } from '../src/logical-server.lib.js';
 import { io } from 'socket.io-client';
 import { test, afterEach, expect, assert } from 'vitest';
 
-const PORT = 3000;
-const SERVER_URL = `http://localhost:${PORT}`;
-const DEFAULT_OPTIONS = {autoConnect: false};
+const DEFAULT_OPTIONS = {autoConnect: false, forceNew: true};
 
 let server = null;
+let clients = [];
 
-afterEach(() => {
-  if (server)
-    server.close();
-  server = null;
+afterEach(async () => {
+  clients.forEach(c => c.close());
+  clients = [];
+
+  if (server) {
+    await new Promise(resolve => server.close(resolve));
+    server = null;
+  }
 });
+
+function createClient(port) {
+    const client = io(`http://localhost:${port}`, DEFAULT_OPTIONS);
+    clients.push(client);
+    return client;
+}
 
 test('First player connects.', async () => {
   const logicalServer = new LogicalServer();
-  server = createAndRunServer(logicalServer, PORT);
-  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+  server = createAndRunServer(logicalServer, 0);
+  const port = server.address().port;
+  const client = createClient(port);
   
   let id = null;
   let state = null;
@@ -32,12 +42,14 @@ test('First player connects.', async () => {
   await expect
     .poll(() => [id, state], { timeout: 1000 })
     .toSatisfy(([id, state]) => id && state);
+  
   expect(state.adminId).toBe(id);
   expect(state.players[0].id).toBe(id);
   expect(state.players[0].name).toBe(`Player 1`);
 });
 
 test('Second player has incrementing number in name.', async() => {
+  // Unit test for LogicalServer, no socket needed
   const server = new LogicalServer(); 
   server.addPlayer('first');
   server.addPlayer('second');
@@ -50,8 +62,9 @@ test('Second player has incrementing number in name.', async() => {
 
 test('Player changes name.', async () => {
   const logicalServer = new LogicalServer();
-  server = createAndRunServer(logicalServer, PORT);
-  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+  server = createAndRunServer(logicalServer, 0);
+  const port = server.address().port;
+  const client = createClient(port);
 
   let state = null;
   client.on("state", remoteState => state = remoteState);
@@ -65,8 +78,9 @@ test('Player changes name.', async () => {
 
 test('Player selects role.', async () => {
   const logicalServer = new LogicalServer();
-  server = createAndRunServer(logicalServer, PORT);
-  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+  server = createAndRunServer(logicalServer, 0);
+  const port = server.address().port;
+  const client = createClient(port);
 
   let state = null;
   let clientId = null;
@@ -82,8 +96,9 @@ test('Player selects role.', async () => {
 
 test('Player selects different role than they already selected.', async () => {
   const logicalServer = new LogicalServer();
-  server = createAndRunServer(logicalServer, PORT);
-  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+  server = createAndRunServer(logicalServer, 0);
+  const port = server.address().port;
+  const client = createClient(port);
 
   let state = null;
   let clientId = null;
@@ -104,8 +119,9 @@ test('Player selects different role than they already selected.', async () => {
 
 test('Player selects same role as they already selected.', async () => {
   const logicalServer = new LogicalServer();
-  server = createAndRunServer(logicalServer, PORT);
-  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+  server = createAndRunServer(logicalServer, 0);
+  const port = server.address().port;
+  const client = createClient(port);
 
   let state = null;
   let clientId = null;
@@ -128,9 +144,10 @@ test('Player selects same role as they already selected.', async () => {
 
 test('Player selects role that is already filled by another player.', async () => {
   const logicalServer = new LogicalServer();
-  server = createAndRunServer(logicalServer, PORT);
-  const firstClient = io(SERVER_URL, DEFAULT_OPTIONS);
-  const secondClient = io(SERVER_URL, DEFAULT_OPTIONS);
+  server = createAndRunServer(logicalServer, 0);
+  const port = server.address().port;
+  const firstClient = createClient(port);
+  const secondClient = createClient(port);
   
   let ids = [null, null];
   let state = null;
@@ -158,8 +175,9 @@ test('Player selects role that is already filled by another player.', async () =
 
 test('Player leaves role.', async () => {
   const logicalServer = new LogicalServer();
-  server = createAndRunServer(logicalServer, PORT);
-  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+  server = createAndRunServer(logicalServer, 0);
+  const port = server.address().port;
+  const client = createClient(port);
 
   let state = null;
   let clientId = null;
@@ -177,8 +195,9 @@ test('Player leaves role.', async () => {
 
 test('Player is ready to start before they selected a role.', async () => {
   const logicalServer = new LogicalServer();
-  server = createAndRunServer(logicalServer, PORT);
-  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+  server = createAndRunServer(logicalServer, 0);
+  const port = server.address().port;
+  const client = createClient(port);
 
   let state = null;
   let clientId = null;
@@ -197,8 +216,9 @@ test('Player is ready to start before they selected a role.', async () => {
 
 test('Player is ready to start after they selected a role.', async () => {
   const logicalServer = new LogicalServer();
-  server = createAndRunServer(logicalServer, PORT);
-  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+  server = createAndRunServer(logicalServer, 0);
+  const port = server.address().port;
+  const client = createClient(port);
 
   let state = null;
   let clientId = null;
@@ -215,8 +235,9 @@ test('Player is ready to start after they selected a role.', async () => {
 
 test('Player is ready, then is ready again.', async () => {
   const logicalServer = new LogicalServer();
-  server = createAndRunServer(logicalServer, PORT);
-  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+  server = createAndRunServer(logicalServer, 0);
+  const port = server.address().port;
+  const client = createClient(port);
 
   let state = null;
   let clientId = null;
@@ -239,8 +260,9 @@ test('Player is ready, then is ready again.', async () => {
 
 test('Player is not ready.', async () => {
   const logicalServer = new LogicalServer();
-  server = createAndRunServer(logicalServer, PORT);
-  const client = io(SERVER_URL, DEFAULT_OPTIONS);
+  server = createAndRunServer(logicalServer, 0);
+  const port = server.address().port;
+  const client = createClient(port);
 
   let state = null;
   let clientId = null;
@@ -260,6 +282,7 @@ test('Player is not ready.', async () => {
 });
 
 test('All roles are ready to start the game.', async () => {
+  // LogicalServer test, no sockets
   const logicalServer = new LogicalServer();
 
   logicalServer.addPlayer('sub0co');

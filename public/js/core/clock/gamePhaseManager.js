@@ -5,6 +5,7 @@ import { ClockEvents } from './clockEvents.js';
  */
 export const GamePhases = {
     LOBBY: 'LOBBY',
+    GAME_BEGINNING: 'GAME_BEGINNING',
     LIVE: 'LIVE',
     INTERRUPT: 'INTERRUPT',
     GAME_OVER: 'GAME_OVER'
@@ -20,7 +21,8 @@ export class GamePhaseManager {
 
         // Define legal transitions
         this._transitions = {
-            [GamePhases.LOBBY]: [GamePhases.LIVE],
+            [GamePhases.LOBBY]: [GamePhases.GAME_BEGINNING],
+            [GamePhases.GAME_BEGINNING]: [GamePhases.INTERRUPT, GamePhases.LIVE],
             [GamePhases.LIVE]: [GamePhases.INTERRUPT, GamePhases.GAME_OVER],
             [GamePhases.INTERRUPT]: [GamePhases.LIVE, GamePhases.GAME_OVER],
             [GamePhases.GAME_OVER]: [GamePhases.LOBBY]

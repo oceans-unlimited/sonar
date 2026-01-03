@@ -69,7 +69,20 @@ class SocketManager extends EventEmitter {
   pushButton(buttonData) {
     this.socket.emit('button_pushed', buttonData);
   }
+
+  readyInterrupt() {
+    this.socket.emit('ready_interrupt');
+  }
+
+  requestPause() {
+    this.socket.emit('request_pause');
+  }
+
+  submitSonarResponse(response) {
+    this.socket.emit('submit_sonar_response', response);
+  }
 }
+
 
 export const socketManager = new SocketManager();
 

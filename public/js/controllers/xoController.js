@@ -1,6 +1,9 @@
 import { createButtonStateManager } from "../ui/behaviors/buttonStateManager.js";
 import { applyTintColor } from "../ui/effects/glowEffect.js";
 import { SystemColors } from "../core/uiStyle.js";
+import { simulationClock } from "../core/clock/simulationClock.js";
+import { interruptManager } from "../features/interrupts/InterruptManager.js";
+import { getInterruptUIOptions } from "../renderers/interrupts/interruptUIConfigs.js";
 
 /**
  * XO Controller
@@ -60,7 +63,54 @@ export class XOController {
             }
         };
         window.addEventListener('keydown', this._onKeyDown);
+
+        // Interrupt Handling
+        interruptManager.subscribe((event, interrupt) => {
+            if (event === 'interruptStarted' || event === 'interruptUpdated') {
+                this.showInterruptOverlay(interrupt);
+            } else if (event === 'interruptEnded') {
+                this.hideInterruptOverlay();
+            }
+        });
     }
+
+    showInterruptOverlay(interrupt) {
+        if (this.renderer.scene) {
+            import('../core/socketManager.js').then(({ socketManager }) => {
+                const state = socketManager.lastState || {};
+                const playerId = socketManager.playerId;
+                const isReady = state.ready?.includes(playerId);
+
+                const baseOptions = getInterruptUIOptions(interrupt, isReady, 'xo');
+
+
+                // XO has Ready/Quit but no Surrender
+                baseOptions.availableButtons = baseOptions.availableButtons.filter(b => b !== 'surrender');
+
+                this.renderer.scene.emit('show_interrupt_overlay', {
+                    ...baseOptions,
+                    center: true,
+                    onInterrupt: (action) => this.handleInterruptAction(action)
+                });
+            });
+        }
+    }
+
+    hideInterruptOverlay() {
+        if (this.renderer.scene) {
+            this.renderer.scene.emit('hide_interrupt_overlay');
+        }
+    }
+
+    handleInterruptAction(action) {
+        console.log(`[XOController] Interrupt action: ${action}`);
+        if (action === 'ready' || action === 'pause') {
+            import('../core/socketManager.js').then(m => m.socketManager.readyInterrupt());
+        } else if (action === 'quit' || action === 'abort') {
+            import('../core/socketManager.js').then(m => m.socketManager.leaveRole());
+        }
+    }
+
 
     updateFills(key) {
         const row = this.renderer.views.subsystems.get(key);
@@ -122,6 +172,7 @@ export class XOController {
     // --- Interaction Logic ---
 
     handleSubsystemClick(key) {
+        if (!simulationClock.isRunning()) return;
         const row = this.renderer.views.subsystems.get(key);
         const level = this.subsystemLevels[key];
         const max = this.maxLevels[key];
@@ -169,6 +220,7 @@ export class XOController {
     }
 
     handleMove() {
+        if (!simulationClock.isRunning()) return;
         console.log("[XOController] Handling Move (Mocked by M Key)");
 
         // Move Event Sync: If full -> Disabled, else Active

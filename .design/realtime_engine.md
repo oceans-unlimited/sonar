@@ -30,14 +30,16 @@ Files:
   - Canonical event names (CLOCK_START, CLOCK_STOP, PHASE_CHANGE)
 
 Integration:
-- core/sceneManager.js → uses gamePhaseManager for scene mounting
+- core/sceneManager.js → uses gamePhaseManager for scene mounting (routed by player role during in-game phases)
 - controllers/* → check simulationClock.isRunning() before actions
 - features/map/MapSystem.js → pauses updates via clock state
 
 2. Global Interrupt System
 Location: public/js/features/interrupts/
 
-Purpose: Temporary global halt with auto-resume (torpedo resolution, sonar ping, pause, etc.)
+Purpose: Temporary global halt for game events
+- In-game interrupts: Auto-resume after resolution (torpedo, sonar, scenario)
+- Out-of-game interrupts: Require all-player ready-up (manual pause, disconnect)
 
 Files:
 - InterruptManager.js
@@ -50,18 +52,30 @@ Files:
   - ONLY system allowed to call simulationClock.stop()/start()
 
 - InterruptTypes.js
-  - TORPEDO_RESOLUTION
-  - SONAR_PING
-  - SCENARIO_ACTION
-  - PAUSE
+  - **In-game interrupts** (auto-resume via InterruptTimers):
+    - TORPEDO_RESOLUTION
+    - SONAR_PING
+    - SCENARIO_ACTION
+    - START_POSITIONS (triggered at game start; resolved when captains choose positions)
+  - **Out-of-game interrupts** (require all-player ready-up):
+    - PAUSE (manual button via connController)
+    - PLAYER_DISCONNECT (tracks roster of disconnected players)
   - (GAME_OVER is a phase, not an interrupt)
 
 - InterruptController.js
   - API for controllers to request interrupts
   - Translates intent → requestInterrupt()
 
+- InterruptRoster.js
+  - Tracks player connection status, role assignment, ready state
+  - Used by PLAYER_DISCONNECT and PAUSE interrupts
+  - Methods: markDisconnected(), markReconnected(), setRole(), setReady(), allPlayersReady()
+  - Emits roster update events for UI
+
 - InterruptTimers.js
   - Duration, delays, auto-resume logic
+  - Only applies to in-game interrupts (TORPEDO_RESOLUTION, SONAR_PING, SCENARIO_ACTION)
+  - Out-of-game interrupts (PAUSE, PLAYER_DISCONNECT) have no timer
 
 Integration:
 - socketManager → Controller → InterruptController → InterruptManager
@@ -70,7 +84,25 @@ Integration:
 
 Rules:
 - InterruptManager is the only mediator for halting/resuming simulationClock
-- Pause is a manual interrupt (not a phase)
+- Two interrupt categories:
+  - **In-game interrupts**: Auto-resume after resolution (TORPEDO_RESOLUTION, SONAR_PING, SCENARIO_ACTION)
+  - **Out-of-game interrupts**: Require all-player ready-up (PAUSE, PLAYER_DISCONNECT)
+- Interrupt precedence:
+  - In-game interrupts complete first, then out-of-game interrupts activate
+  - Example: torpedo mid-resolution + disconnect → torpedo completes, then PLAYER_DISCONNECT triggers
+- PAUSE interrupt (manual):
+  - Triggered by captain pressing pause button in connController
+  - Administrative halt (bathroom break, discussion)
+  - Requires all players to ready-up to resume
+  - Handled identically to PLAYER_DISCONNECT in terms of resolution flow
+- PLAYER_DISCONNECT interrupt:
+  - Detected via socketManager disconnect event(s)
+  - Single interrupt tracks roster of ALL disconnected players
+  - Roster maintains: connection status, role assignment, ready state
+  - Disconnected players reconnect → lobby scene → select role → ready-up
+  - Requires: ALL players connected + assigned to roles + all ready
+  - Only then can InterruptManager.resolveInterrupt(PLAYER_DISCONNECT) be called
+  - Transitions game to out-of-game pause phase (via gamePhaseManager)
 - No other feature/controller touches clock directly
 
 3. Per-Submarine State Machine
@@ -127,11 +159,13 @@ GamePhaseManager / InterruptManager → Controller → Scene/Behaviors
 
 Pause Button:
 - ui/behaviors/pauseBehavior.js
-  - Captures intent
-  - Calls InterruptManager.requestInterrupt(PAUSE)
-  - Handles overlay display (visual only)
-- connScene → mounts behavior & overlay
-- Controller → routes intent, never pauses directly
+  - Captures pause button press intent
+  - Calls InterruptController.requestInterrupt(PAUSE)
+  - Does NOT handle overlay display (that's in scene)
+- connScene → mounts behavior
+- Controller → routes to InterruptManager
+- InterruptManager → transitions to out-of-game pause phase
+- All players must ready-up via lobby to resume
 
 Pause Overlay:
 - features/pause/PauseOverlay.js (reusable)

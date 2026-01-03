@@ -6,7 +6,7 @@ export async function createBootScene(app, assets, audioManager) {
 
   // Press/tap prompt
   const promptText = new Text({
-    text: 'PRESS ANY KEY OR TAP TO ACTIVATE AUDIO',
+    text: 'PRESS ANY KEY TO CONTIUE',
     style: {
       fontFamily: 'Orbitron',
       fontSize: 18,

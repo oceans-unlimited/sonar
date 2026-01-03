@@ -81,7 +81,8 @@ export class XOController {
                 const playerId = socketManager.playerId;
                 const isReady = state.ready?.includes(playerId);
 
-                const baseOptions = getInterruptUIOptions(interrupt, isReady);
+                const baseOptions = getInterruptUIOptions(interrupt, isReady, 'xo');
+
 
                 // XO has Ready/Quit but no Surrender
                 baseOptions.availableButtons = baseOptions.availableButtons.filter(b => b !== 'surrender');
@@ -104,11 +105,12 @@ export class XOController {
     handleInterruptAction(action) {
         console.log(`[XOController] Interrupt action: ${action}`);
         if (action === 'ready' || action === 'pause') {
-            import('../core/socketManager.js').then(m => m.socketManager.ready());
+            import('../core/socketManager.js').then(m => m.socketManager.readyInterrupt());
         } else if (action === 'quit' || action === 'abort') {
-            console.log("Stub: Quit action");
+            import('../core/socketManager.js').then(m => m.socketManager.leaveRole());
         }
     }
+
 
     updateFills(key) {
         const row = this.renderer.views.subsystems.get(key);

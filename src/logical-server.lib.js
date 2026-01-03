@@ -67,11 +67,27 @@ export class LogicalServer {
         if (submarine[role] === playerId) submarine[role] = null;
       })
     );
+
+    // Trigger disconnect interrupt if game is in progress
+    const isInProgress = this.state.phase === GlobalPhases.LIVE ||
+      (this.state.phase === GlobalPhases.INTERRUPT && this.state.activeInterrupt?.type !== InterruptTypes.PLAYER_DISCONNECT);
+
+    if (isInProgress) {
+      this.state.phase = GlobalPhases.INTERRUPT;
+      this.state.activeInterrupt = {
+        type: InterruptTypes.PLAYER_DISCONNECT,
+        payload: { message: "Player Disconnected" }
+      };
+      this.state.ready = []; // Re-reset to be sure
+    }
+
     if (this.state.adminId && this.state.adminId === playerId) {
       this.state.adminId = null;
     }
     this.state.version++;
   }
+
+
 
   changeName(playerId, new_name) {
     if (this.state.phase !== GlobalPhases.LOBBY) return;
@@ -142,6 +158,8 @@ export class LogicalServer {
           type: InterruptTypes.START_POSITIONS,
           payload: { message: "Captains selecting starting positions" }
         };
+        this.state.ready = []; // Reset ready states for initial position phase
+
 
         const engineLayoutGenerator = new EngineLayoutGenerator();
         this.state.submarines.forEach(sub => {
@@ -185,7 +203,10 @@ export class LogicalServer {
         if (chosenPositionIsValid && this.state.board[row][column] === WATER) {
           sub.row = row;
           sub.col = column;
-          this.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.push(sub.id);
+          if (!this.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.includes(sub.id)) {
+            this.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.push(sub.id);
+          }
+
 
           let allSubsHaveChosen = this.state.submarines.every(s => subIdsThatHaveChosen.find(c => c === s.id));
           if (allSubsHaveChosen) {
@@ -209,35 +230,65 @@ export class LogicalServer {
   }
 
   readyToResumeRealTimePlay(playerId, resumingRealTimePlayCallback) {
-    if (this.state.gameState !== 'realTimePlay') {
-      let stateName = Object.keys(this.state.gameStateData).find(k => k === this.state.gameState);
-      if (stateName) {
-        let playersReady = this.state.gameStateData[stateName].playerIdsReadyToContinue;
-        let playerAlreadyIndicatedReadiness = playersReady.some(r => r === playerId);
-        if (!playerAlreadyIndicatedReadiness) {
-          playersReady.push(playerId);
+    // This old method will be replaced by readyInterrupt, but keeping for compatibility until server.lib.js is updated
+    this.readyInterrupt(playerId, resumingRealTimePlayCallback);
+  }
 
-          let subIdsThatHaveChosen = this.state.gameStateData[this.state.gameState].submarineIdsWithStartPositionChosen;
-          let allSubsHaveChosen = this.state.submarines.every(s => subIdsThatHaveChosen.find(c => c === s.id));
-          let readyPlayers = this.state.gameStateData[this.state.gameState].playerIdsReadyToContinue;
-          let allPlayersAreReady = this.state.submarines.every(s => readyPlayers.some(r => r === s.co) && readyPlayers.some(r => r === s.xo) && readyPlayers.some(r => r === s.eng) && readyPlayers.some(r => r === s.sonar));
-          if (allSubsHaveChosen && allPlayersAreReady) {
-            setTimeout(() => {
-              this.state.gameState = 'realTimePlay';
-              this.state.gameStateData.choosingStartPositions = {
-                playerIdsReadyToContinue: [],
-                submarineIdsWithStartPositionChosen: [],
-              };
-              this.state.version++;
-              resumingRealTimePlayCallback();
-            }, 3000);
-          }
-        }
-      }
-    }
+  requestPause(playerId) {
+    if (this.state.phase !== GlobalPhases.LIVE) return;
 
+    this.state.phase = GlobalPhases.INTERRUPT;
+    this.state.activeInterrupt = {
+      type: InterruptTypes.PAUSE,
+      payload: { message: "Paused by Captain" }
+    };
+    this.state.ready = []; // Reset ready states for out-of-game interrupt
     this.state.version++;
   }
+
+  readyInterrupt(playerId, resumeCallback) {
+    if (this.state.phase !== GlobalPhases.INTERRUPT) return;
+    if (this.state.ready.includes(playerId)) return;
+
+    this.state.ready.push(playerId);
+    this.state.version++;
+
+    // Check if all players in the game are ready
+    const allPlayersReady = this.state.submarines.every(sub =>
+      ['co', 'xo', 'sonar', 'eng'].every(role => {
+        const pId = sub[role];
+        return !pId || this.state.ready.includes(pId);
+      })
+    );
+
+    if (allPlayersReady) {
+      setTimeout(() => {
+        this.state.phase = GlobalPhases.LIVE;
+        this.state.activeInterrupt = null;
+        this.state.ready = [];
+        this.state.version++;
+        resumeCallback();
+      }, 3000); // 3s countdown transition
+    }
+  }
+
+  submitSonarResponse(playerId, response, resumeCallback) {
+    const rxSub = this.state.submarines.find(sub => sub.co === playerId);
+    if (!rxSub || !this.state.activeInterrupt || this.state.activeInterrupt.type !== InterruptTypes.SONAR_PING) return;
+
+    // Update active interrupt with response
+    this.state.activeInterrupt.payload.response = response;
+    this.state.version++;
+
+    // Auto-resume after short delay as per requirements
+    setTimeout(() => {
+      this.state.phase = GlobalPhases.LIVE;
+      this.state.activeInterrupt = null;
+      this.state.version++;
+      resumeCallback();
+    }, 3000);
+  }
+
 
   move(playerId, direction) {
     if (this.state.phase !== GlobalPhases.LIVE)

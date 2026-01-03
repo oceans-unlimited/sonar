@@ -62,7 +62,8 @@ export class ConnController {
                 const playerId = socketManager.playerId;
                 const isReady = state.ready?.includes(playerId);
 
-                const baseOptions = getInterruptUIOptions(interrupt, isReady);
+                const baseOptions = getInterruptUIOptions(interrupt, isReady, 'co');
+
 
                 this.renderer.scene.emit('show_interrupt_overlay', {
                     ...baseOptions,
@@ -82,19 +83,16 @@ export class ConnController {
     handleInterruptAction(action) {
         console.log(`[ConnController] Interrupt action: ${action}`);
         if (action === 'pause' || action === 'ready') {
-            // Renamed 'pause' button now acts as 'ready'
-            import('../core/socketManager.js').then(m => m.socketManager.ready());
-        } else if (action === 'hold') {
-            // Stub for hold
-            console.log("Stub: Hold action");
+            import('../core/socketManager.js').then(m => m.socketManager.readyInterrupt());
+        } else if (action === 'submit') {
+            // Mock sonar submission
+            const mockResponse = "ROW 4, SECTOR 2";
+            import('../core/socketManager.js').then(m => m.socketManager.submitSonarResponse(mockResponse));
         } else if (action === 'abort' || action === 'quit') {
-            // Stub for abort/quit
-            console.log("Stub: Quit action");
-        } else if (action === 'surrender') {
-            // Stub for surrender
-            console.log("Stub: Surrender action");
+            import('../core/socketManager.js').then(m => m.socketManager.leaveRole());
         }
     }
+
 
     handleMove(direction) {
         if (!simulationClock.isRunning()) return;

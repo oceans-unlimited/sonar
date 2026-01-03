@@ -14,7 +14,9 @@ export function buildInterruptButtons({ onInterrupt, availableButtons = [], butt
         { id: "hold", label: "HOLD", color: 0x2563eb },
         { id: "abort", label: "ABORT", color: 0xdc2626 },
         { id: "surrender", label: "SURRENDER", color: 0x991b1b },
+        { id: "submit", label: "SUBMIT", color: 0x059669 },
     ];
+
 
     // Filter based on available buttons for the role
     const buttonsToShow = defaultConfigs

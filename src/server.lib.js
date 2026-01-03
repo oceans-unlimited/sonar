@@ -16,15 +16,22 @@ export function createAndRunServer(logicalServer, port) {
 
   // Define server-side logic for web socket connections.
   ioServer.on("connection", (socket) => {
-    
+
     socket.on("disconnect", () => {
       log(`Player disconnected: ${socket.id}`);
 
+      const wasInGame = logicalServer.state.phase === 'LIVE' || logicalServer.state.phase === 'INTERRUPT';
       logicalServer.disconnect(socket.id);
+
+      if (wasInGame) {
+        log('Broadcasting player disconnect interrupt');
+        // The logicalServer.disconnect should have set the interrupt state
+      }
 
       log('Broadcasting state update after disconnect');
       ioServer.emit("state", logicalServer.state);
     });
+
 
     socket.on("change_name", new_name => {
       log(`Player ${socket.id} changed name to ${new_name}`);
@@ -35,7 +42,7 @@ export function createAndRunServer(logicalServer, port) {
       ioServer.emit("state", logicalServer.state);
     });
 
-    socket.on("select_role", ({submarine, role}) => {
+    socket.on("select_role", ({ submarine, role }) => {
       logicalServer.selectRole(socket.id, submarine, role);
       log('Broadcasting state update after role selection');
       ioServer.emit("state", logicalServer.state);
@@ -71,7 +78,7 @@ export function createAndRunServer(logicalServer, port) {
       ioServer.emit("state", logicalServer.state);
     });
 
-    socket.on("choose_initial_position", ({row, column}) => {
+    socket.on("choose_initial_position", ({ row, column }) => {
       let columnLetter = String.fromCharCode('A'.charCodeAt(0) + column);
       log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to chose initial position row ${row}, column ${columnLetter} (${column}).`);
 
@@ -90,7 +97,7 @@ export function createAndRunServer(logicalServer, port) {
     });
 
     socket.on("ready_to_resume_real_time_play", () => {
-      log(`Player ${logicalServer.playerName(socket.id)} is ready to resume real-time play`);
+      log(`Player ${logicalServer.playerName(socket.id)} is ready to resume real-time play (Legacy)`);
 
       logicalServer.readyToResumeRealTimePlay(socket.id, () => {
         log('Resuming real-time play; broadcasting state.');
@@ -101,6 +108,31 @@ export function createAndRunServer(logicalServer, port) {
       logicalServer.state.version++;
       ioServer.emit("state", logicalServer.state);
     });
+
+    socket.on("ready_interrupt", () => {
+      log(`Player ${logicalServer.playerName(socket.id)} is ready for interrupt resolution`);
+      logicalServer.readyInterrupt(socket.id, () => {
+        log('Resuming play after interrupt; broadcasting state.');
+        ioServer.emit("state", logicalServer.state);
+      });
+      ioServer.emit("state", logicalServer.state);
+    });
+
+    socket.on("request_pause", () => {
+      log(`Player ${logicalServer.playerName(socket.id)} requested pause`);
+      logicalServer.requestPause(socket.id);
+      ioServer.emit("state", logicalServer.state);
+    });
+
+    socket.on("submit_sonar_response", (response) => {
+      log(`Player ${logicalServer.playerName(socket.id)} submitted sonar response: ${response}`);
+      logicalServer.submitSonarResponse(socket.id, response, () => {
+        log('Resuming play after sonar response; broadcasting state.');
+        ioServer.emit("state", logicalServer.state);
+      });
+      ioServer.emit("state", logicalServer.state);
+    });
+
 
     socket.on("move", (direction) => {
       log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to move ${direction}.`);
@@ -122,7 +154,7 @@ export function createAndRunServer(logicalServer, port) {
       ioServer.emit("state", logicalServer.state);
     });
 
-    socket.on('cross_off_system', ({direction, slotId}) => {
+    socket.on('cross_off_system', ({ direction, slotId }) => {
       log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to cross off slot ${direction}, ${slotId}.`);
 
       logicalServer.crossOffSystem(socket.id, direction, slotId, winner => ioServer.emit("game_won", winner));

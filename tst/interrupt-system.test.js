@@ -8,15 +8,22 @@ import { InterruptTypes } from '../public/js/features/interrupts/InterruptTypes.
 
 describe('Interrupt System', () => {
     beforeEach(() => {
-        // Reset singleton states if possible or ensure clean start
-        // Since they are singletons, we might need to manually reset some fields if necessary
-        // For these tests, we'll assume they behave predictably if we resolve everything
-        if (interruptManager.getActiveInterrupt()) {
-            interruptManager.resolveInterrupt(interruptManager.getActiveInterrupt().type);
+        // Reset singleton states by resolving any active interrupt
+        const active = interruptManager.getActiveInterrupt();
+        if (active) {
+            interruptManager.resolveInterrupt(active.type);
         }
-        simulationClock.start();
+
+        // Manually reset phase through valid transitions
+        // Default is LOBBY
+        if (gamePhaseManager.getPhase() === GamePhases.LOBBY) {
+            gamePhaseManager.setPhase(GamePhases.GAME_BEGINNING);
+        }
         gamePhaseManager.setPhase(GamePhases.LIVE);
+
+        simulationClock.start();
     });
+
 
     it('should stop the clock when an interrupt is requested', () => {
         expect(simulationClock.isRunning()).toBe(true);

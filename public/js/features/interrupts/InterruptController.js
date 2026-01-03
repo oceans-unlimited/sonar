@@ -34,7 +34,41 @@ export class InterruptController {
         interruptManager.resolveInterrupt('TORPEDO_RESOLUTION');
     }
 
-    // Add other shorthand methods as needed (SONAR_PING, etc.)
+    /**
+     * Requests sonar ping interrupt.
+     */
+    requestSonarPing(payload) {
+        interruptManager.requestInterrupt('SONAR_PING', payload);
+    }
+
+    /**
+     * Requests scenario action interrupt.
+     */
+    requestScenarioAction(payload) {
+        interruptManager.requestInterrupt('SCENARIO_ACTION', payload);
+    }
+
+    /**
+     * Requests start positions interrupt.
+     */
+    requestStartPositions(payload) {
+        interruptManager.requestInterrupt('START_POSITIONS', payload);
+    }
+
+    /**
+     * Requests player disconnect interrupt.
+     */
+    requestPlayerDisconnect(payload) {
+        interruptManager.requestInterrupt('PLAYER_DISCONNECT', payload);
+    }
+
+    /**
+     * Resolves an interrupt.
+     */
+    resolve(type) {
+        interruptManager.resolveInterrupt(type);
+    }
 }
 
 export const interruptController = new InterruptController();
+

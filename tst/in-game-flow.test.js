@@ -3,25 +3,24 @@ import { LogicalServer } from '../src/logical-server.lib.js';
 import { io } from 'socket.io-client';
 import { test, afterEach, expect, assert } from 'vitest';
 
-const PORT = 3001;
-const SERVER_URL = `http://localhost:${PORT}`;
-const DEFAULT_OPTIONS = {autoConnect: false};
+const DEFAULT_OPTIONS = {autoConnect: false, forceNew: true};
 
 let server = null;
 let clients = [];
 
-afterEach(() => {
-  if (server) {
-    server.close();
-  }
-  server = null;
+afterEach(async () => {
   clients.forEach(c => c.close());
   clients = [];
+  if (server) {
+    await new Promise(resolve => server.close(resolve));
+    server = null;
+  }
 });
 
 async function startGame() {
   const logicalServer = new LogicalServer();
-  server = createAndRunServer(logicalServer, PORT);
+  server = createAndRunServer(logicalServer, 0);
+  const port = server.address().port;
 
   let testData = {
     state: null,
@@ -38,7 +37,7 @@ async function startGame() {
   }
   
   for (let i = 0; i < 8; ++i) {
-    clients[i] = io(SERVER_URL, DEFAULT_OPTIONS);
+    clients[i] = io(`http://localhost:${port}`, DEFAULT_OPTIONS);
     configureClient(clients[i], i);
     clients[i].connect();
   }
@@ -63,6 +62,7 @@ async function startGame() {
   // make sure they're all selected
   await expect.poll(() => null, {timeout: 10000})
     .toSatisfy(() => {
+      if (!testData.state) return false;
       var sub0 = testData.state.submarines[0];
       var sub1 = testData.state.submarines[1];
       return sub0.co && sub0.xo && sub0.sonar && sub0.eng &&
@@ -74,11 +74,11 @@ async function startGame() {
   }
 
   await expect.poll(() => null, {timeout:1000}).toSatisfy(() =>
-    testData.state.currentState === "game_beginning"
+    testData.state && testData.state.currentState === "game_beginning"
   );
 
   await expect.poll(() => null, {timeout: 4000}).toSatisfy(() =>
-    testData.state.currentState === "in_game" && testData.state.gameState === "choosingStartPositions"
+    testData.state && testData.state.currentState === "in_game" && testData.state.gameState === "choosingStartPositions"
   );
 
   return testData;
@@ -91,7 +91,7 @@ async function chooseInitialPositions(testData, sub0Position, sub1Position) {
   clients.forEach(c => c.emit("ready_to_resume_real_time_play"));
 
   await expect.poll(() => null, {timeout: 4000}).toSatisfy(() =>
-    testData.state.gameState === 'realTimePlay'
+    testData.state && testData.state.gameState === 'realTimePlay'
   );
 }
 

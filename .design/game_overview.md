@@ -53,19 +53,13 @@ Each submarine uses four player panels, connected to the central game server:
 
 ## ⏸️ Pause & System Actions
 
-- **Pause Toggle** (on Captain panel):  
-  - Freezes movement inputs for **both submarines**.  
-  - Pausing sub immediately selects a **single system action** (e.g., torpedo, sonar).  
+- **Manual Pause Toggle** (on Captain panel):  
+  - Freezes all inputs for **both submarines**.  
+  - All players ready-up to resume the game.   
 
 - **Resolution Rules**:  
   - If the opposing submarine is not destroyed, no further system actions can be taken during this pause.  
   - Game resumes to live action after the system action resolves.  
-
-- **Optional Return-Fire Mode**:  
-  - Paused submarine acts.  
-  - Opposing submarine may immediately perform **one system action in response**.  
-  - Both captains must confirm to return to live play.  
-  - After resuming, the pause button is temporarily **disabled** for whichever submarine last acted (initiator or responder) until they complete at least one movement.  
 
 ---
 

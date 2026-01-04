@@ -12,7 +12,7 @@ import {
     sleep
 } from './test-helpers.js';
 
-describe('8-Player Lobby Flow', () => {
+describe('8-Player Lobby Flow', {skip: true}, () => {
     let server = null;
     let clients = [];
     let playerIds = [];

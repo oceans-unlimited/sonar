@@ -10,6 +10,7 @@ export class LogicalServer {
     version: 0,
     phase: GlobalPhases.LOBBY,
     activeInterrupt: null, // { type, payload, data }
+    /**@type {{id: string, name: string, connectionOrder: number, ready: boolean}[]} */
     players: [],
     adminId: null,
     submarines: [this.createSubmarine('A'), this.createSubmarine('B')],
@@ -44,10 +45,38 @@ export class LogicalServer {
           engineerCrossedOutSystem: false,
           xoChargedGauge: false,
           directionMoved: ' ',
-        }
+        },
+        SURFACING: {
+          roleTaskCompletion: [
+            {role: 'co', completed: false},
+            {role: 'xo', completed: false},
+            {role: 'eng', completed: false},
+            {role: 'sonar', completed: false},
+          ],
+        },
       },
+      /**@type {{row: number, col: number}[]} */
       track_path: [],
     }
+  }
+
+  addPlayer(playerId) {
+    let playerNumber = 1;
+    while (Object.values(this.usedPlayerNumbers).some(usedNumber => playerNumber === usedNumber))
+      playerNumber++;
+    this.usedPlayerNumbers[playerId] = playerNumber;
+
+    const playerName = `Player ${playerNumber}`;
+    this.state.players.push({
+      id: playerId,
+      name: playerName,
+      connectionOrder: Date.now(),
+      ready: false,
+    });
+
+    if (!this.state.adminId) this.state.adminId = playerId;
+
+    this.state.version++;
   }
 
   disconnect(playerId) {
@@ -258,7 +287,6 @@ export class LogicalServer {
     this.state.version++;
   }
 
-
   move(playerId, direction) {
     if (this.state.phase !== GlobalPhases.LIVE)
       return;
@@ -405,22 +433,76 @@ export class LogicalServer {
     this.state.version++;
   }
 
-  addPlayer(playerId) {
-    let playerNumber = 1;
-    while (Object.values(this.usedPlayerNumbers).some(usedNumber => playerNumber === usedNumber))
-      playerNumber++;
-    this.usedPlayerNumbers[playerId] = playerNumber;
-
-    const playerName = `Player ${playerNumber}`;
-    this.state.players.push({
-      id: playerId,
-      name: playerName,
-      connectionOrder: Date.now(),
-      ready: false,
-    });
-
-    if (!this.state.adminId) this.state.adminId = playerId;
-
+  surface(playerId) {
     this.state.version++;
+
+    // find the submarine I'm on
+    let surfacingSub = this.state.submarines.find(s => [s.co, s.xo, s.eng, s.sonar].some(p => p === playerId));
+    if (!surfacingSub)
+      return;
+
+    // make sure the global phase and sub state is right (must be SUBMERGED)
+    if (this.state.phase !== GlobalPhases.LIVE || surfacingSub.submarineState !== SUBMERGED)
+      return;
+
+    // set sub state to SURFACING, and reset task data
+    surfacingSub.submarineState = SubmarineStates.SURFACING;
+    surfacingSub.submarineStateData.SURFACING.roleTaskCompletion.forEach(
+      roleAndCompleted => {
+        roleAndCompleted.completed = false;
+      }
+    );
+  }
+
+  /**Returns true if sub can submerge. */
+  completeSurfacingTask(playerId) {
+    this.state.version++;
+    
+    let {sub, role} = this.#getRoleAndSub(playerId);
+    if (!sub || !role)
+      return;
+
+    if (this.state.phase !== GlobalPhases.LIVE || sub.submarineState !== SUBMERGED)
+      return;
+
+    const taskData = sub.submarineStateData.SURFACING.roleTaskCompletion;
+    // Previous roles in the order must have completed the task.
+    let playerTaskIndex = taskData.findIndex(t => t.role === role);
+    for (let i = 0; i < taskData.playerTaskIndex; ++i) {
+      if (!taskData[i].completed)
+        return;
+    }
+
+    taskData[playerTaskIndex].completed = true;
+    if (playerTaskIndex === taskData.length - 1) {
+      sub.submarineState = SubmarineStates.SURFACED;
+      sub.engineLayout.crossedOutSlots.splice(0);
+      sub.track_path.splice(0);
+      return true;
+    } else {
+      false;
+    }
+  }
+
+  submerge(playerId) {
+    this.state.version++;
+
+    let {sub} = this.#getRoleAndSub(playerId);
+    if (!sub || sub.submarineState !== SubmarineStates.SURFACED)
+      return;
+
+    sub.submarineState = SubmarineStates.SUBMERGED;
+  }
+
+  getSubName(playerId) {
+    return this.state.submarines.find(s => [s.co, s.xo, s.eng, s.sonar].some(p => p === playerId))?.name;
+  }
+
+  #getRoleAndSub(playerId) /**@type {sub: ReturnType<typeof createSubmarine>, role: 'co' | 'xo' | 'eng' | 'sonar'} */ {
+    let sub = this.state.submarines.find(s => [s.co, s.xo, s.eng, s.sonar].some(p => p === playerId));
+    return {
+      sub: sub,
+      role: !sub ? undefined : Object.keys(sub).find(k => sub[k] === playerId),
+    };
   }
 }

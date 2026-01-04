@@ -158,9 +158,39 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
       }
 
       log('Broadcasting state update after attempt to cross off slot.');
-      logicalServer.state.version++;
       ioServer.emit("state", logicalServer.state);
     });
+
+    socket.on('surface', () => {
+      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to surface.`);
+
+      logicalServer.surface(socket.id);
+
+      log('Broadcasting state update after attempt to complete .');
+      ioServer.emit("state", logicalServer.state);
+    });
+
+    socket.on('complete_surfacing_task', () => {
+      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to surface.`);
+
+      let subName = logicalServer.getSubName(socket.id);
+      let canSubmerge = logicalServer.completeSurfacingTask(socket.id);
+      if (canSubmerge) {
+        log(`Submarine ${subName} ready to submerge.`);
+      }
+
+      log('Broadcasting state update after attempt to surface.');
+      ioServer.emit("state", logicalServer.state);
+    });
+
+    socket.on('submerge', () => {
+      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to submerge.`);
+
+      logicalServer.submerge(socket.id);
+
+      log('Broadcasting state update after attempt to submerge.');
+      ioServer.emit("state", logicalServer.state);
+    })
 
     logicalServer.addPlayer(socket.id);
 

@@ -9,19 +9,12 @@ export class LogicalServer {
     winner: null,
     version: 0,
     phase: GlobalPhases.LOBBY,
-    activeInterrupt: null, // { type, payload }
+    activeInterrupt: null, // { type, payload, data }
     players: [],
     adminId: null,
     submarines: [this.createSubmarine('A'), this.createSubmarine('B')],
     ready: [],
     board: generateBoard(),
-    // Initial position choosing tracking (moved to stateData if needed, but keeping for now for minimal breakage)
-    gameStateData: {
-      choosingStartPositions: {
-        playerIdsReadyToContinue: [],
-        submarineIdsWithStartPositionChosen: [],
-      },
-    },
   };
 
   constructor() {
@@ -164,7 +157,8 @@ export class LogicalServer {
     this.state.phase = GlobalPhases.INTERRUPT;
     this.state.activeInterrupt = {
       type: InterruptTypes.START_POSITIONS,
-      payload: { message: "Captains selecting starting positions" }
+      payload: { message: "Captains selecting starting positions" },
+      data: {submarineIdsWithStartPositionChosen: []},
     };
     this.state.ready = []; // Reset ready states for initial position phase
 
@@ -174,12 +168,6 @@ export class LogicalServer {
       sub.engineLayout = engineLayoutGenerator.generateLayout();
     });
     this.state.board = generateBoard();
-
-    // Ensure starting tracking is clean
-    this.state.gameStateData.choosingStartPositions = {
-      playerIdsReadyToContinue: [],
-      submarineIdsWithStartPositionChosen: [],
-    };
 
     this.state.version++;
   }
@@ -199,7 +187,7 @@ export class LogicalServer {
 
     let allSubsHaveChosen = false;
     if (sub && isStartPositionsInterrupt) {
-      let subIdsThatHaveChosen = this.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen;
+      let subIdsThatHaveChosen = this.state.activeInterrupt.data.submarineIdsWithStartPositionChosen;
       let thisSubAlreadyChose = subIdsThatHaveChosen.find(s => s === sub.id);
       if (!thisSubAlreadyChose) {
         let chosenPositionIsValid = 0 <= row && row <= this.state.board.length &&
@@ -207,8 +195,8 @@ export class LogicalServer {
         if (chosenPositionIsValid && this.state.board[row][column] === WATER) {
           sub.row = row;
           sub.col = column;
-          if (!this.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.includes(sub.id)) {
-            this.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.push(sub.id);
+          if (!this.state.activeInterrupt.data.submarineIdsWithStartPositionChosen.includes(sub.id)) {
+            this.state.activeInterrupt.data.submarineIdsWithStartPositionChosen.push(sub.id);
           }
 
           allSubsHaveChosen = this.state.submarines.every(s => subIdsThatHaveChosen.find(c => c === s.id));

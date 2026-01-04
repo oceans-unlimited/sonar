@@ -86,12 +86,12 @@ test('Captains select starting position', () => {
   // both captains select positions.
   let shouldResumeAfterFirstSelection = server.chooseInitialPosition("sub0co", 0, 1);
   assert(!shouldResumeAfterFirstSelection);
-  assert(server.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.some(subId => subId === 'A'));
+  assert(server.state.activeInterrupt.data.submarineIdsWithStartPositionChosen.some(subId => subId === 'A'));
   assert(server.state.submarines[0].row === 0);
   assert(server.state.submarines[0].col === 1);
   let shouldResumeAfterAllSelected = server.chooseInitialPosition("sub1co", 2, 3);
   assert(shouldResumeAfterAllSelected);
-  assert(server.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.some(subId => subId === 'B'));
+  assert(server.state.activeInterrupt.data.submarineIdsWithStartPositionChosen.some(subId => subId === 'B'));
   assert(server.state.submarines[1].row === 2);
   assert(server.state.submarines[1].col === 3);
 
@@ -105,7 +105,7 @@ test('Repeated, invalid, out-of-order actions do not affect choosing positions',
 
   // captain chooses twice; only first one takes effect.
   server.chooseInitialPosition("sub0co", 0, 1);
-  assert(server.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.some(subId => subId === 'A'));
+  assert(server.state.activeInterrupt.data.submarineIdsWithStartPositionChosen.some(subId => subId === 'A'));
   let versionBeforeNewAttempt = server.state.version;
   server.chooseInitialPosition("sub0co", 5, 4);
   assert(server.state.version > versionBeforeNewAttempt);
@@ -116,7 +116,7 @@ test('Repeated, invalid, out-of-order actions do not affect choosing positions',
   let versionBeforeBadPosition = server.state.version;
   server.chooseInitialPosition("sub1co", 2, 2);
   assert(server.state.version > versionBeforeBadPosition);
-  assert(!server.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.some(subId => subId === 'B'));
+  assert(!server.state.activeInterrupt.data.submarineIdsWithStartPositionChosen.some(subId => subId === 'B'));
 
   // game state is still "choosingStartPositions".
   assert(server.state.phase === GlobalPhases.INTERRUPT);
@@ -125,7 +125,7 @@ test('Repeated, invalid, out-of-order actions do not affect choosing positions',
   // now captain chooses valid position, and state transition occurs.
   let shouldResumeRealTimePlay = server.chooseInitialPosition("sub1co", 3, 4);
   assert(shouldResumeRealTimePlay);
-  assert(server.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.some(subId => subId === 'B'));
+  assert(server.state.activeInterrupt.data.submarineIdsWithStartPositionChosen.some(subId => subId === 'B'));
   server.resumeFromInterrupt();
   assert(server.state.phase === GlobalPhases.LIVE);
 });

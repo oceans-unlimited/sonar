@@ -47,7 +47,7 @@ export class LogicalServer {
       health: 4,
       submarineState: SubmarineStates.SUBMERGED,
       submarineStateData: {
-        doingPostMovementActions: {
+        MOVED: {
           engineerCrossedOutSystem: false,
           xoChargedGauge: false,
           directionMoved: ' ',
@@ -286,7 +286,7 @@ export class LogicalServer {
           this.state.board[newRow][newCol] === WATER) {
           movingSub.row = newRow;
           movingSub.col = newCol;
-          movingSub.submarineState = 'doingPostMovementActions';
+          movingSub.submarineState = SubmarineStates.MOVED;
           // Reset, since might be set from prior movement.
           movingSub.submarineStateData[movingSub.submarineState] = {
             engineerCrossedOutSystem: false,
@@ -306,7 +306,7 @@ export class LogicalServer {
 
   chargeGauge(playerId, gauge) {
     let sub = this.state.submarines.find(s => s.xo === playerId);
-    if (sub && sub.submarineState === 'doingPostMovementActions') {
+    if (sub && sub.submarineState === SubmarineStates.MOVED) {
       let stateData = sub.submarineStateData[sub.submarineState];
       if (!stateData.xoChargedGauge) {
         let gaugeIsValid = Object.keys(sub.actionGauges).some(k => k === gauge);
@@ -337,7 +337,7 @@ export class LogicalServer {
 
   crossOffSystem(playerId, direction, slotId) {
     let sub = this.state.submarines.find(s => s.eng === playerId);
-    if (sub && sub.submarineState === 'doingPostMovementActions') {
+    if (sub && sub.submarineState === SubmarineStates.MOVED) {
       let stateData = sub.submarineStateData[sub.submarineState];
       if (!stateData.engineerCrossedOutSystem && direction === stateData.directionMoved) {
         let slotAlreadyCrossedOut = sub.engineLayout.crossedOutSlots.some(slot => slot.direction === direction && slot.slotId === slotId);

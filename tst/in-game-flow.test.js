@@ -1,312 +1,239 @@
-import { createAndRunServer } from '../src/server.lib.js';
+import { GlobalPhases, InterruptTypes, SubmarineStates } from '../src/constants.js';
 import { LogicalServer } from '../src/logical-server.lib.js';
-import { io } from 'socket.io-client';
-import { test, afterEach, expect, assert } from 'vitest';
+import { test, assert } from 'vitest';
 
-const DEFAULT_OPTIONS = {autoConnect: false, forceNew: true};
-
-let server = null;
-let clients = [];
-
-afterEach(async () => {
-  clients.forEach(c => c.close());
-  clients = [];
-  if (server) {
-    await new Promise(resolve => server.close(resolve));
-    server = null;
-  }
-});
-
-async function startGame() {
-  const logicalServer = new LogicalServer();
-  server = createAndRunServer(logicalServer, 0);
-  const port = server.address().port;
-
-  let testData = {
-    state: null,
-    ids: [null, null, null, null, null, null, null, null],
-    subs: [{co: null, xo: null, sonar: null, eng: null},
-           {co: null, xo: null, sonar: null, eng: null},],
-  }
-
-  function configureClient(client, index) {
-    client.on("player_id", player_id => testData.ids[index] = player_id);
-    client.on("state", serverState => {
-      testData.state = serverState;
-    });
-  }
+function startGame() {
+  const server = new LogicalServer();
   
-  for (let i = 0; i < 8; ++i) {
-    clients[i] = io(`http://localhost:${port}`, DEFAULT_OPTIONS);
-    configureClient(clients[i], i);
-    clients[i].connect();
-  }
+  server.addPlayer("sub0co");
+  server.addPlayer("sub0xo");
+  server.addPlayer("sub0sonar");
+  server.addPlayer("sub0eng");
+  server.addPlayer("sub1co");
+  server.addPlayer("sub1xo");
+  server.addPlayer("sub1sonar");
+  server.addPlayer("sub1eng");
 
-  testData.subs[0].co = clients[0];
-  testData.subs[0].xo = clients[1];
-  testData.subs[0].sonar = clients[2];
-  testData.subs[0].eng = clients[3];
-  testData.subs[1].co = clients[4];
-  testData.subs[1].xo = clients[5];
-  testData.subs[1].sonar = clients[6];
-  testData.subs[1].eng = clients[7];
+  server.selectRole("sub0co", 0, "co");
+  server.selectRole("sub0xo", 0, "xo");
+  server.selectRole("sub0sonar", 0, "sonar");
+  server.selectRole("sub0eng", 0, "eng");
+  server.selectRole("sub1co", 1, "co");
+  server.selectRole("sub1xo", 1, "xo");
+  server.selectRole("sub1sonar", 1, "sonar");
+  server.selectRole("sub1eng", 1, "eng");
 
-  clients[0].emit("select_role", {submarine: 0, role: "co"});
-  clients[1].emit("select_role", {submarine: 0, role: "xo"});
-  clients[2].emit("select_role", {submarine: 0, role: "sonar"});
-  clients[3].emit("select_role", {submarine: 0, role: "eng"});
-  clients[4].emit("select_role", {submarine: 1, role: "co"});
-  clients[5].emit("select_role", {submarine: 1, role: "xo"});
-  clients[6].emit("select_role", {submarine: 1, role: "sonar"});
-  clients[7].emit("select_role", {submarine: 1, role: "eng"});
-  // make sure they're all selected
-  await expect.poll(() => null, {timeout: 10000})
-    .toSatisfy(() => {
-      if (!testData.state) return false;
-      var sub0 = testData.state.submarines[0];
-      var sub1 = testData.state.submarines[1];
-      return sub0.co && sub0.xo && sub0.sonar && sub0.eng &&
-        sub1.co && sub1.xo && sub1.sonar && sub1.eng;
-    });
+  server.ready("sub0co");
+  server.ready("sub0xo");
+  server.ready("sub0sonar");
+  server.ready("sub0eng");
+  server.ready("sub1co");
+  server.ready("sub1xo");
+  server.ready("sub1sonar");
+  server.ready("sub1eng");
 
-  for (let i = 0; i < clients.length; ++i) {
-    clients[i].emit("ready");
-  }
+  server.startGame();
 
-  await expect.poll(() => null, {timeout:1000}).toSatisfy(() =>
-    testData.state && testData.state.currentState === "game_beginning"
-  );
-
-  await expect.poll(() => null, {timeout: 4000}).toSatisfy(() =>
-    testData.state && testData.state.currentState === "in_game" && testData.state.gameState === "choosingStartPositions"
-  );
-
-  return testData;
+  return server;
 }
 
-async function chooseInitialPositions(testData, sub0Position, sub1Position) {
-  testData.subs[0].co.emit("choose_initial_position", sub0Position);
-  testData.subs[1].co.emit("choose_initial_position", sub1Position);
+function chooseInitialPositions(
+    /**@type {LogicalServer} */ server,
+    /**@type {{row: number, column: number}} */ sub0Position,
+    /**@type {{row: number, column: number}} */ sub1Position) {
+  
+  server.chooseInitialPosition("sub0co", sub0Position.row, sub0Position.column);
+  server.chooseInitialPosition("sub1co", sub1Position.row, sub1Position.column);
 
-  clients.forEach(c => c.emit("ready_to_resume_real_time_play"));
+  server.readyInterrupt("sub0co");
+  server.readyInterrupt("sub0xo");
+  server.readyInterrupt("sub0sonar");
+  server.readyInterrupt("sub0eng");
+  server.readyInterrupt("sub1co");
+  server.readyInterrupt("sub1xo");
+  server.readyInterrupt("sub1sonar");
+  assert(server.readyInterrupt("sub1eng"));
 
-  await expect.poll(() => null, {timeout: 4000}).toSatisfy(() =>
-    testData.state && testData.state.gameState === 'realTimePlay'
-  );
+  server.resumeFromInterrupt();
+  assert(server.state.activeInterrupt === null);
 }
 
-async function move(testData, subIndex, direction, gaugeToIncrement, slotIdToCrossOff) {
-  let gaugeBeforeMoveNext = testData.state.submarines[subIndex].actionGauges[gaugeToIncrement];
+function move(
+    /**@type {LogicalServer} */
+    server,
+    /**@type {number} */
+    subIndex,
+    /**@type {"N" | "S" | "E" | "W"} */
+    direction,
+    /**@type {"mine" | "torpedo" | "drone" | "sonar" | "silence"} */
+    gaugeToIncrement,
+    /**@type {"slot01" | "slot02" | "slot03" | "reactor01" | "reactor02" | "reactor03"} */
+    slotIdToCrossOff) {
+  let gaugeBeforeMoveNext = server.state.submarines[subIndex].actionGauges[gaugeToIncrement];
   assert(gaugeBeforeMoveNext === 0 || gaugeBeforeMoveNext > 0);
-  testData.subs[subIndex].co.emit("move", direction);
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.submarines[subIndex].submarineState === 'doingPostMovementActions'
-  );
-  let versionBeforePostMoveActions = testData.state.version;
-  testData.subs[subIndex].xo.emit("charge_gauge", gaugeToIncrement);
-  testData.subs[subIndex].eng.emit("cross_off_system", {direction: direction, slotId: slotIdToCrossOff});
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.version > versionBeforePostMoveActions &&
-    testData.state.submarines[subIndex].submarineState === 'waitingForAction'
-  );
+  server.move(`sub${subIndex}co`, direction);
+  assert(server.state.submarines[subIndex].submarineState === SubmarineStates.MOVED);
+  let versionBeforePostMoveActions = server.state.version;
+  server.chargeGauge(`sub${subIndex}xo`, gaugeToIncrement);
+  server.crossOffSystem(`sub${subIndex}eng`, direction, slotIdToCrossOff);
+  assert(server.state.version > versionBeforePostMoveActions);
+  assert(server.state.submarines[subIndex].submarineState === SubmarineStates.SUBMERGED);
 }
 
-test('Captains select starting position', async () => {
-  let testData = await startGame();
+test('Captains select starting position', () => {
+  let server = startGame();
 
   // both captains select positions.
-  clients[0].emit("choose_initial_position", {row: 0, column: 1});
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.some(subId => subId === 'A')
-    && testData.state.submarines[0].row === 0
-    && testData.state.submarines[0].col === 1);
-  clients[4].emit("choose_initial_position", {row: 2, column: 3});
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.some(subId => subId === 'B')
-    && testData.state.submarines[1].row === 2
-    && testData.state.submarines[1].col === 3);
-  // all players indicate ready.
-  for (let i = 0; i < clients.length; ++i) {
-    clients[i].emit("ready_to_resume_real_time_play");
-    await expect.poll(() => null).toSatisfy(() =>
-      testData.state.gameStateData.choosingStartPositions.playerIdsReadyToContinue.some(playerId => playerId === testData.ids[i]));
-  }
-  // game state becomes "realTimePlay".
-  await expect.poll(() => null, {timeout: 4000}).toSatisfy(() => testData.state.gameState === "realTimePlay");
-}, 10000);
+  let shouldResumeAfterFirstSelection = server.chooseInitialPosition("sub0co", 0, 1);
+  assert(!shouldResumeAfterFirstSelection);
+  assert(server.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.some(subId => subId === 'A'));
+  assert(server.state.submarines[0].row === 0);
+  assert(server.state.submarines[0].col === 1);
+  let shouldResumeAfterAllSelected = server.chooseInitialPosition("sub1co", 2, 3);
+  assert(shouldResumeAfterAllSelected);
+  assert(server.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.some(subId => subId === 'B'));
+  assert(server.state.submarines[1].row === 2);
+  assert(server.state.submarines[1].col === 3);
 
-test('Repeated, invalid, out-of-order actions do not affect choosing positions', async () => {
-  let testData = await startGame();
+  server.resumeFromInterrupt();
+
+  assert(server.state.phase === GlobalPhases.LIVE);
+});
+
+test('Repeated, invalid, out-of-order actions do not affect choosing positions', () => {
+  let server = startGame();
 
   // captain chooses twice; only first one takes effect.
-  clients[0].emit("choose_initial_position", {row: 0, column: 1});
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.some(subId => subId === 'A'));
-  let versionBeforeNewAttempt = testData.state.version;
-  clients[0].emit("choose_initial_position", {row: 5, column: 4});
-  await (expect.poll(() => null).toSatisfy(() =>
-    testData.state.version > versionBeforeNewAttempt && testData.state.submarines[0].row === 0 && testData.state.submarines[0].col === 1
-  ));
+  server.chooseInitialPosition("sub0co", 0, 1);
+  assert(server.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.some(subId => subId === 'A'));
+  let versionBeforeNewAttempt = server.state.version;
+  server.chooseInitialPosition("sub0co", 5, 4);
+  assert(server.state.version > versionBeforeNewAttempt);
+  assert(server.state.submarines[0].row === 0);
+  assert(server.state.submarines[0].col === 1);
 
   // captain chooses invalid position; they are not added to the list of subs with chosen positions.
-  let versionBeforeBadPosition = testData.state.version;
-  clients[4].emit("choose_initial_position", {row: 2, column: 2});
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.version > versionBeforeBadPosition
-    && !testData.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.some(subId => subId === 'B')
-  );
-
-  for (let i = 0; i < clients.length; ++i) {
-    clients[i].emit("ready_to_resume_real_time_play");
-    await expect.poll(() => null).toSatisfy(() =>
-      testData.state.gameStateData.choosingStartPositions.playerIdsReadyToContinue.some(playerId => playerId === testData.ids[i]));
-  }
+  let versionBeforeBadPosition = server.state.version;
+  server.chooseInitialPosition("sub1co", 2, 2);
+  assert(server.state.version > versionBeforeBadPosition);
+  assert(!server.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.some(subId => subId === 'B'));
 
   // game state is still "choosingStartPositions".
-  await expect.poll(() => null).toSatisfy(() => testData.state.gameState === "choosingStartPositions");
+  assert(server.state.phase === GlobalPhases.INTERRUPT);
+  assert(server.state.activeInterrupt && server.state.activeInterrupt.type === InterruptTypes.START_POSITIONS);
 
   // now captain chooses valid position, and state transition occurs.
-  clients[4].emit("choose_initial_position", {row: 3, column: 4});
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.some(subId => subId === 'B'));
-  await expect.poll(() => null, {timeout: 4000}).toSatisfy(() => testData.state.gameState === "realTimePlay");
-}, 10000);
+  let shouldResumeRealTimePlay = server.chooseInitialPosition("sub1co", 3, 4);
+  assert(shouldResumeRealTimePlay);
+  assert(server.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.some(subId => subId === 'B'));
+  server.resumeFromInterrupt();
+  assert(server.state.phase === GlobalPhases.LIVE);
+});
 
-test('Captain moves, guage is charged, and engineer crosses out a slot.', async () => {
-  let testData = await startGame();
+test('Captain moves, guage is charged, and engineer crosses out a slot.', () => {
+  let server = startGame();
 
-  await chooseInitialPositions(testData, {row: 4, column: 5}, {row: 0, column: 0});
+  chooseInitialPositions(server, {row: 4, column: 5}, {row: 0, column: 0});
 
   // Should be waiting for command.
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.submarines[0].submarineState === 'waitingForAction'
-  );
+  assert(server.state.submarines[0].submarineState === SubmarineStates.SUBMERGED);
 
-  testData.subs[0].co.emit("move", "N");
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.submarines[0].row === 3 && testData.state.submarines[0].col === 5
-  );
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.submarines[0].submarineState === 'doingPostMovementActions'
-    && !testData.state.submarines[0].submarineStateData.doingPostMovementActions.engineerCrossedOutSystem
-    && !testData.state.submarines[0].submarineStateData.doingPostMovementActions.xoChargedGauge
-  );
+  server.move("sub0co", "N");
+  assert(server.state.submarines[0].row === 3);
+  assert(server.state.submarines[0].col === 5);
+  assert(server.state.submarines[0].submarineState === SubmarineStates.MOVED);
+  assert(server.state.submarines[0].submarineStateData.MOVED.engineerCrossedOutSystem === false);
+  assert(server.state.submarines[0].submarineStateData.MOVED.xoChargedGauge === false);
 
-  testData.subs[0].xo.emit("charge_gauge", 'silence');
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.submarines[0].submarineStateData.doingPostMovementActions.xoChargedGauge
-    && testData.state.submarines[0].actionGauges.silence === 1
-  );
+  server.chargeGauge("sub0xo", "silence");
+  assert(server.state.submarines[0].submarineStateData.MOVED.xoChargedGauge);
+  assert(server.state.submarines[0].actionGauges.silence === 1);
 
-  testData.subs[0].eng.emit("cross_off_system", {direction: 'N', slotId: 'slot01'});
-  await expect.poll(() => null, {timeout: 2000}).toSatisfy(() =>
-    testData.state.submarines[0].engineLayout.crossedOutSlots.some(s => s.direction === 'N' && s.slotId === 'slot01') &&
-    testData.state.submarines[0].submarineState === 'waitingForAction'
-  );
-}, 10000);
+  server.crossOffSystem("sub0eng", "N", 'slot01');
+  assert(server.state.submarines[0].engineLayout.crossedOutSlots.some(s => s.direction === 'N' && s.slotId === 'slot01'));
+  assert(server.state.submarines[0].submarineState === SubmarineStates.SUBMERGED);
+});
 
-test('Invalid, duplicate, and out-of-order commands are ignored.', async () => {
-  let testData = await startGame();
+test('Invalid, duplicate, and out-of-order commands are ignored.', () => {
+  let server = startGame();
 
-  await chooseInitialPositions(testData, {row: 2, column: 1}, {row: 0, column: 0});
+  chooseInitialPositions(server, {row: 2, column: 1}, {row: 0, column: 0});
 
   // Captain moves onto land.
-  let versionBeforeMoveToLand = testData.state.version;
-  testData.subs[0].co.emit("move", "E");
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.version > versionBeforeMoveToLand &&
-    testData.state.submarines[0].submarineState === 'waitingForAction'
-  );
+  let versionBeforeMoveToLand = server.state.version;
+  server.move("sub0co", "E");
+  assert(server.state.version > versionBeforeMoveToLand);
+  assert(server.state.submarines[0].submarineState === SubmarineStates.SUBMERGED);
 
   // Captain moves off the board.
-  let versionBeforeMoveOffBoard = testData.state.version;
-  testData.subs[1].co.emit("move", "W");
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.version > versionBeforeMoveOffBoard &&
-    testData.state.submarines[1].submarineState === 'waitingForAction'
-  );
+  let versionBeforeMoveOffBoard = server.state.version;
+  server.move("sub1co", "W");
+  assert(server.state.version > versionBeforeMoveOffBoard);
+  assert(server.state.submarines[1].submarineState === SubmarineStates.SUBMERGED);
 
   // Non-captain tries to move.
-  let versionBeforeNonCaptainAttemptsMove = testData.state.version;
-  testData.subs[0].xo.emit("move", "N");
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.version > versionBeforeNonCaptainAttemptsMove &&
-    testData.state.submarines[0].submarineState === 'waitingForAction'
-  );
+  let versionBeforeNonCaptainAttemptsMove = server.state.version;
+  server.move("sub0xo", "N");
+  assert(server.state.version > versionBeforeNonCaptainAttemptsMove);
+  assert(server.state.submarines[0].submarineState === SubmarineStates.SUBMERGED);
 
   // Engineer tries to cross off before the captain moves (fails).
-  let versionBeforeIllegalCrossOff = testData.state.version;
-  testData.subs[0].eng.emit("cross_off_system", {direction: 'N', slotId: 'slot01'});
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.version > versionBeforeIllegalCrossOff &&
-    testData.state.submarines[0].submarineState === 'waitingForAction' &&
-    testData.state.submarines[0].engineLayout.crossedOutSlots.length === 0 &&
-    !testData.state.submarines[0].submarineStateData.doingPostMovementActions.engineerCrossedOutSystem
-  );
+  let versionBeforeIllegalCrossOff = server.state.version;
+  server.crossOffSystem("sub0eng", "N", "slot01");
+  assert(server.state.version > versionBeforeIllegalCrossOff);
+  assert(server.state.submarines[0].submarineState === SubmarineStates.SUBMERGED);
+  assert(server.state.submarines[0].engineLayout.crossedOutSlots.length === 0);
+  assert(server.state.submarines[0].submarineStateData.MOVED.engineerCrossedOutSystem === false);
 
   // First officer tries to increase a gauge before the captain moves (fails).
-  let versionBeforeIllegalGaugeIncrease = testData.state.version;
-  testData.subs[0].xo.emit("charge_gauge", 'silence');
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.version > versionBeforeIllegalGaugeIncrease
-    && testData.state.submarines[0].submarineState === 'waitingForAction'
-    && !testData.state.submarines[0].submarineStateData.doingPostMovementActions.xoChargedGauge
-    && testData.state.submarines[0].actionGauges.silence === 0
-  );
+  let versionBeforeIllegalGaugeIncrease = server.state.version;
+  server.chargeGauge("sub0xo", 'silence');
+  assert(server.state.version > versionBeforeIllegalGaugeIncrease);
+  assert(server.state.submarines[0].submarineState === SubmarineStates.SUBMERGED);
+  assert(server.state.submarines[0].submarineStateData.MOVED.xoChargedGauge === false);
+  assert(server.state.submarines[0].actionGauges.silence === 0);
 
   // Captain tries to move after initial move, but before XO/Eng have performed their actions.
-  testData.subs[0].co.emit("move", "N");
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.submarines[0].submarineState === 'doingPostMovementActions' &&
-    testData.state.submarines[0].row === 1 &&
-    testData.state.submarines[0].col === 1
-  );
-  let versionBeforeSecondMove = testData.state.version;
-  testData.subs[0].co.emit("move", "W");
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.version > versionBeforeSecondMove &&
-    testData.state.submarines[0].row === 1 &&
-    testData.state.submarines[0].col === 1
-  );
+  server.move("sub0co", "N");
+  assert(server.state.submarines[0].submarineState === SubmarineStates.MOVED);
+  assert(server.state.submarines[0].row === 1);
+  assert(server.state.submarines[0].col === 1);
+  let versionBeforeSecondMove = server.state.version;
+  server.move("sub0co", "W");
+  assert(server.state.version > versionBeforeSecondMove);
+  assert(server.state.submarines[0].row === 1);
+  assert(server.state.submarines[0].col === 1);
 
-  testData.subs[0].xo.emit("charge_gauge", 'silence');
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.submarines[0].submarineStateData.doingPostMovementActions.xoChargedGauge
-    && testData.state.submarines[0].actionGauges.silence === 1
-  );
+  server.chargeGauge("sub0xo", "silence");
+  assert(server.state.submarines[0].submarineStateData.MOVED.xoChargedGauge === true);
+  assert(server.state.submarines[0].actionGauges.silence === 1);
 
   // Engineer crosses off something in different direction than the one moved.
-  testData.subs[0].eng.emit("cross_off_system", {direction: 'W', slotId: 'slot01'});
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.submarines[0].engineLayout.crossedOutSlots.length === 0 &&
-    testData.state.submarines[0].submarineState === 'doingPostMovementActions'
-  );
+  server.crossOffSystem("sub0eng", "W", "slot01");
+  assert(server.state.submarines[0].engineLayout.crossedOutSlots.length === 0);
+  assert(server.state.submarines[0].submarineState === SubmarineStates.MOVED);
 
-  testData.subs[0].eng.emit("cross_off_system", {direction: 'N', slotId: 'slot01'});
-  await expect.poll(() => null).toSatisfy(() =>
-    testData.state.submarines[0].engineLayout.crossedOutSlots.some(c => c.direction === 'N' && c.slotId === 'slot01') &&
-    testData.state.submarines[0].submarineState === 'waitingForAction'
-  );
-}, 10000);
+  server.crossOffSystem("sub0eng", "N", "slot01");
+  assert(server.state.submarines[0].engineLayout.crossedOutSlots.some(c => c.direction === 'N' && c.slotId === 'slot01'));
+  assert(server.state.submarines[0].submarineState === SubmarineStates.SUBMERGED);
+});
 
-test('Crossing out whole direction results in loss of health.', async () => {
-  let testData = await startGame();
-  await chooseInitialPositions(testData, {row: 8, column: 6}, {row: 0, column: 0});
+test('Crossing out whole direction results in loss of health.', () => {
+  let server = startGame();
+  chooseInitialPositions(server, {row: 8, column: 6}, {row: 0, column: 0});
   // This crossed-out slot should be removed after taking damage.
-  await move(testData, 0, 'W', 'torpedo', 'slot01');
+  move(server, 0, 'W', 'torpedo', 'slot01');
   // Move until all slots in single direction get crossed out.
-  await move(testData, 0, 'N', 'silence', 'slot01');
-  await move(testData, 0, 'N', 'silence', 'slot02');
-  await move(testData, 0, 'N', 'silence', 'slot03');
-  await move(testData, 0, 'N', 'silence', 'reactor01');
-  await move(testData, 0, 'N', 'silence', 'reactor02');
-  await move(testData, 0, 'N', 'mine', 'reactor03');
+  move(server, 0, 'N', 'silence', 'slot01');
+  move(server, 0, 'N', 'silence', 'slot02');
+  move(server, 0, 'N', 'silence', 'slot03');
+  move(server, 0, 'N', 'silence', 'reactor01');
+  move(server, 0, 'N', 'silence', 'reactor02');
+  move(server, 0, 'N', 'mine', 'reactor03');
 
-  await expect.poll(() => null, {timeout: 2000}).toSatisfy(() =>
-    testData.state.submarines[0].engineLayout.crossedOutSlots.length === 0
-    && testData.state.submarines[0].health === 3
-  );
-}, 10000);
+  assert(server.state.submarines[0].engineLayout.crossedOutSlots.length === 0);
+  assert(server.state.submarines[0].health === 3);
+});
 
 // Tests to be added later. These tests will require a static engine layout, and I don't want to think through that right now. In theory, though, code is implemented.
 
@@ -314,14 +241,14 @@ test('Crossing out whole direction results in loss of health.', async () => {
 
 // }, 10000);
 
-// test('Crossing out circuit restores slots.', async () => {
+// test('Crossing out circuit restores slots.', () => {
 
 // }, 10000);
 
-// test('Losing all health results in game loss.', async () => {
+// test('Losing all health results in game loss.', () => {
 
 // }, 10000)
 
-// test('After all moves are charged, ', async () => {
+// test('After all moves are charged, ', () => {
 
 // }, 10000);

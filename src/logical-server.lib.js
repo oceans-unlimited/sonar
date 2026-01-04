@@ -46,6 +46,7 @@ export class LogicalServer {
           directionMoved: ' ',
         }
       },
+      track_path: [],
     }
   }
 
@@ -270,21 +271,24 @@ export class LogicalServer {
         let newRow = movingSub.row + rowDeltas[direction];
         let newCol = movingSub.col + colDeltas[direction];
         if (0 <= newRow && newRow <= this.state.board.length &&
-          0 <= newCol && newCol <= this.state.board[0].length &&
-          this.state.board[newRow][newCol] === WATER) {
-          movingSub.row = newRow;
-          movingSub.col = newCol;
-          movingSub.submarineState = SubmarineStates.MOVED;
-          // Reset, since might be set from prior movement.
-          movingSub.submarineStateData[movingSub.submarineState] = {
-            engineerCrossedOutSystem: false,
-            xoChargedGauge: movingSub.actionGauges.mine === 3 &&
-              movingSub.actionGauges.torpedo === 3 &&
-              movingSub.actionGauges.sonar === 3 &&
-              movingSub.actionGauges.silence === 5 &&
-              movingSub.actionGauges.drone === 3,
-            directionMoved: direction,
-          };
+            0 <= newCol && newCol <= this.state.board[0].length &&
+            this.state.board[newRow][newCol] === WATER) {
+          if (!movingSub.track_path.some(p => p.row === newRow && p.col === newCol)) {
+            movingSub.row = newRow;
+            movingSub.col = newCol;
+            movingSub.track_path.push({row: newRow, col: newCol});
+            movingSub.submarineState = SubmarineStates.MOVED;
+            // Reset, since might be set from prior movement.
+            movingSub.submarineStateData[movingSub.submarineState] = {
+              engineerCrossedOutSystem: false,
+              xoChargedGauge: movingSub.actionGauges.mine === 3 &&
+                movingSub.actionGauges.torpedo === 3 &&
+                movingSub.actionGauges.sonar === 3 &&
+                movingSub.actionGauges.silence === 5 &&
+                movingSub.actionGauges.drone === 3,
+              directionMoved: direction,
+            };
+          }
         }
       }
     }

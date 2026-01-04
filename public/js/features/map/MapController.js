@@ -1,6 +1,16 @@
 import * as PIXI from 'pixi.js';
 import { MapConstants } from './mapConstants.js';
 import { animateMapZoom } from './mapEffects.js';
+import { socketManager } from '../../core/socketManager.js';
+import { SystemColors } from '../../core/uiStyle.js';
+
+
+export const MapStates = {
+    IDLE: 'IDLE',
+    HOVERED: 'HOVERED',
+    SELECTED: 'SELECTED'
+};
+
 
 /**
  * Map Controller
@@ -13,19 +23,68 @@ export class MapController {
         this.renderer = renderer;
         this.behaviors = behaviors;
 
+        this.state = MapStates.IDLE;
+        this.hoveredSquare = null;
+        this.selectedSquare = null;
+        this.ownship = { row: 7, col: 7 }; // Default placeholder
+
+
         this.targetPos = new PIXI.Point(7, 7); // Default center
+
         this.zoomLevels = [90, 60, 30];
 
         this.init();
     }
 
     init() {
-        // Stub: Server state sync
-        console.log("[MapController] Initialized. Server sync stubbed.");
+        // Listen for state updates from the socket
+        socketManager.on('stateUpdate', (state) => this.handleStateUpdate(state));
+
+        // Handle immediate initialization if state is already available
+        if (socketManager.lastState) {
+            this.handleStateUpdate(socketManager.lastState);
+        }
 
         this.renderer.renderMap();
         this.renderer.clampPosition();
     }
+
+    handleStateUpdate(state) {
+        if (!state || !socketManager.playerId) return;
+
+        // Find which submarine the local player belongs to
+        const mySub = state.submarines.find(sub =>
+            sub.co === socketManager.playerId ||
+            sub.xo === socketManager.playerId ||
+            sub.sonar === socketManager.playerId ||
+            sub.eng === socketManager.playerId
+        );
+
+        if (mySub) {
+            this.ownship = { row: mySub.row, col: mySub.col };
+
+            // Tint if in START_POSITIONS
+            const isStartPositions = state.phase === 'INTERRUPT' && state.activeInterrupt?.type === 'START_POSITIONS';
+            const hasChosen = state.gameStateData?.choosingStartPositions?.submarineIdsWithStartPositionChosen?.includes(mySub.id);
+
+            if (isStartPositions) {
+                if (hasChosen) {
+                    this.renderer.updateOwnship(this.ownship.row, this.ownship.col, SystemColors.detection);
+                } else if (this.renderer.ownshipSprite) {
+                    this.renderer.ownshipSprite.visible = false;
+                }
+            } else {
+                this.renderer.updateOwnship(this.ownship.row, this.ownship.col);
+            }
+            this.syncHUD();
+        } else if (this.renderer.ownshipSprite) {
+
+            this.renderer.ownshipSprite.visible = false;
+            this.syncHUD();
+        }
+    }
+
+
 
     resize(width, height) {
         this.renderer.setViewport(0, 0, width, height);
@@ -103,9 +162,116 @@ export class MapController {
         this.app.ticker.add(centerTicker);
     }
 
-    // Server-side interaction stubs
+    // Square Selection
+    setHoveredSquare(coords) {
+        if (this.state === MapStates.SELECTED) return;
+
+        if (!coords) {
+            this.state = MapStates.IDLE;
+            this.hoveredSquare = null;
+            this.renderer.clearHover();
+            return;
+        }
+
+        if (this.hoveredSquare?.row === coords.row && this.hoveredSquare?.col === coords.col) return;
+
+        this.state = MapStates.HOVERED;
+        this.hoveredSquare = coords;
+        this.renderer.highlightHover(coords.row, coords.col);
+        this.syncHUD();
+    }
+
+    getGridFromPointer(global) {
+
+        // Map local coordinates relative to the grid
+        const local = this.renderer.mapGrid.toLocal(global);
+
+        const col = Math.floor(local.x / this.renderer.currentScale);
+        const row = Math.floor(local.y / this.renderer.currentScale);
+
+        if (
+            col < 0 || col >= MapConstants.GRID_SIZE ||
+            row < 0 || row >= MapConstants.GRID_SIZE
+        ) return null;
+
+        return { col, row };
+    }
+
+    selectSquare(coords) {
+        if (!coords) {
+            this.state = MapStates.IDLE;
+            this.selectedSquare = null;
+            this.renderer.clearSelection();
+            return;
+        }
+
+        this.state = MapStates.SELECTED;
+        this.selectedSquare = coords;
+        this.hoveredSquare = null;
+
+        // Visual Update
+        this.renderer.highlightSelection(coords.row, coords.col);
+        this.renderer.emphasizeAxis(coords.row, coords.col);
+        this.syncHUD();
+
+        // If in start positions phase, clicking a square chooses initial position
+        const state = socketManager.lastState;
+        if (state && state.phase === 'INTERRUPT' && state.activeInterrupt?.type === 'START_POSITIONS') {
+            // Validate: check if the square is WATER (0)
+            if (state.board && state.board[coords.row] && state.board[coords.row][coords.col] === 0) {
+                this.chooseInitialPosition(coords.row, coords.col);
+            } else {
+                console.log("[MapController] Cannot start on LAND.");
+                return; // Ignore LAND
+            }
+        }
+
+
+        // HOOK: Visual Feedback Stack (Selection)
+        this.renderer.container.emit('map_square_selected', coords);
+
+        // Server notification (general selection, e.g. for sonar/torpedo target selection later)
+        socketManager.socket.emit('map_select', coords);
+    }
+
+
+    inspectSquare(coords) {
+        if (!coords) return;
+        console.log(`[MapController] Inspected square: ${coords.col}, ${coords.row}`);
+
+        // HOOK: Visual Feedback Stack (Context/Inspect)
+        this.renderer.container.emit('map_square_inspected', coords);
+
+        // Server notification
+        socketManager.socket.emit('map_inspect', coords);
+    }
+
+    clearSelection() {
+        this.state = MapStates.IDLE;
+        this.selectedSquare = null;
+        this.renderer.clearSelection();
+        this.syncHUD();
+    }
+
+    syncHUD(cursor = null) {
+        this.renderer.updateHUD({
+            ownship: this.ownship,
+            target: this.selectedSquare || this.hoveredSquare,
+            cursor: cursor
+        });
+    }
+
+
+
+    // Server-side interaction
     sendMove(direction) {
         console.log(`[MapController] Requesting move: ${direction}`);
-        // socketManager.move(direction) would go here
+        socketManager.move(direction);
+    }
+
+    chooseInitialPosition(row, col) {
+        console.log(`[MapController] Choosing initial position: ${row}, ${col}`);
+        socketManager.chooseInitialPosition(row, col);
     }
 }
+

@@ -16,12 +16,14 @@ export function createAndRunServer(logicalServer, port) {
 
   // Define server-side logic for web socket connections.
   ioServer.on("connection", (socket) => {
+    // Use persistent playerId if provided (e.g., from localStorage on Pi/Client), else fallback to socket.id
+    const playerId = socket.handshake.auth?.playerId || socket.id;
 
     socket.on("disconnect", () => {
-      log(`Player disconnected: ${socket.id}`);
+      log(`Player disconnected: ${playerId} (socket: ${socket.id})`);
 
       const wasInGame = logicalServer.state.phase === 'LIVE' || logicalServer.state.phase === 'INTERRUPT';
-      logicalServer.disconnect(socket.id);
+      logicalServer.disconnect(playerId);
 
       if (wasInGame) {
         log('Broadcasting player disconnect interrupt');
@@ -34,32 +36,32 @@ export function createAndRunServer(logicalServer, port) {
 
 
     socket.on("change_name", new_name => {
-      log(`Player ${socket.id} changed name to ${new_name}`);
+      log(`Player ${playerId} changed name to ${new_name}`);
 
-      logicalServer.changeName(socket.id, new_name);
+      logicalServer.changeName(playerId, new_name);
 
       log('Broadcasting state update after name change');
       ioServer.emit("state", logicalServer.state);
     });
 
     socket.on("select_role", ({ submarine, role }) => {
-      logicalServer.selectRole(socket.id, submarine, role);
+      logicalServer.selectRole(playerId, submarine, role);
       log('Broadcasting state update after role selection');
       ioServer.emit("state", logicalServer.state);
     });
 
     socket.on("leave_role", () => {
-      log(`Player ${socket.id} left their role`);
-      logicalServer.leaveRole(socket.id);
+      log(`Player ${playerId} left their role`);
+      logicalServer.leaveRole(playerId);
       log('Broadcasting state update after leaving role');
       ioServer.emit("state", logicalServer.state);
     })
 
     socket.on("ready", () => {
-      log(`Player ${socket.id} is ready`);
+      log(`Player ${playerId} is ready`);
 
       logicalServer.ready(
-        socket.id,
+        playerId,
         () => log('All roles are ready, starting game',),
         () => {
           log('Broadcasting state update: in_game, choosingStartPositions');
@@ -72,18 +74,17 @@ export function createAndRunServer(logicalServer, port) {
     });
 
     socket.on("not_ready", () => {
-      log(`Player ${socket.id} is not ready`);
-      logicalServer.notReady(socket.id);
+      log(`Player ${playerId} is not ready`);
+      logicalServer.notReady(playerId);
       log('Broadcasting state update after not ready');
       ioServer.emit("state", logicalServer.state);
     });
 
     socket.on("choose_initial_position", ({ row, column }) => {
-      let columnLetter = String.fromCharCode('A'.charCodeAt(0) + column);
-      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to chose initial position row ${row}, column ${columnLetter} (${column}).`);
+      log(`Player ${logicalServer.playerName(playerId)} (${playerId}) chose initial position (${row}, ${column}).`);
 
       logicalServer.chooseInitialPosition(
-        socket.id,
+        playerId,
         row,
         column,
         () => {
@@ -97,9 +98,9 @@ export function createAndRunServer(logicalServer, port) {
     });
 
     socket.on("ready_to_resume_real_time_play", () => {
-      log(`Player ${logicalServer.playerName(socket.id)} is ready to resume real-time play (Legacy)`);
+      log(`Player ${logicalServer.playerName(playerId)} is ready to resume (Legacy)`);
 
-      logicalServer.readyToResumeRealTimePlay(socket.id, () => {
+      logicalServer.readyToResumeRealTimePlay(playerId, () => {
         log('Resuming real-time play; broadcasting state.');
         ioServer.emit("state", logicalServer.state);
       });
@@ -110,8 +111,8 @@ export function createAndRunServer(logicalServer, port) {
     });
 
     socket.on("ready_interrupt", () => {
-      log(`Player ${logicalServer.playerName(socket.id)} is ready for interrupt resolution`);
-      logicalServer.readyInterrupt(socket.id, () => {
+      log(`Player ${logicalServer.playerName(playerId)} is ready for interrupt resolution`);
+      logicalServer.readyInterrupt(playerId, () => {
         log('Resuming play after interrupt; broadcasting state.');
         ioServer.emit("state", logicalServer.state);
       });
@@ -119,14 +120,14 @@ export function createAndRunServer(logicalServer, port) {
     });
 
     socket.on("request_pause", () => {
-      log(`Player ${logicalServer.playerName(socket.id)} requested pause`);
-      logicalServer.requestPause(socket.id);
+      log(`Player ${logicalServer.playerName(playerId)} requested pause`);
+      logicalServer.requestPause(playerId);
       ioServer.emit("state", logicalServer.state);
     });
 
     socket.on("submit_sonar_response", (response) => {
-      log(`Player ${logicalServer.playerName(socket.id)} submitted sonar response: ${response}`);
-      logicalServer.submitSonarResponse(socket.id, response, () => {
+      log(`Player ${logicalServer.playerName(playerId)} submitted sonar response: ${response}`);
+      logicalServer.submitSonarResponse(playerId, response, () => {
         log('Resuming play after sonar response; broadcasting state.');
         ioServer.emit("state", logicalServer.state);
       });
@@ -135,41 +136,39 @@ export function createAndRunServer(logicalServer, port) {
 
 
     socket.on("move", (direction) => {
-      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to move ${direction}.`);
+      log(`Player ${logicalServer.playerName(playerId)} (${playerId}) attempted to move ${direction}.`);
 
-      logicalServer.move(socket.id, direction);
+      logicalServer.move(playerId, direction);
 
       log('Broadcasting state update after attempted movement.');
-      logicalServer.state.version++;
       ioServer.emit("state", logicalServer.state);
     });
 
     socket.on('charge_gauge', (gauge) => {
-      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to charge gauge ${gauge}.`);
+      log(`Player ${logicalServer.playerName(playerId)} (${playerId}) attempted to charge gauge ${gauge}.`);
 
-      logicalServer.chargeGauge(socket.id, gauge);
+      logicalServer.chargeGauge(playerId, gauge);
 
       log('Broadcasting state update after attempt to charge gauge.');
-      logicalServer.state.version++;
       ioServer.emit("state", logicalServer.state);
     });
 
     socket.on('cross_off_system', ({ direction, slotId }) => {
-      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to cross off slot ${direction}, ${slotId}.`);
+      log(`Player ${logicalServer.playerName(playerId)} (${playerId}) attempted to cross off slot ${direction}, ${slotId}.`);
 
-      logicalServer.crossOffSystem(socket.id, direction, slotId, winner => ioServer.emit("game_won", winner));
+      logicalServer.crossOffSystem(playerId, direction, slotId, winner => ioServer.emit("game_won", winner));
 
       log('Broadcasting state update after attempt to cross off slot.');
-      logicalServer.state.version++;
       ioServer.emit("state", logicalServer.state);
     });
 
-    logicalServer.addPlayer(socket.id);
+    logicalServer.addPlayer(playerId);
 
-    log(`Player connected: ${socket.id} (${logicalServer.playerName(socket.id)})`);
-    socket.emit("player_id", socket.id);
+    log(`Player connected: ${playerId} (socket: ${socket.id})`);
+    socket.emit("player_id", playerId);
     ioServer.emit("state", logicalServer.state);
   });
+
 
   // Start and return the actual server.
   httpServer.listen(port, () => {

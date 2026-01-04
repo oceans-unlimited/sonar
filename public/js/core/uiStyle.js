@@ -22,7 +22,7 @@ export const Font = {
   family: "Orbitron",
   size: 22,
   lineHeight: 30,
-  letterSpacing: 2,
+  letterSpacing: 3,
   uppercase: true,
 };
 

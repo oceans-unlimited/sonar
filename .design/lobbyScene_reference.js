@@ -544,7 +544,7 @@ function createEditableText(app, textObject, onConfirm) {
 
   const input = document.createElement('input');
   input.type = 'text';
-  input.maxLength = 15;
+  input.maxLength = 12;
   input.style.position = 'absolute';
   input.style.display = 'none';
   input.style.fontFamily = textObject.style.fontFamily;

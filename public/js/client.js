@@ -74,7 +74,9 @@ window.interruptController = interruptController;
     pause: await Assets.load('assets/ui/pause.svg'),
     captain_badge: await Assets.load('assets/ui/cpt.svg'),
     arrow: await Assets.load('assets/ui/arrow.svg'),
+    ownship: await Assets.load('assets/ui/ownship.svg'),
   };
+
 
   await SceneManager.init(app, assets, socketManager, audioManager);
 

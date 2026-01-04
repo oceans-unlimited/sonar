@@ -22,5 +22,6 @@ export const SubmarineStates = {
     SUBMERGED: 'SUBMERGED',
     SURFACING: 'SURFACING',
     SURFACED: 'SURFACED',
+    POST_MOVEMENT: 'POST_MOVEMENT',
     DESTROYED: 'DESTROYED'
 };

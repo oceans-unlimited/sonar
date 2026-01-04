@@ -80,7 +80,13 @@ export async function create8Clients(serverUrl, options = { autoConnect: false }
 
     // Create clients and register player_id handlers BEFORE connecting
     for (let i = 0; i < 8; i++) {
-        const client = io(serverUrl, options);
+        const client = io(serverUrl, {
+            ...options,
+            auth: {
+                ...options.auth,
+                playerId: `player-${i}`
+            }
+        });
         clients.push(client);
 
         // Register handler before connecting to catch the emission
@@ -185,6 +191,58 @@ export async function notReady(client) {
     client.emit('not_ready');
     await sleep(100);
 }
+
+/**
+ * Choose initial position
+ * @param {Socket} client 
+ * @param {number} row 
+ * @param {number} column 
+ */
+export async function chooseInitialPosition(client, row, column) {
+    client.emit('choose_initial_position', { row, column });
+    await sleep(100);
+}
+
+/**
+ * Ready up for interrupt resolution
+ * @param {Socket} client 
+ */
+export async function readyInterrupt(client) {
+    client.emit('ready_interrupt');
+    await sleep(100);
+}
+
+/**
+ * Move submarine
+ * @param {Socket} client 
+ * @param {string} direction 
+ */
+export async function move(client, direction) {
+    client.emit('move', direction);
+    await sleep(100);
+}
+
+/**
+ * Charge an action gauge
+ * @param {Socket} client 
+ * @param {string} gauge 
+ */
+export async function chargeGauge(client, gauge) {
+    client.emit('charge_gauge', gauge);
+    await sleep(100);
+}
+
+/**
+ * Cross off a system slot on the engine layout
+ * @param {Socket} client 
+ * @param {string} direction 
+ * @param {string} slotId 
+ */
+export async function crossOffSystem(client, direction, slotId) {
+    client.emit('cross_off_system', { direction, slotId });
+    await sleep(100);
+}
+
 
 /**
  * Mark all clients as ready

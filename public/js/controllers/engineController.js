@@ -1,6 +1,7 @@
 import { simulationClock } from "../core/clock/simulationClock.js";
 import { interruptManager } from "../features/interrupts/InterruptManager.js";
 import { getInterruptUIOptions } from "../renderers/interrupts/interruptUIConfigs.js";
+import { socketManager } from "../core/socketManager.js";
 
 /**
  * Engine Controller
@@ -24,6 +25,10 @@ export class EngineController {
                 this.hideInterruptOverlay();
             }
         });
+
+        // 3. Socket Handling
+        socketManager.on('stateUpdate', (state) => this.handleStateUpdate(state));
+        if (socketManager.lastState) this.handleStateUpdate(socketManager.lastState);
     }
 
     showInterruptOverlay(interrupt) {
@@ -54,6 +59,36 @@ export class EngineController {
         }
     }
 
+    handleStateUpdate(state) {
+        if (!state || !socketManager.playerId) return;
+
+        const mySub = state.submarines.find(sub =>
+            sub.co === socketManager.playerId ||
+            sub.xo === socketManager.playerId ||
+            sub.sonar === socketManager.playerId ||
+            sub.eng === socketManager.playerId
+        );
+
+        if (!mySub) return;
+
+        // Sync pushed buttons
+        this.pushedButtons.clear();
+        if (mySub.engineLayout && mySub.engineLayout.crossedOutSlots) {
+            mySub.engineLayout.crossedOutSlots.forEach(slot => {
+                this.pushedButtons.add(`${slot.direction}_${slot.slotId}`);
+            });
+        }
+
+        // Visual update (Renderer handles the actual visual state of buttons)
+        this.renderer.scene.emit('update_engine_view', {
+            pushedButtons: this.pushedButtons,
+            movingDirection: mySub.submarineState === 'POST_MOVEMENT' ?
+                mySub.submarineStateData.POST_MOVEMENT?.directionMoved : null,
+            hasCrossedOut: mySub.submarineState === 'POST_MOVEMENT' ?
+                mySub.submarineStateData.POST_MOVEMENT?.engineerCrossedOutSystem : false
+        });
+    }
+
     handleInterruptAction(action) {
         console.log(`[EngineController] Interrupt action: ${action}`);
         if (action === 'ready' || action === 'pause') {
@@ -66,18 +101,21 @@ export class EngineController {
 
     handleButtonPress(direction, slotId, system) {
         if (!simulationClock.isRunning()) return;
-        const key = `${direction}_${slotId}`;
-        console.log(`[EngineController] Button pressed: ${key} (${system})`);
 
-        if (!this.pushedButtons.has(key)) {
-            this.pushedButtons.add(key);
+        const state = socketManager.lastState;
+        if (!state) return;
 
-            // Stub socket call
-            console.log(`[EngineController] Stub: Pushing button ${key}`);
+        const mySub = state.submarines.find(sub => sub.eng === socketManager.playerId);
+        if (!mySub || mySub.submarineState !== 'POST_MOVEMENT') return;
 
-            // Logic for circuit completion check should move here
-            this.checkCircuitCompletion(direction, slotId);
+        const stateData = mySub.submarineStateData.POST_MOVEMENT;
+        if (stateData.engineerCrossedOutSystem || stateData.directionMoved !== direction) {
+            console.log(`[EngineController] Cannot cross off ${direction} ${slotId} right now.`);
+            return;
         }
+
+        console.log(`[EngineController] Requesting cross-off: ${direction}_${slotId}`);
+        socketManager.crossOffSystem(direction, slotId);
     }
 
     checkCircuitCompletion(direction, slotId) {

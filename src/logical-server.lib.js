@@ -3,6 +3,9 @@ import { generateBoard } from "./board-layout.lib.js";
 import { W as WATER, L as LAND } from "./board-layout.lib.js";
 import { GlobalPhases, InterruptTypes, SubmarineStates } from "./constants.js";
 
+const rowDeltas = { N: -1, S: 1, E: 0, W: 0 };
+const colDeltas = { N: 0, S: 0, E: 1, W: -1 };
+
 export class LogicalServer {
   usedPlayerNumbers = {};
   state = {
@@ -56,7 +59,7 @@ export class LogicalServer {
         },
       },
       /**@type {{row: number, col: number}[]} */
-      track_path: [],
+      past_track: [],
     }
   }
 
@@ -293,35 +296,39 @@ export class LogicalServer {
 
     let movingSub = this.state.submarines.find(sub => sub.co === playerId);
     if (movingSub && movingSub.submarineState === SubmarineStates.SUBMERGED) {
-      const rowDeltas = { N: -1, S: 1, E: 0, W: 0 };
-      const colDeltas = { N: 0, S: 0, E: 1, W: -1 };
       if (direction == 'N' || direction == 'S' || direction == 'E' || direction == 'W') {
         let newRow = movingSub.row + rowDeltas[direction];
         let newCol = movingSub.col + colDeltas[direction];
         if (0 <= newRow && newRow <= this.state.board.length &&
             0 <= newCol && newCol <= this.state.board[0].length &&
             this.state.board[newRow][newCol] === WATER) {
-          if (!movingSub.track_path.some(p => p.row === newRow && p.col === newCol)) {
+          if (!movingSub.past_track.some(p => p.row === newRow && p.col === newCol)) {
             movingSub.row = newRow;
             movingSub.col = newCol;
-            movingSub.track_path.push({row: newRow, col: newCol});
+            movingSub.past_track.push({row: newRow, col: newCol});
             movingSub.submarineState = SubmarineStates.MOVED;
             // Reset, since might be set from prior movement.
-            movingSub.submarineStateData[movingSub.submarineState] = {
-              engineerCrossedOutSystem: false,
-              xoChargedGauge: movingSub.actionGauges.mine === 3 &&
-                movingSub.actionGauges.torpedo === 3 &&
-                movingSub.actionGauges.sonar === 3 &&
-                movingSub.actionGauges.silence === 5 &&
-                movingSub.actionGauges.drone === 3,
-              directionMoved: direction,
-            };
+            this.#setStateDataMOVED(movingSub, direction);
           }
         }
       }
     }
 
     this.state.version++;
+  }
+
+  #setStateDataMOVED(
+      /**@type {ReturnType<typeof this.createSubmarine>} */ sub,
+      direction) {
+    sub.submarineStateData.MOVED = {
+      engineerCrossedOutSystem: false,
+      xoChargedGauge: sub.actionGauges.mine === 3 &&
+        sub.actionGauges.torpedo === 3 &&
+        sub.actionGauges.sonar === 3 &&
+        sub.actionGauges.silence === 5 &&
+        sub.actionGauges.drone === 3,
+      directionMoved: direction,
+    };
   }
 
   chargeGauge(playerId, gauge) {
@@ -477,7 +484,7 @@ export class LogicalServer {
     if (playerTaskIndex === taskData.length - 1) {
       sub.submarineState = SubmarineStates.SURFACED;
       sub.engineLayout.crossedOutSlots.splice(0);
-      sub.track_path.splice(0);
+      sub.past_track.splice(0);
       return true;
     } else {
       false;
@@ -488,10 +495,48 @@ export class LogicalServer {
     this.state.version++;
 
     let {sub} = this.#getRoleAndSub(playerId);
-    if (!sub || sub.submarineState !== SubmarineStates.SURFACED)
+    if (!sub || sub.submarineState !== SubmarineStates.SURFACED || this.state.phase !== GlobalPhases.LIVE)
       return;
 
     sub.submarineState = SubmarineStates.SUBMERGED;
+  }
+
+  silence(playerId, direction, spaces) {
+    this.state.version++;
+
+    let {sub} = this.#getRoleAndSub(playerId);
+    if (!sub || sub.submarineState !== SubmarineStates.SUBMERGED || this.state.phase !== GlobalPhases.LIVE)
+      return;
+
+    if (!Object.keys(rowDeltas).some(k => k === direction))
+      return;
+
+    if (spaces > 0) {
+      // Even if sub can't actually move in the specified direction, player tried to move.
+      sub.submarineState = SubmarineStates.MOVED;
+      this.#setStateDataMOVED(sub, direction);
+    }
+
+    // Go as far as you can in this direction before hitting something.
+    let newRow = sub.row;
+    let newCol = sub.col;
+    let spacesToMove = Math.min(spaces, 4);
+    for (let spacesMoved = 0; spacesMoved < spacesToMove; ++spacesMoved) {
+      let nextRow = newRow + rowDeltas[direction];
+      let nextCol = newCol + colDeltas[direction];
+
+      if (nextRow < 0 || nextRow >= this.state.board.length
+          || nextCol < 0 || nextCol >= this.state.board[nextRow].length
+          || this.state.board[nextRow][nextCol] !== WATER)
+        break;
+      else {
+        sub.past_track.push({row: nextRow, col: nextCol});
+        newRow = nextRow;
+        newCol = nextCol;
+      }
+    }
+    sub.row = newRow;
+    sub.col = newCol;
   }
 
   getSubName(playerId) {

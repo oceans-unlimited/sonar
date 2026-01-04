@@ -192,6 +192,15 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
       ioServer.emit("state", logicalServer.state);
     })
 
+    socket.on('silence', ({/**@type {'N' | 'S' | 'E' | 'W'} */ direction, /**@type {number} */ spaces}) => {
+      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted silence.`);
+
+      logicalServer.silence(socket.id, direction, spaces);
+      
+      log('Broadcasting state update after silence attempt.');
+      ioServer.emit("state", logicalServer.state);
+    });
+
     logicalServer.addPlayer(socket.id);
 
     log(`Player connected: ${socket.id} (${logicalServer.playerName(socket.id)})`);

@@ -1,5 +1,5 @@
-import { GlobalPhases, InterruptTypes } from '../src/constants.js';
-import { LogicalServer } from '../src/logical-server.lib.js';
+import { GlobalPhases, InterruptTypes } from '../../src/constants.js';
+import { LogicalServer } from '../../src/logical-server.lib.js';
 import { test, expect, assert } from 'vitest';
 
 test('First player connects.', () => {

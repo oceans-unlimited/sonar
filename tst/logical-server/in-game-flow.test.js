@@ -1,5 +1,5 @@
-import { GlobalPhases, InterruptTypes, SubmarineStates } from '../src/constants.js';
-import { LogicalServer } from '../src/logical-server.lib.js';
+import { GlobalPhases, InterruptTypes, SubmarineStates } from '../../src/constants.js';
+import { LogicalServer } from '../../src/logical-server.lib.js';
 import { test, assert } from 'vitest';
 
 function startGame() {

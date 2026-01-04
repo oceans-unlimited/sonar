@@ -2,6 +2,7 @@ export const InterruptTypes = {
     // In-game interrupts (auto-resume via InterruptTimers)
     TORPEDO_RESOLUTION: 'TORPEDO_RESOLUTION',
     SONAR_PING: 'SONAR_PING',
+    DRONE: 'DRONE',
     SCENARIO_ACTION: 'SCENARIO_ACTION',
     START_POSITIONS: 'START_POSITIONS', // Triggered at game start
 

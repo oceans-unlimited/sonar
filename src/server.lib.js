@@ -117,6 +117,17 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
       ioServer.emit("state", logicalServer.state);
     });
 
+    socket.on("drone", (/**@type {number} */ sector) => {
+      log(`Player ${logicalServer.playerName(socket.id)} requested drone`);
+      logicalServer.drone(socket.id, sector);
+      setTimeout(() => {
+        logicalServer.resumeFromInterrupt();
+        log("Resuming play after drone");
+        ioServer.emit("state", logicalServer.state);
+      }, 3000)
+      ioServer.emit("state", logicalServer.state);
+    });
+
     socket.on("sonar", () => {
       log(`Player ${logicalServer.playerName(socket.id)} did sonar: ${response}`);
       logicalServer.sonar(socket.id);

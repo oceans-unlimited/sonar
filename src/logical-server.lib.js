@@ -281,12 +281,42 @@ export class LogicalServer {
     return allPlayersReady;
   }
 
+  drone(playerId, sector) {
+    this.state.version++;
+
+    if (this.state.phase !== GlobalPhases.LIVE)
+      return;
+
+    let {sub} = this.#getRoleAndSub(playerId);
+    if (!sub || sub.submarineState !== SubmarineStates.SUBMERGED)
+      return;
+
+    if (sub.actionGauges.drone < 3)
+      return;
+
+    let minRow = Math.floor((sector - 1)/3) * 5;
+    let maxRow = minRow + 5;
+    let minCol = Math.floor((sector - 1) % 3) * 5;
+    let maxCol = minCol + 5;
+    let enemySubInSector = this.state.submarines.some(s => s.id !== sub.id && s.row >= minRow && s.row < maxRow && s.col >= minCol && s.col < maxCol);
+
+    this.state.phase = GlobalPhases.INTERRUPT;
+    this.state.activeInterrupt = {
+      type: InterruptTypes.DRONE,
+      payload: {},
+      data: {sector: sector, enemySubInSector: enemySubInSector, subIdInitiatingDrone: sub.id},
+    }
+  }
+
   sonar(playerId) {
     if (this.state.phase !== GlobalPhases.LIVE)
       return;
 
     let {sub} = this.#getRoleAndSub(playerId);
     if (!sub || sub.submarineState !== SubmarineStates.SUBMERGED)
+      return;
+
+    if (sub.actionGauges.sonar < 3)
       return;
 
     this.state.phase = GlobalPhases.INTERRUPT;
@@ -522,6 +552,9 @@ export class LogicalServer {
 
     let {sub} = this.#getRoleAndSub(playerId);
     if (!sub || sub.submarineState !== SubmarineStates.SUBMERGED || this.state.phase !== GlobalPhases.LIVE)
+      return;
+
+    if (sub.actionGauges.silence < 5)
       return;
 
     if (!Object.keys(rowDeltas).some(k => k === direction))

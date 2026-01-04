@@ -117,6 +117,12 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
       ioServer.emit("state", logicalServer.state);
     });
 
+    socket.on("sonar", () => {
+      log(`Player ${logicalServer.playerName(socket.id)} did sonar: ${response}`);
+      logicalServer.sonar(socket.id);
+      ioServer.emit("state", logicalServer.state);
+    });
+
     socket.on("submit_sonar_response", (response) => {
       log(`Player ${logicalServer.playerName(socket.id)} submitted sonar response: ${response}`);
       logicalServer.submitSonarResponse(socket.id);
@@ -127,7 +133,6 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
       }, 3000);
       ioServer.emit("state", logicalServer.state);
     });
-
 
     socket.on("move", (direction) => {
       log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to move ${direction}.`);

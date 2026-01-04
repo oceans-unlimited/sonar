@@ -281,6 +281,22 @@ export class LogicalServer {
     return allPlayersReady;
   }
 
+  sonar(playerId) {
+    if (this.state.phase !== GlobalPhases.LIVE)
+      return;
+
+    let {sub} = this.#getRoleAndSub(playerId);
+    if (!sub || sub.submarineState !== SubmarineStates.SUBMERGED)
+      return;
+
+    this.state.phase = GlobalPhases.INTERRUPT;
+    this.state.activeInterrupt = {
+      type: InterruptTypes.SONAR_PING,
+      payload: {},
+      data: {},
+    }
+  }
+
   submitSonarResponse(playerId, response) {
     const rxSub = this.state.submarines.find(sub => sub.co === playerId);
     if (!rxSub || !this.state.activeInterrupt || this.state.activeInterrupt.type !== InterruptTypes.SONAR_PING) return;

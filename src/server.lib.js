@@ -227,6 +227,25 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
       ioServer.emit("state", logicalServer.state);
     });
 
+    socket.on('drop_mine', ({row, col}) => {
+      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to drop a mine.`);
+      logicalServer.dropMine(socket.id, row, col);
+      ioServer.emit("state", logicalServer.state);
+    })
+
+    socket.on('trigger_mine', ({row, col}) => {
+      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to trigger a mine.`);
+      logicalServer.triggerMine(socket.id, row, col);
+      if (logicalServer.state.phase === GlobalPhases.INTERRUPT && logicalServer.startGame.activeInterrupt.type === InterruptTypes.MINE_TRIGGER_RESOLUTION) {
+        setTimeout(() => {
+          log("Resuming live play after mine was triggered.");
+          logicalServer.resumeFromInterrupt();
+          ioServer.emit("state", logicalServer.state);
+        })
+      }
+      ioServer.emit("state", logicalServer.state);
+    });
+
     logicalServer.addPlayer(socket.id);
 
     log(`Player connected: ${socket.id} (${logicalServer.playerName(socket.id)})`);

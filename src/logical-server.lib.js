@@ -61,6 +61,8 @@ export class LogicalServer {
       },
       /**@type {{row: number, col: number}[]} */
       past_track: [],
+      /**@type {{row: number, col: number}[]} */
+      mines: [],
     }
   }
 
@@ -355,14 +357,16 @@ export class LogicalServer {
         let newCol = movingSub.col + colDeltas[direction];
         if (0 <= newRow && newRow <= this.state.board.length &&
             0 <= newCol && newCol <= this.state.board[0].length &&
-            this.state.board[newRow][newCol] === WATER) {
+            this.state.board[newRow][newCol] !== LAND) {
           if (!movingSub.past_track.some(p => p.row === newRow && p.col === newCol)) {
-            movingSub.row = newRow;
-            movingSub.col = newCol;
-            movingSub.past_track.push({row: newRow, col: newCol});
-            movingSub.submarineState = SubmarineStates.MOVED;
-            // Reset, since might be set from prior movement.
-            this.#setStateDataMOVED(movingSub, direction);
+            if (!movingSub.mines.some(m => m.row === newRow && m.col === newCol)) {
+              movingSub.row = newRow;
+              movingSub.col = newCol;
+              movingSub.past_track.push({row: newRow, col: newCol});
+              movingSub.submarineState = SubmarineStates.MOVED;
+              // Reset, since might be set from prior movement.
+              this.#setStateDataMOVED(movingSub, direction);
+            }
           }
         }
       }
@@ -610,15 +614,10 @@ export class LogicalServer {
     sub.actionGauges.torpedo = 0;
 
     let /**@type {{subId: string, damage: 1 | 2}[]} */ damagedSubs;
-    if (row < 0 || row > this.state.board.length || col < 0 || col > this.state.board[row].length || this.state.board[row][col] === LAND)
+    if (row < 0 || row > this.state.board.length || col < 0 || col > this.state.board[row].length || this.state.board[row][col] === LAND || Math.abs(sub.row - row) + Math.abs(sub.col - col) > 4)
       damagedSubs = [];
     else
-      damagedSubs = this.state.submarines.filter(s => Math.abs(s.row - row) < 2 && Math.abs(s.col - col) < 2).map(s => ({subId: s.id, damage: s.col === col && s.row === row ? 2 : 1}));
-
-    damagedSubs.forEach(d => {
-      let s = this.state.submarines.find(s => s.id === d.subId);
-      s.health = Math.max(0, s.health - d.damage);
-    });
+      damagedSubs = this.#doDamage(row, col);
 
     this.state.phase = GlobalPhases.INTERRUPT;
     this.state.activeInterrupt = {
@@ -642,6 +641,74 @@ export class LogicalServer {
       this.state.phase = GlobalPhases.GAME_OVER;
       this.state.winner = this.state.submarines.find(s => s.submarineState !== SubmarineStates.DESTROYED).id;
     }
+  }
+
+  dropMine(playerId, row, col) {
+    if (this.state.phase !== GlobalPhases.LIVE)
+      return;
+
+    let sub = this.getSub(playerId);
+    if (!sub || sub.actionGauges.mine < 3 || sub.submarineState !== SubmarineStates.SUBMERGED)
+      return;
+
+    sub.actionGauges.mine = 0;
+
+    if (row < 0 || row > this.state.board.length || col < 0 || col > this.state.board[row].length)
+      return;
+
+    if (this.state.board[row][col] === LAND)
+      return;
+
+    let distanceToMine = Math.abs(row - sub.row) + Math.abs(col - sub.col);
+    if (distanceToMine !== 1)
+      return;
+
+    if (sub.past_track.some(p => p.row === row && p.col === col))
+      return;
+
+    if (sub.mines.some(m => m.row === row && m.col === col))
+      return;
+
+    sub.mines.push({row, col});
+  }
+
+  triggerMine(playerId, row, col) {
+    if (this.state.phase !== GlobalPhases.LIVE)
+      return;
+
+    let sub = this.getSub(playerId);
+    if (!sub || sub.submarineState !== SubmarineStates.SUBMERGED)
+      return;
+
+    let mineIndex = sub.mines.findIndex(m => m.row === row && m.col === col);
+    if (mineIndex < 0)
+      return;
+
+    let mine = sub.mines.splice(mineIndex, 1)[0];
+    let damagedSubs = this.#doDamage(mine.row, mine.col);
+
+    this.state.phase = GlobalPhases.INTERRUPT;
+    this.state.activeInterrupt = {
+      type: InterruptTypes.MINE_TRIGGER_RESOLUTION,
+      data: {
+        // So client knows whether it's their sub that did the launch.
+        launchingSubId: sub.id,
+        row: row,
+        col: col,
+        damagedSubs: damagedSubs,
+      }
+    };
+  }
+
+  #doDamage(row, col) {
+    let damagedSubs = this.state.submarines.filter(s => Math.abs(s.row - row) < 2 && Math.abs(s.col - col) < 2).map(s => ({subId: s.id, damage: s.col === col && s.row === row ? 2 : 1}));
+
+    damagedSubs.forEach(d => {
+      let s = this.state.submarines.find(s => s.id === d.subId);
+      s.health = Math.max(0, s.health - d.damage);
+    });
+
+    return damagedSubs;
   }
 
   getSub(playerId) {

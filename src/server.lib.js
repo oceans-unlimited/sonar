@@ -1,12 +1,14 @@
 import express from 'express';
 import http from 'http';
 import { Server as SocketIoServer } from 'socket.io';
+import { LogicalServer } from './logical-server.lib.js';
+import { GlobalPhases, InterruptTypes } from './constants.js';
 
 const log = (message) => {
   console.log(`[${new Date().toISOString()}] ${message}`);
 };
 
-export function createAndRunServer(logicalServer, port) {
+export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, port) {
   const app = express();
   // Serve a simple static index.html for client.
   app.use(express.static("public"));
@@ -58,14 +60,15 @@ export function createAndRunServer(logicalServer, port) {
     socket.on("ready", () => {
       log(`Player ${socket.id} is ready`);
 
-      logicalServer.ready(
-        socket.id,
-        () => log('All roles are ready, starting game',),
-        () => {
+      logicalServer.ready(socket.id);
+      if (logicalServer.state.phase === GlobalPhases.GAME_BEGINNING) {
+        log('All roles are ready, starting game',);
+        setTimeout(() => {
           log('Broadcasting state update: in_game, choosingStartPositions');
+          logicalServer.startGame();
           ioServer.emit("state", logicalServer.state);
-        }
-      );
+        }, 3000);
+      }
 
       log('Broadcasting state update after ready');
       ioServer.emit("state", logicalServer.state);
@@ -82,39 +85,29 @@ export function createAndRunServer(logicalServer, port) {
       let columnLetter = String.fromCharCode('A'.charCodeAt(0) + column);
       log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to chose initial position row ${row}, column ${columnLetter} (${column}).`);
 
-      logicalServer.chooseInitialPosition(
-        socket.id,
-        row,
-        column,
-        () => {
+      let allSubsHaveChosen = logicalServer.chooseInitialPosition(socket.id, row, column);
+      if (allSubsHaveChosen) {
+        setTimeout(() => {
+          logicalServer.resumeFromInterrupt();
           log('Resuming real-time play; broadcasting state.');
           ioServer.emit("state", logicalServer.state);
-        }
-      );
+        }, 3000);
+      }
 
       log('Broadcasting state update after attempt to choose initial position');
       ioServer.emit("state", logicalServer.state);
     });
 
-    socket.on("ready_to_resume_real_time_play", () => {
-      log(`Player ${logicalServer.playerName(socket.id)} is ready to resume real-time play (Legacy)`);
-
-      logicalServer.readyToResumeRealTimePlay(socket.id, () => {
-        log('Resuming real-time play; broadcasting state.');
-        ioServer.emit("state", logicalServer.state);
-      });
-
-      log('Broadcasting state update after player indicated readiness for real-time play')
-      logicalServer.state.version++;
-      ioServer.emit("state", logicalServer.state);
-    });
-
     socket.on("ready_interrupt", () => {
       log(`Player ${logicalServer.playerName(socket.id)} is ready for interrupt resolution`);
-      logicalServer.readyInterrupt(socket.id, () => {
-        log('Resuming play after interrupt; broadcasting state.');
-        ioServer.emit("state", logicalServer.state);
-      });
+      let shouldResumeFromInterrupt = logicalServer.readyInterrupt(socket.id);
+      if (shouldResumeFromInterrupt) {
+        setTimeout(() => {
+          logicalServer.resumeFromInterrupt();
+          log('Resuming play after interrupt; broadcasting state.');
+          ioServer.emit("state", logicalServer.state);
+        }, 3000);
+      }
       ioServer.emit("state", logicalServer.state);
     });
 
@@ -124,15 +117,33 @@ export function createAndRunServer(logicalServer, port) {
       ioServer.emit("state", logicalServer.state);
     });
 
-    socket.on("submit_sonar_response", (response) => {
-      log(`Player ${logicalServer.playerName(socket.id)} submitted sonar response: ${response}`);
-      logicalServer.submitSonarResponse(socket.id, response, () => {
-        log('Resuming play after sonar response; broadcasting state.');
+    socket.on("drone", (/**@type {number} */ sector) => {
+      log(`Player ${logicalServer.playerName(socket.id)} requested drone`);
+      logicalServer.drone(socket.id, sector);
+      setTimeout(() => {
+        logicalServer.resumeFromInterrupt();
+        log("Resuming play after drone");
         ioServer.emit("state", logicalServer.state);
-      });
+      }, 3000)
       ioServer.emit("state", logicalServer.state);
     });
 
+    socket.on("sonar", () => {
+      log(`Player ${logicalServer.playerName(socket.id)} did sonar: ${response}`);
+      logicalServer.sonar(socket.id);
+      ioServer.emit("state", logicalServer.state);
+    });
+
+    socket.on("submit_sonar_response", (response) => {
+      log(`Player ${logicalServer.playerName(socket.id)} submitted sonar response: ${response}`);
+      logicalServer.submitSonarResponse(socket.id);
+      setTimeout(() => {
+        logicalServer.resumeFromInterrupt();
+        log('Resuming play after sonar response; broadcasting state.');
+        ioServer.emit("state", logicalServer.state);
+      }, 3000);
+      ioServer.emit("state", logicalServer.state);
+    });
 
     socket.on("move", (direction) => {
       log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to move ${direction}.`);
@@ -157,10 +168,81 @@ export function createAndRunServer(logicalServer, port) {
     socket.on('cross_off_system', ({ direction, slotId }) => {
       log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to cross off slot ${direction}, ${slotId}.`);
 
-      logicalServer.crossOffSystem(socket.id, direction, slotId, winner => ioServer.emit("game_won", winner));
+      logicalServer.crossOffSystem(socket.id, direction, slotId);
+      if (logicalServer.state.phase === GlobalPhases.GAME_OVER) {
+        log(`Winner is ${logicalServer.state.winner ?? "Nobody!"}`)
+      }
 
       log('Broadcasting state update after attempt to cross off slot.');
-      logicalServer.state.version++;
+      ioServer.emit("state", logicalServer.state);
+    });
+
+    socket.on('surface', () => {
+      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to surface.`);
+
+      logicalServer.surface(socket.id);
+
+      log('Broadcasting state update after attempt to complete .');
+      ioServer.emit("state", logicalServer.state);
+    });
+
+    socket.on('complete_surfacing_task', () => {
+      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to surface.`);
+
+      let sub = logicalServer.getSub(socket.id);
+      let canSubmerge = logicalServer.completeSurfacingTask(socket.id);
+      if (canSubmerge) {
+        log(`Submarine ${sub.name} ready to submerge.`);
+        setTimeout(() => {
+          logicalServer.submerge(sub.id);
+          ioServer.emit("state", logicalServer.state);
+        }, 3000)
+      }
+
+      log('Broadcasting state update after completing surface task.');
+      ioServer.emit("state", logicalServer.state);
+    });
+
+    socket.on('silence', ({/**@type {'N' | 'S' | 'E' | 'W'} */ direction, /**@type {number} */ spaces}) => {
+      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted silence.`);
+
+      logicalServer.silence(socket.id, direction, spaces);
+      
+      log('Broadcasting state update after silence attempt.');
+      ioServer.emit("state", logicalServer.state);
+    });
+
+    socket.on('launch_torpedo', ({row, col}) => {
+      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted torpedo launch.`);
+
+      logicalServer.launchTorpedo(socket.id, row, col);
+      if (logicalServer.state.phase === GlobalPhases.INTERRUPT && logicalServer.state.activeInterrupt.type === InterruptTypes.TORPEDO_RESOLUTION) {
+        setTimeout(() => {
+          log("Resuming live play after torpedo launch.")
+          logicalServer.resumeFromInterrupt();
+          ioServer.emit("state", logicalServer.state);
+        }, 3000);
+      }
+
+      ioServer.emit("state", logicalServer.state);
+    });
+
+    socket.on('drop_mine', ({row, col}) => {
+      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to drop a mine.`);
+      logicalServer.dropMine(socket.id, row, col);
+      ioServer.emit("state", logicalServer.state);
+    })
+
+    socket.on('trigger_mine', ({row, col}) => {
+      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to trigger a mine.`);
+      logicalServer.triggerMine(socket.id, row, col);
+      if (logicalServer.state.phase === GlobalPhases.INTERRUPT && logicalServer.startGame.activeInterrupt.type === InterruptTypes.MINE_TRIGGER_RESOLUTION) {
+        setTimeout(() => {
+          log("Resuming live play after mine was triggered.");
+          logicalServer.resumeFromInterrupt();
+          ioServer.emit("state", logicalServer.state);
+        })
+      }
       ioServer.emit("state", logicalServer.state);
     });
 

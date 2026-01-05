@@ -1,7 +1,9 @@
 export const InterruptTypes = {
     // In-game interrupts (auto-resume via InterruptTimers)
     TORPEDO_RESOLUTION: 'TORPEDO_RESOLUTION',
+    MINE_TRIGGER_RESOLUTION: 'MINE_TRIGGER_RESOLUTION',
     SONAR_PING: 'SONAR_PING',
+    DRONE: 'DRONE',
     SCENARIO_ACTION: 'SCENARIO_ACTION',
     START_POSITIONS: 'START_POSITIONS', // Triggered at game start
 
@@ -19,6 +21,7 @@ export const GlobalPhases = {
 };
 
 export const SubmarineStates = {
+    MOVED: 'MOVED',
     SUBMERGED: 'SUBMERGED',
     SURFACING: 'SURFACING',
     SURFACED: 'SURFACED',

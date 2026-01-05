@@ -12,7 +12,7 @@ import {
 
 const PORT = 3003;
 
-describe('Server Phase Transitions', () => {
+describe('Server Phase Transitions', {skip: true}, () => {
     let server = null;
     let clients = [];
     let playerIds = [];

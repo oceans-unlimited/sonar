@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import { MapConstants } from './mapConstants.js';
+import { MapUtils } from '../../utils/mapUtils.js';
 import { Colors, Font, headerFont, SystemColors } from '../../core/uiStyle.js';
 import { applyTintColor, applyGlowEffect } from '../../ui/effects/glowEffect.js';
 import { applyFlickerEffect } from '../../ui/effects/flickerEffect.js';
@@ -79,6 +80,18 @@ export class MapRenderer {
             if (this.container && !this.container.destroyed) {
                 this.horizontalLabels.x = this.mapContent.x;
                 this.verticalLabels.y = this.mapContent.y;
+
+                // Keep labels "centered" on their row/col, but visual scale fixed.
+                // We achieve this by scaling the container inverse to currentScale?
+                // Or just setting positions. Since they are children of horizontalLabels/verticalLabels
+                // and those are children of container (not mapContent), they are NOT scaled by zoom?
+                // Wait, mapContent (grid) scales? No, renderMap redraws rects at new `currentScale`.
+                // So the labels also need to be re-positioned.
+
+                // If the user zooms, `renderMap` is called with new scale.
+                // So we don't need to update positions in ticker, ONLY offset.
+                // However, we want labels to NOT scale. 
+                // The `renderMap` implementation sets fontSize based on scale. We need to Init with fixed size.
             }
         });
     }
@@ -109,7 +122,7 @@ export class MapRenderer {
 
         const labelStyle = {
             fontFamily: headerFont.family,
-            fontSize: Math.max(12, this.currentScale / 4),
+            fontSize: 16, // Fixed size
             fill: Colors.text,
             dropShadow: { blur: 2, color: 0x000000, distance: 1 }
         };
@@ -120,6 +133,7 @@ export class MapRenderer {
         for (let i = 0; i < gridSize; i++) {
             const hText = new PIXI.Text({ text: String.fromCharCode(65 + i), style: labelStyle });
             hText.anchor.set(0.5);
+            // Center in the column
             hText.x = i * this.currentScale + this.currentScale / 2;
             hText.y = this.labelGutter / 2;
             this.horizontalLabels.addChild(hText);
@@ -250,18 +264,19 @@ export class MapRenderer {
     renderHUD() {
         this.hud.removeChildren();
 
-        const style = { fontFamily: Font.family, fontSize: 13, fill: Colors.text };
-        const accentStyle = { ...style, fill: Colors.roleSonar, fontWeight: 'bold' };
+        const style = { fontFamily: Font.family, fontSize: 16 };
+        const ownshipStyle = { ...style, fill: Colors.text, fontWeight: 'bold' };
+        const selectionStyle = { ...style, fill: Colors.danger, fontWeight: 'bold' };
 
         // Left side: Ownship
         const ownshipGroup = new PIXI.Container();
-        this.hud.ownship = new PIXI.Text({ text: 'OWNSHIP: --\nSECTOR: --', style: accentStyle });
+        this.hud.ownship = new PIXI.Text({ text: 'OWNSHIP: --\nSECTOR: --', style: ownshipStyle });
         ownshipGroup.addChild(this.hud.ownship);
         this.hud.addChild(ownshipGroup);
 
         // Right side: Selection
         const selectionGroup = new PIXI.Container();
-        this.hud.selection = new PIXI.Text({ text: 'TARGET: --\nRANGE: --', style: accentStyle });
+        this.hud.selection = new PIXI.Text({ text: 'TARGET: --\nSECTOR: --\nRANGE: --', style: selectionStyle });
         this.hud.selection.anchor.x = 1;
         selectionGroup.addChild(this.hud.selection);
         this.hud.addChild(selectionGroup);
@@ -273,30 +288,24 @@ export class MapRenderer {
     updateHUD(data = {}) {
         const { ownship, target, viewport, cursor } = data;
 
-        if (!this.hud.visible) {
-            this.hud.visible = true;
-            this.hud.alpha = 0;
-            applyFlickerEffect(this.app, [this.hud], 0.3, 30);
-            setTimeout(() => {
-                this.hud.alpha = 1;
-                this.hud.filters = []; // Clean flicker
-            }, MapConstants.HUD_ENTRANCE_FLICKER);
-        }
+        // Ensure visible, no flicker
+        this.hud.visible = true;
+        this.hud.alpha = 1;
+        this.hud.filters = []; // Ensure no remnant filters
 
         if (ownship) {
-            const h = String.fromCharCode(65 + ownship.col);
-            const v = ownship.row + 1;
-            const sector = Math.floor(ownship.col / 5) + Math.floor(ownship.row / 5) * 3 + 1;
-            this.hud.ownship.text = `OWNSHIP: ${h}${v}\nSECTOR: ${sector}`;
+            const coord = MapUtils.toAlphaNumeric(ownship.row, ownship.col);
+            const sector = MapUtils.getSector(ownship.row, ownship.col);
+            this.hud.ownship.text = `OWNSHIP: ${coord}\nSECTOR: ${sector}`;
         }
 
         if (target) {
-            const h = String.fromCharCode(65 + target.col);
-            const v = target.row + 1;
-            const range = Math.max(Math.abs(target.col - (ownship?.col || 0)), Math.abs(target.row - (ownship?.row || 0)));
-            this.hud.selection.text = `TARGET: ${h}${v}\nRANGE: ${range}`;
+            const coord = MapUtils.toAlphaNumeric(target.row, target.col);
+            const sector = MapUtils.getSector(target.row, target.col);
+            const range = MapUtils.getRange(ownship || { row: 0, col: 0 }, target);
+            this.hud.selection.text = `TARGET: ${coord}\nSECTOR: ${sector}\nRANGE: ${range}`;
         } else {
-            this.hud.selection.text = `TARGET: --\nRANGE: --`;
+            this.hud.selection.text = `TARGET: --\nSECTOR: --\nRANGE: --`;
         }
 
         // Positioning Logic
@@ -307,19 +316,20 @@ export class MapRenderer {
         this.hud.ownshipGroup.x = padding;
         this.hud.selectionGroup.x = this.maskWidth - padding + this.labelGutter;
 
-        // "Avoid" logic
+        // "Avoid" logic - Simple Y shift
+        // If cursor or ownship is "low", move HUD high.
         const ownshipY = ownship ? (ownship.row * this.currentScale + this.mapContent.y) : -1000;
-        const cursorY = cursor ? cursor.y : -1000;
+        // Use a more generous threshold for switching
+        const isNearBottom = (ownshipY > this.maskHeight * 0.6);
 
         const topY = padding;
         const bottomY = this.maskHeight - this.hud.height + this.labelGutter - 10;
 
-        const isNearBottom = (ownshipY > this.maskHeight * 0.7) || (cursorY > this.maskHeight * 0.7);
-
+        // Lerp position for smoothness? Or just snap. Snap is preferred for UI stability unless requested.
         this.hud.y = isNearBottom ? topY : bottomY;
     }
 
-    updateOwnship(row, col, tint = 0xffffff) {
+    updateOwnship(row, col, tint = Colors.text) {
         if (!this.ownshipSprite) return;
 
         this.ownshipPos = { row, col };

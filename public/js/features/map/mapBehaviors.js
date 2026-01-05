@@ -1,4 +1,4 @@
-import { MapConstants } from './mapConstants.js';
+import { MapConstants, MapStates } from './mapConstants.js';
 
 /**
  * Map Behaviors
@@ -15,17 +15,9 @@ export function attachMapBehaviors(app, controller) {
         ArrowRight: false
     };
 
-    let inactivityTimer = null;
-
-    const stopInactivityTimer = () => {
-        if (inactivityTimer) clearTimeout(inactivityTimer);
-    };
-
-    const startInactivityTimer = () => {
-        stopInactivityTimer();
-        inactivityTimer = setTimeout(() => {
-            controller.centerOnPosition();
-        }, MapConstants.INACTIVITY_TIMEOUT);
+    // Activity delegation
+    const reportActivity = () => {
+        controller.handleActivity();
     };
 
     // Interaction State
@@ -57,7 +49,7 @@ export function attachMapBehaviors(app, controller) {
         isDragging = false;
         dragStart = { x: e.global.x, y: e.global.y };
         mapStart = { x: renderer.mapContent.x, y: renderer.mapContent.y };
-        stopInactivityTimer();
+        reportActivity();
 
         // Start Long Press Timer for mobile/touch context inspect
         clearTimeout(longPressTimer);
@@ -96,6 +88,9 @@ export function attachMapBehaviors(app, controller) {
                 isPotentialClick = false;
                 container.cursor = 'grabbing';
                 clearTimeout(longPressTimer);
+
+                // State Transition
+                controller.setState(MapStates.PAN_ZOOM);
             }
         }
 
@@ -107,14 +102,14 @@ export function attachMapBehaviors(app, controller) {
         } else {
             // Hover Logic
             const coords = controller.getGridFromPointer(e.global);
-            controller.setHoveredSquare(coords);
+            controller.setPreviewSquare(coords);
             controller.syncHUD({ x: e.global.x, y: e.global.y });
         }
     };
 
     const onPointerOut = () => {
         if (!isDragging) {
-            controller.setHoveredSquare(null);
+            controller.setPreviewSquare(null);
         }
     };
 
@@ -129,7 +124,15 @@ export function attachMapBehaviors(app, controller) {
         isDragging = false;
         isPotentialClick = false;
         container.cursor = 'grab';
-        startInactivityTimer();
+
+        // If we were dragging, we are now done.
+        if (controller.state === MapStates.PAN_ZOOM) {
+            controller.setState(MapStates.IDLE);
+        }
+
+        // Activity handled by reportActivity below
+        // Actually handleActivity restarts it every time.
+        reportActivity();
     };
 
     const handleGridClick = (e) => {
@@ -162,7 +165,7 @@ export function attachMapBehaviors(app, controller) {
         if (keys.hasOwnProperty(e.code)) {
             keys[e.code] = true;
             e.preventDefault();
-            stopInactivityTimer();
+            reportActivity();
         } else if (e.code === 'Escape') {
             controller.clearSelection();
         }
@@ -171,9 +174,7 @@ export function attachMapBehaviors(app, controller) {
     const onKeyUp = (e) => {
         if (keys.hasOwnProperty(e.code)) {
             keys[e.code] = false;
-            if (!Object.values(keys).some(k => k)) {
-                startInactivityTimer();
-            }
+            // No need to explicitly check empty keys for timer restart, handled by interaction
         }
     };
 
@@ -215,7 +216,7 @@ export function attachMapBehaviors(app, controller) {
         window.removeEventListener('wheel', onWheel);
         window.removeEventListener('contextmenu', preventContextMenu);
         app.ticker.remove(panTicker);
-        stopInactivityTimer();
+        // stopInactivityTimer not needed, handled by controller
         clearTimeout(longPressTimer);
 
         container.off('pointerdown', onPointerDown);
@@ -227,7 +228,6 @@ export function attachMapBehaviors(app, controller) {
 
 
     return {
-        stopInactivityTimer,
-        startInactivityTimer
+        // no exposed methods needed currently
     };
 }

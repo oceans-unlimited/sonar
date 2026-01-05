@@ -80,27 +80,12 @@ window.interruptController = interruptController;
 
   await SceneManager.init(app, assets, socketManager, audioManager);
 
-  document.getElementById('sceneTitleBtn').addEventListener('click', () => {
-    SceneManager.changeScene('title');
-  });
-  document.getElementById('sceneMenuBtn').addEventListener('click', () => {
-    SceneManager.changeScene('menu');
-  });
-  document.getElementById('sceneConnBtn').addEventListener('click', () => {
-    SceneManager.changeScene('conn');
-  });
-  document.getElementById('sceneDebugRotationBtn').addEventListener('click', () => {
-    SceneManager.changeScene('debugRotation');
-  });
-  document.getElementById('sceneLobbyBtn').addEventListener('click', () => {
-    SceneManager.changeScene('lobby');
-  });
-  document.getElementById('sceneEngineBtn').addEventListener('click', () => {
-    SceneManager.changeScene('engine');
-  });
-  document.getElementById('sceneXoBtn').addEventListener('click', () => {
-    SceneManager.changeScene('xo');
-  });
+  const sceneSelector = document.getElementById('sceneSelector');
+  if (sceneSelector) {
+    sceneSelector.addEventListener('change', (e) => {
+      SceneManager.changeScene(e.target.value);
+    });
+  }
 
   document.getElementById('triggerPauseBtn').addEventListener('click', () => {
     window.interruptController.requestPause();

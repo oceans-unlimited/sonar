@@ -1,15 +1,8 @@
 import * as PIXI from 'pixi.js';
-import { MapConstants } from './mapConstants.js';
+import { MapConstants, MapStates, MapIntents } from './mapConstants.js';
 import { animateMapZoom } from './mapEffects.js';
 import { socketManager } from '../../core/socketManager.js';
 import { SystemColors } from '../../core/uiStyle.js';
-
-
-export const MapStates = {
-    IDLE: 'IDLE',
-    HOVERED: 'HOVERED',
-    SELECTED: 'SELECTED'
-};
 
 
 /**
@@ -24,9 +17,17 @@ export class MapController {
         this.behaviors = behaviors;
 
         this.state = MapStates.IDLE;
-        this.hoveredSquare = null;
+        this.intent = null;
+
+        this.state = MapStates.IDLE;
+        this.intent = null;
+
+        this.previewSquare = null; // formerly hoveredSquare
         this.selectedSquare = null;
         this.ownship = { row: 7, col: 7 }; // Default placeholder
+
+        this.inactivityTimer = null;
+        this.startInactivityTimer();
 
 
         this.targetPos = new PIXI.Point(7, 7); // Default center
@@ -34,6 +35,28 @@ export class MapController {
         this.zoomLevels = [90, 60, 30];
 
         this.init();
+    }
+
+    setState(newState, intent = null) {
+        // Validation: Intent only allowed in SELECTING
+        if (intent && newState !== MapStates.SELECTING) {
+            console.warn(`[MapController] Invalid State Transition: Intent ${intent} requires SELECTING phase.`);
+            intent = null;
+        }
+
+        // Exit Logic
+        if (this.state === MapStates.SELECTING && newState !== MapStates.SELECTING) {
+            this.intent = null;
+            this.renderer.clearSelection();
+            this.selectedSquare = null;
+        }
+
+        this.state = newState;
+
+        // Entry Logic
+        if (newState === MapStates.SELECTING && intent) {
+            this.intent = intent;
+        }
     }
 
     init() {
@@ -104,7 +127,11 @@ export class MapController {
     }
 
     setZoom(targetScale) {
-        animateMapZoom(this.app, this.renderer, targetScale, MapConstants.ZOOM_ANIMATION_DURATION);
+        if (this.state === MapStates.ANIMATING) return; // Lock during animation
+        this.setState(MapStates.ANIMATING);
+        animateMapZoom(this.app, this.renderer, targetScale, MapConstants.ZOOM_ANIMATION_DURATION, () => {
+            this.setState(MapStates.IDLE);
+        });
     }
 
     stepZoom(direction) {
@@ -124,6 +151,33 @@ export class MapController {
         });
     }
 
+    // Activity Management
+    handleActivity() {
+        this.startInactivityTimer();
+    }
+
+    startInactivityTimer() {
+        if (this.inactivityTimer) clearTimeout(this.inactivityTimer);
+        this.inactivityTimer = setTimeout(() => {
+            this.onInactivity();
+        }, MapConstants.INACTIVITY_TIMEOUT);
+    }
+
+    onInactivity() {
+        // If not interacting, re-center
+        if (this.state === MapStates.IDLE) {
+            this.centerOnPosition();
+        }
+    }
+
+    // Waypoint Logic (Intent Validation)
+    validateWaypoint(coords) {
+        // Validation Stub
+        // TODO: Check against server board data (water vs land), Max range, etc.
+        // For now, allow simple bounds check (handled by getGridFromPointer)
+        return true;
+    }
+
     centerOnPosition(pos = this.targetPos) {
         this.targetPos = pos;
 
@@ -137,6 +191,7 @@ export class MapController {
         const targetY = centerY - mapY;
 
         // Smooth transition
+        this.setState(MapStates.ANIMATING);
         const ease = 0.1;
         const centerTicker = () => {
             if (!this.renderer.container || this.renderer.container.destroyed) {
@@ -152,6 +207,7 @@ export class MapController {
                 this.renderer.mapContent.y = targetY;
                 this.renderer.clampPosition();
                 this.app.ticker.remove(centerTicker);
+                this.setState(MapStates.IDLE);
             } else {
                 this.renderer.mapContent.x += dx * ease;
                 this.renderer.mapContent.y += dy * ease;
@@ -163,20 +219,20 @@ export class MapController {
     }
 
     // Square Selection
-    setHoveredSquare(coords) {
-        if (this.state === MapStates.SELECTED) return;
+    // Input Handling Commands (from Behaviors)
+    setPreviewSquare(coords) {
+        // Can hover during IDLE or SELECTING
+        if (this.state === MapStates.PAN_ZOOM || this.state === MapStates.ANIMATING) return;
 
         if (!coords) {
-            this.state = MapStates.IDLE;
-            this.hoveredSquare = null;
+            this.previewSquare = null;
             this.renderer.clearHover();
             return;
         }
 
-        if (this.hoveredSquare?.row === coords.row && this.hoveredSquare?.col === coords.col) return;
+        if (this.previewSquare?.row === coords.row && this.previewSquare?.col === coords.col) return;
 
-        this.state = MapStates.HOVERED;
-        this.hoveredSquare = coords;
+        this.previewSquare = coords;
         this.renderer.highlightHover(coords.row, coords.col);
         this.syncHUD();
     }
@@ -197,17 +253,24 @@ export class MapController {
         return { col, row };
     }
 
-    selectSquare(coords) {
+    selectSquare(coords, intent = MapIntents.MARK) {
+        this.handleActivity(); // Input counts as activity
+
         if (!coords) {
-            this.state = MapStates.IDLE;
-            this.selectedSquare = null;
-            this.renderer.clearSelection();
+            this.clearSelection();
             return;
         }
 
-        this.state = MapStates.SELECTED;
+        if (!this.validateWaypoint(coords)) {
+            console.warn("Invalid Waypoint");
+            return;
+        }
+
+        // If we are already selecting same square, maybe confirm action?
+        // For now, update state
+        this.setState(MapStates.SELECTING, intent);
         this.selectedSquare = coords;
-        this.hoveredSquare = null;
+        this.previewSquare = null;
 
         // Visual Update
         this.renderer.highlightSelection(coords.row, coords.col);
@@ -247,16 +310,14 @@ export class MapController {
     }
 
     clearSelection() {
-        this.state = MapStates.IDLE;
-        this.selectedSquare = null;
-        this.renderer.clearSelection();
+        this.setState(MapStates.IDLE);
         this.syncHUD();
     }
 
     syncHUD(cursor = null) {
         this.renderer.updateHUD({
             ownship: this.ownship,
-            target: this.selectedSquare || this.hoveredSquare,
+            target: this.selectedSquare || this.previewSquare,
             cursor: cursor
         });
     }

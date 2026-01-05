@@ -3,7 +3,7 @@
  * Visual-only animations for the map.
  */
 
-export function animateMapZoom(app, mapRenderer, targetScale, duration = 400) {
+export function animateMapZoom(app, mapRenderer, targetScale, duration = 400, onComplete = null) {
     if (mapRenderer.zoomTicker) {
         app.ticker.remove(mapRenderer.zoomTicker);
     }
@@ -26,6 +26,7 @@ export function animateMapZoom(app, mapRenderer, targetScale, duration = 400) {
         if (progress === 1) {
             app.ticker.remove(mapRenderer.zoomTicker);
             mapRenderer.zoomTicker = null;
+            if (onComplete) onComplete();
         }
     };
 

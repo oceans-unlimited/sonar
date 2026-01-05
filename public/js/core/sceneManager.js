@@ -11,6 +11,7 @@ import { createDebugRotationScene } from '../scenes/debugRotationScene.js';
 import { createBootScene } from '../scenes/bootScene.js';
 import { createEngineScene } from '../scenes/engineScene.js';
 import { createXOScene } from '../scenes/xoScene.js';
+import { createMapTestScene } from '../scenes/mapTestScene.js';
 import { mockLayout } from '../mockEngineLayout.js';
 import { gamePhaseManager, GamePhases } from './clock/gamePhaseManager.js';
 import { ClockEvents } from './clock/clockEvents.js';
@@ -24,6 +25,7 @@ const scenes = {
     lobby: createLobbyScene,
     engine: createEngineScene,
     xo: createXOScene,
+    mapTest: createMapTestScene,
     debugRotation: createDebugRotationScene,
 };
 

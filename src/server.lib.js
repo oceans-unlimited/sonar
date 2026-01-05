@@ -189,24 +189,19 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
     socket.on('complete_surfacing_task', () => {
       log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to surface.`);
 
-      let subName = logicalServer.getSubName(socket.id);
+      let sub = logicalServer.getSub(socket.id);
       let canSubmerge = logicalServer.completeSurfacingTask(socket.id);
       if (canSubmerge) {
-        log(`Submarine ${subName} ready to submerge.`);
+        log(`Submarine ${sub.name} ready to submerge.`);
+        setTimeout(() => {
+          logicalServer.submerge(sub.id);
+          ioServer.emit("state", logicalServer.state);
+        }, 3000)
       }
 
-      log('Broadcasting state update after attempt to surface.');
+      log('Broadcasting state update after completing surface task.');
       ioServer.emit("state", logicalServer.state);
     });
-
-    socket.on('submerge', () => {
-      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to submerge.`);
-
-      logicalServer.submerge(socket.id);
-
-      log('Broadcasting state update after attempt to submerge.');
-      ioServer.emit("state", logicalServer.state);
-    })
 
     socket.on('silence', ({/**@type {'N' | 'S' | 'E' | 'W'} */ direction, /**@type {number} */ spaces}) => {
       log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted silence.`);

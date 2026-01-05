@@ -537,10 +537,10 @@ export class LogicalServer {
     }
   }
 
-  submerge(playerId) {
+  submerge(subId) {
     this.state.version++;
 
-    let {sub} = this.#getRoleAndSub(playerId);
+    let sub = this.state.submarines.find(s => s.id === subId);
     if (!sub || sub.submarineState !== SubmarineStates.SURFACED || this.state.phase !== GlobalPhases.LIVE)
       return;
 
@@ -588,8 +588,8 @@ export class LogicalServer {
     sub.col = newCol;
   }
 
-  getSubName(playerId) {
-    return this.state.submarines.find(s => [s.co, s.xo, s.eng, s.sonar].some(p => p === playerId))?.name;
+  getSub(playerId) {
+    return this.state.submarines.find(s => [s.co, s.xo, s.eng, s.sonar].some(p => p === playerId));
   }
 
   #getRoleAndSub(playerId) /**@type {sub: ReturnType<typeof createSubmarine>, role: 'co' | 'xo' | 'eng' | 'sonar'} */ {

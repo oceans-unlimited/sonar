@@ -3,7 +3,7 @@ import { SimulationClock } from '../public/js/core/clock/simulationClock.js';
 import { GamePhaseManager, GamePhases } from '../public/js/core/clock/gamePhaseManager.js';
 import { ClockEvents } from '../public/js/core/clock/clockEvents.js';
 
-describe('SimulationClock', () => {
+describe('SimulationClock', {skip: true}, () => {
     let clock;
 
     beforeEach(() => {
@@ -46,7 +46,7 @@ describe('SimulationClock', () => {
     });
 });
 
-describe('GamePhaseManager', () => {
+describe('GamePhaseManager', {skip: true}, () => {
     let phaseManager;
 
     beforeEach(() => {

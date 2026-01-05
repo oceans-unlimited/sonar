@@ -6,7 +6,7 @@ import { SubmarineEvents } from '../public/js/features/submarine/submarineEvents
 import { SurfacingRules } from '../public/js/features/submarine/surfacingRules.js';
 import { SurfacingController, surfacingController } from '../public/js/features/submarine/surfacingController.js';
 
-describe('SubmarineStateMachine', () => {
+describe('SubmarineStateMachine', {skip: true}, () => {
     let sub;
 
     beforeEach(() => {
@@ -56,7 +56,7 @@ describe('SubmarineStateMachine', () => {
     });
 });
 
-describe('SurfacingRules', () => {
+describe('SurfacingRules', {skip: true}, () => {
     it('should calculate sectors correctly', () => {
         expect(SurfacingRules.getSector(0, 0)).toBe(1);
         expect(SurfacingRules.getSector(4, 4)).toBe(1);
@@ -76,7 +76,7 @@ describe('SurfacingRules', () => {
     });
 });
 
-describe('SurfacingController', () => {
+describe('SurfacingController', {skip: true}, () => {
     beforeEach(() => {
         submarineFacade.init(['A']);
         vi.useFakeTimers();

@@ -12,6 +12,7 @@ export class LogicalServer {
     winner: null,
     version: 0,
     phase: GlobalPhases.LOBBY,
+    /**@type {{type: string, payload: {}, data: {}}} */
     activeInterrupt: null, // { type, payload, data }
     /**@type {{id: string, name: string, connectionOrder: number, ready: boolean}[]} */
     players: [],
@@ -249,6 +250,9 @@ export class LogicalServer {
     this.state.activeInterrupt = null;
     this.state.ready = [];
     this.state.version++;
+
+    // Can happen from some interrupt states--e.g. torpedo--so do it every time here.
+    this.#checkForGameOver();
   }
 
   requestPause(playerId) {
@@ -294,6 +298,8 @@ export class LogicalServer {
     if (sub.actionGauges.drone < 3)
       return;
 
+    sub.actionGauges.drone = 0;
+
     let minRow = Math.floor((sector - 1)/3) * 5;
     let maxRow = minRow + 5;
     let minCol = Math.floor((sector - 1) % 3) * 5;
@@ -318,6 +324,8 @@ export class LogicalServer {
 
     if (sub.actionGauges.sonar < 3)
       return;
+
+    sub.actionGauges.sonar = 0;
 
     this.state.phase = GlobalPhases.INTERRUPT;
     this.state.activeInterrupt = {
@@ -474,11 +482,7 @@ export class LogicalServer {
           }
           sub.health = Math.max(0, sub.health);
 
-          if (sub.health === 0) {
-            this.state.winner = this.state.submarines.find(s => s.id !== sub.id).id;
-            this.state.phase = GlobalPhases.GAME_OVER;
-          }
-
+          this.#checkForGameOver();
         }
       }
     }
@@ -560,6 +564,8 @@ export class LogicalServer {
     if (!Object.keys(rowDeltas).some(k => k === direction))
       return;
 
+    sub.actionGauges.silence = 0;
+
     if (spaces > 0) {
       // Even if sub can't actually move in the specified direction, player tried to move.
       sub.submarineState = SubmarineStates.MOVED;
@@ -586,6 +592,56 @@ export class LogicalServer {
     }
     sub.row = newRow;
     sub.col = newCol;
+  }
+
+  launchTorpedo(playerId, row, col) {
+    this.state.version++;
+
+    if (this.state.phase !== GlobalPhases.LIVE)
+      return;
+    
+    let sub = this.getSub(playerId);
+    if (!sub || sub.submarineState !== SubmarineStates.SUBMERGED)
+      return;
+
+    if (sub.actionGauges.torpedo < 3)
+      return;
+
+    sub.actionGauges.torpedo = 0;
+
+    let /**@type {{subId: string, damage: 1 | 2}[]} */ damagedSubs;
+    if (row < 0 || row > this.state.board.length || col < 0 || col > this.state.board[row].length || this.state.board[row][col] === LAND)
+      damagedSubs = [];
+    else
+      damagedSubs = this.state.submarines.filter(s => Math.abs(s.row - row) < 2 && Math.abs(s.col - col) < 2).map(s => ({subId: s.id, damage: s.col === col && s.row === row ? 2 : 1}));
+
+    damagedSubs.forEach(d => {
+      let s = this.state.submarines.find(s => s.id === d.subId);
+      s.health = Math.max(0, s.health - d.damage);
+    });
+
+    this.state.phase = GlobalPhases.INTERRUPT;
+    this.state.activeInterrupt = {
+      type: InterruptTypes.TORPEDO_RESOLUTION,
+      data: {
+        // So client knows whether it's their sub that did the launch.
+        launchingSubId: sub.id,
+        row: row,
+        col: col,
+        damagedSubs: damagedSubs,
+      }
+    };
+  }
+
+  #checkForGameOver() {
+    this.state.submarines.forEach(s => {
+      if (s.health <= 0)
+        s.submarineState = SubmarineStates.DESTROYED;
+    })
+    if (this.state.submarines.filter(s => s.submarineState !== SubmarineStates.DESTROYED).length <= 1) {
+      this.state.phase = GlobalPhases.GAME_OVER;
+      this.state.winner = this.state.submarines.find(s => s.submarineState !== SubmarineStates.DESTROYED).id;
+    }
   }
 
   getSub(playerId) {

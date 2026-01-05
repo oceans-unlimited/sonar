@@ -2,7 +2,7 @@ import express from 'express';
 import http from 'http';
 import { Server as SocketIoServer } from 'socket.io';
 import { LogicalServer } from './logical-server.lib.js';
-import { GlobalPhases } from './constants.js';
+import { GlobalPhases, InterruptTypes } from './constants.js';
 
 const log = (message) => {
   console.log(`[${new Date().toISOString()}] ${message}`);
@@ -209,6 +209,21 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
       logicalServer.silence(socket.id, direction, spaces);
       
       log('Broadcasting state update after silence attempt.');
+      ioServer.emit("state", logicalServer.state);
+    });
+
+    socket.on('launch_torpedo', ({row, col}) => {
+      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted torpedo launch.`);
+
+      logicalServer.launchTorpedo(socket.id, row, col);
+      if (logicalServer.state.phase === GlobalPhases.INTERRUPT && logicalServer.state.activeInterrupt.type === InterruptTypes.TORPEDO_RESOLUTION) {
+        setTimeout(() => {
+          log("Resuming live play after torpedo launch.")
+          logicalServer.resumeFromInterrupt();
+          ioServer.emit("state", logicalServer.state);
+        }, 3000);
+      }
+
       ioServer.emit("state", logicalServer.state);
     });
 

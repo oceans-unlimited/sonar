@@ -38,6 +38,9 @@ export async function createMapTestScene(app, assets) {
 
     harness.innerHTML = `
         <h3 style="margin-top: 0">Map Test Harness</h3>
+        <div style="font-size: 11px; color: #aaa; margin-bottom: 8px;">
+            <em>Note: Click map to enter SELECTING mode and enable Hover preview.</em>
+        </div>
         
         <div style="margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px;">
             <strong>Renderer Controls</strong>
@@ -143,14 +146,37 @@ export async function createMapTestScene(app, assets) {
 
         const state = {
             phase: 'LIVE', // Ensure phase allows updates
-            gameStateData: {}, // Prevent crashes if controller checks this
+            gameStateData: {},
             submarines: [{
                 id: 'sub-1',
                 co: myId, // Claim we are the captain
-                r: r,
-                c: c,
-                color: '#00ff00'
-            }]
+                row: r,     // Server uses row
+                col: c,     // Server uses col
+                past_track: [], // Server uses snake_case
+                mines: [],
+                submarineState: 'SUBMERGED',
+                color: '#00ff00',
+                actionGauges: { mine: 0, torpedo: 0, drone: 0, sonar: 0, silence: 0 }
+            }],
+            board: [
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // Ownship at 7,7 is here (Water)
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0], // Some land
+
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
         };
 
         log(`Spoofing State: ${r}, ${c}`);
@@ -170,6 +196,19 @@ export async function createMapTestScene(app, assets) {
         const r = getVal('h-own-r');
         const c = getVal('h-own-c');
         spoofPosition(r, c);
+    });
+
+    // 4. System Event Listeners for Harness Log
+    mapSystem.container.on('map:stateChanged', (data) => {
+        log(`<span style="color: #00ff00">[STATE]</span> ${data.transition}`);
+    });
+
+    mapSystem.container.on('map:selectedSquare', (data) => {
+        log(`<span style="color: #ffff00">[SELECT]</span> R${data.row} C${data.col}`);
+    });
+
+    mapSystem.container.on('map:selectionCleared', () => {
+        log(`<span style="color: #ff4444">[CLEAR]</span> Selection reset`);
     });
 
     // Clean up hook

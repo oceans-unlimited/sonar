@@ -22,14 +22,35 @@ export class MapRenderer {
         };
 
         this.container = new PIXI.Container();
-        this.container.eventMode = 'static';
         this.mapContent = new PIXI.Container();
+
+        // --- Scanline hit surface ---
+        const scanTex = this.assets.scanlines || PIXI.Texture.WHITE;
+
+        this.hitSurface = new PIXI.TilingSprite({
+            texture: scanTex,
+            width: 1,
+            height: 1
+        });
+
+        this.hitSurface.eventMode = 'static';
+        this.hitSurface.cursor = 'crosshair';
+        this.hitSurface.alpha = 0.08;
+        this.hitSurface.interactiveChildren = false;
+
+        this.container.addChild(this.hitSurface);
         this.container.addChild(this.mapContent);
 
-
         this.mapGrid = new PIXI.Container();
+        this.anchorLayer = new PIXI.Container();
+        this.hoverLayer = new PIXI.Container();
         this.decorationGrid = new PIXI.Container();
-        this.mapContent.addChild(this.mapGrid, this.decorationGrid);
+
+        this.mapContent.addChild(this.mapGrid, this.anchorLayer, this.hoverLayer, this.decorationGrid);
+
+        this.hoverGraphic = new PIXI.Graphics();
+        this.hoverLayer.addChild(this.hoverGraphic);
+        this.hoverGraphic.visible = false;
 
         this.horizontalLabels = new PIXI.Container();
         this.verticalLabels = new PIXI.Container();
@@ -58,6 +79,7 @@ export class MapRenderer {
         this.tiles = []; // 2D array for tile references
         this.activeGlows = new Map(); // Store glow objects for cleanup
         this.axisLabels = { h: [], v: [] };
+        this.hoverTile = null;
 
         // Ownship Sprite
         this.ownshipSprite = null;
@@ -70,6 +92,13 @@ export class MapRenderer {
             this.mapContent.addChild(this.ownshipSprite);
         }
 
+        // Set eventMode for all non-interactive containers 
+        this.mapContent.eventMode = 'none';
+        this.mapGrid.eventMode = 'none';
+        this.decorationGrid.eventMode = 'none';
+        this.hoverLayer.eventMode = 'none';
+        this.anchorLayer.eventMode = 'none';
+        this.hud.eventMode = 'none';
 
 
         this.renderMap();
@@ -174,7 +203,10 @@ export class MapRenderer {
         this.horizontalLabels.y = y;
         this.verticalLabels.x = x;
 
-        this.container.hitArea = new PIXI.Rectangle(x, y, width, height);
+        this.hitSurface.x = x;
+        this.hitSurface.y = y;
+        this.hitSurface.width = width;
+        this.hitSurface.height = height;
     }
 
     clampPosition() {
@@ -191,20 +223,27 @@ export class MapRenderer {
     }
 
     // Visual Stack Implementation
-    highlightHover(row, col) {
-        this.clearHover();
-        const tile = this.tiles[row][col];
-        const effect = applyGlowEffect(tile, this.app, Colors.text);
-        effect.steadyOn(0.4);
-        this.activeGlows.set('hover', effect);
+    // Visual Stack Implementation
+    showHover(row, col, valid = true) {
+        const size = this.currentScale;
+
+        this.hoverGraphic.clear();
+        this.hoverGraphic
+            .rect(0, 0, size, size)
+            .stroke({
+                width: 2,
+                color: valid ? SystemColors.reactor : Colors.dim,
+                alpha: 0.9
+            });
+
+        this.hoverGraphic.x = col * size;
+        this.hoverGraphic.y = row * size;
+        this.hoverGraphic.visible = true;
+
     }
 
     clearHover() {
-        const effect = this.activeGlows.get('hover');
-        if (effect) {
-            effect.off();
-            this.activeGlows.delete('hover');
-        }
+        this.hoverGraphic.visible = false;
     }
 
     highlightSelection(row, col, systemName = 'detection') {

@@ -29,6 +29,7 @@ export const Font = {
 // Bolder weight, good for titles, headings
 export const headerFont = {
   family: "Goldman",
+  fontWeight: "bold",
   size: 30,
   lineHeight: 30,
   letterSpacing: 2,

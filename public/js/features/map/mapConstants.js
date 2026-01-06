@@ -6,13 +6,13 @@ export const MapConstants = {
     INACTIVITY_TIMEOUT: 2000,
     ZOOM_ANIMATION_DURATION: 400,
     PAN_SPEED: 15,
-    LONG_PRESS_DURATION: 600,
-    DRAG_THRESHOLD: 6
+    CLICK_MAX_MS: 250,
+    LONG_PRESS_MS: 600,
+    DRAG_THRESHOLD_PX: 6
 };
 
 export const MapStates = {
-    IDLE: 'IDLE',
-    PAN_ZOOM: 'PAN_ZOOM',
+    PAN: 'PAN',
     ANIMATING: 'ANIMATING',
     SELECTING: 'SELECTING'
 };

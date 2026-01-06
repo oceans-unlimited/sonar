@@ -32,3 +32,35 @@ export function animateMapZoom(app, mapRenderer, targetScale, duration = 400, on
 
     app.ticker.add(mapRenderer.zoomTicker);
 }
+
+export function animateMapPosition(app, mapRenderer, targetX, targetY, duration = 400, onComplete = null) {
+    if (mapRenderer.panTicker) {
+        app.ticker.remove(mapRenderer.panTicker);
+    }
+
+    const startX = mapRenderer.mapContent.x;
+    const startY = mapRenderer.mapContent.y;
+    const diffX = targetX - startX;
+    const diffY = targetY - startY;
+    let elapsed = 0;
+
+    const easeInOutCubic = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+    mapRenderer.panTicker = (delta) => {
+        elapsed += delta.deltaMS;
+        const progress = Math.min(1, elapsed / duration);
+        const easedProgress = easeInOutCubic(progress);
+
+        mapRenderer.mapContent.x = startX + diffX * easedProgress;
+        mapRenderer.mapContent.y = startY + diffY * easedProgress;
+        mapRenderer.clampPosition();
+
+        if (progress === 1) {
+            app.ticker.remove(mapRenderer.panTicker);
+            mapRenderer.panTicker = null;
+            if (onComplete) onComplete();
+        }
+    };
+
+    app.ticker.add(mapRenderer.panTicker);
+}

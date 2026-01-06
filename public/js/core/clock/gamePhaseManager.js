@@ -21,9 +21,9 @@ export class GamePhaseManager {
 
         // Define legal transitions
         this._transitions = {
-            [GamePhases.LOBBY]: [GamePhases.GAME_BEGINNING, GamePhases.INTERRUPT],
+            [GamePhases.LOBBY]: [GamePhases.GAME_BEGINNING, GamePhases.INTERRUPT, GamePhases.LIVE],
             [GamePhases.GAME_BEGINNING]: [GamePhases.INTERRUPT, GamePhases.LIVE],
-            [GamePhases.LIVE]: [GamePhases.INTERRUPT, GamePhases.GAME_OVER],
+            [GamePhases.LIVE]: [GamePhases.INTERRUPT, GamePhases.GAME_OVER, GamePhases.LOBBY],
             [GamePhases.INTERRUPT]: [GamePhases.LIVE, GamePhases.GAME_OVER],
             [GamePhases.GAME_OVER]: [GamePhases.LOBBY]
         };

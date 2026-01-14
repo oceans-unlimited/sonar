@@ -8,18 +8,26 @@ import { attachMapBehaviors } from './mapBehaviors.js';
  * Provides a simple API for scenes to mount and interact with the Map feature.
  */
 export class MapSystem {
-    constructor(app, assets) {
+    constructor(app, assets, config = {}) {
         this.app = app;
         this.assets = assets;
-        this.renderer = new MapRenderer(app, assets);
-        this.controller = new MapController(app, this.renderer, this.behaviors, this.assets);
+        this.renderer = new MapRenderer(app, assets, config);
+        this.controller = new MapController(app, this.renderer, null, this.assets);
         this.behaviors = attachMapBehaviors(app, this.controller);
+
+        // Link behaviors back to controller if needed
+        this.controller.behaviors = this.behaviors;
 
         this.container = this.renderer.container;
     }
 
     init(config = {}) {
-        const { width, height } = config;
+        const { width, height, viewConfig } = config;
+
+        if (viewConfig) {
+            this.controller.setViewConfig(viewConfig);
+        }
+
         this.controller.resize(width, height);
 
         // Center on current ownship position (from controller's state)
@@ -28,6 +36,14 @@ export class MapSystem {
             this.controller.ownship.row
         );
         this.controller.centerOnPosition(ownshipCenter);
+    }
+
+    /**
+     * Updates the map's visual configuration (grid, sectors, labels, HUD)
+     * @param {object} config 
+     */
+    setViewConfig(config) {
+        this.controller.setViewConfig(config);
     }
 
     show() {

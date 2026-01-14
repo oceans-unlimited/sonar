@@ -23,6 +23,15 @@ export class MapRenderer {
             ...config
         };
 
+        this.viewConfig = {
+            showGridLines: true,
+            showSectorLines: false, // 3x3 lines
+            labelMode: 'COORDINATE', // 'COORDINATE' | 'SECTOR' | 'NONE'
+            miniMode: false,
+            showHUD: true,
+            ...this.config.viewConfig
+        };
+
         this.destroyed = false;
 
 
@@ -47,6 +56,7 @@ export class MapRenderer {
         this.container.addChild(this.mapContent);
 
         this.mapGrid = new PIXI.Container();
+        this.sectorLayer = new PIXI.Container(); // 3x3 Large blocks
         this.anchorLayer = new PIXI.Container();
         this.trackLayer = new PIXI.Container(); // Track visualization layer
         this.hoverLayer = new PIXI.Container();
@@ -55,6 +65,7 @@ export class MapRenderer {
 
         this.mapContent.addChild(
             this.mapGrid,
+            this.sectorLayer,
             this.anchorLayer,
             this.trackLayer,
             this.hoverLayer,
@@ -69,6 +80,10 @@ export class MapRenderer {
         this.selectionGraphic = new PIXI.Graphics();
         this.hoverLayer.addChild(this.selectionGraphic);
         this.selectionGraphic.visible = false;
+
+        this.ownshipMarker = new PIXI.Graphics();
+        this.hoverLayer.addChild(this.ownshipMarker);
+        this.ownshipMarker.visible = false;
 
         // Persistent map elements
         this.waypointGraphic = new PIXI.Sprite(this.assets.map_select);
@@ -129,6 +144,7 @@ export class MapRenderer {
         this.decorationGrid.eventMode = 'none';
         this.trackLayer.eventMode = 'none';
         this.hoverLayer.eventMode = 'none';
+        this.sectorLayer.eventMode = 'none';
         this.anchorLayer.eventMode = 'none';
         this.hud.container.eventMode = 'none';
 
@@ -154,6 +170,13 @@ export class MapRenderer {
             dropShadow: { blur: 2, color: 0x000000, distance: 1 }
         };
 
+        const sectorLabelStyle = {
+            ...labelStyle,
+            fontSize: 24,
+            fill: Colors.text,
+            alpha: 0.6
+        };
+
         // 1. Initial Creation or Reuse of Tiles
         const needsTileInit = this.tiles.length === 0;
 
@@ -171,20 +194,26 @@ export class MapRenderer {
         }
 
         // Update tile positions and sizes
-        for (let row = 0; row < gridSize; row++) {
-            for (let col = 0; col < gridSize; col++) {
-                const tile = this.tiles[row][col];
-                tile.clear()
-                    .rect(0, 0, this.currentScale, this.currentScale)
-                    .fill({ color: 0x003300, alpha: 0.3 })
-                    .stroke({ width: 1, color: 0x005500 });
-                tile.x = col * this.currentScale;
-                tile.y = row * this.currentScale;
+        this.mapGrid.visible = this.viewConfig.showGridLines;
+        if (this.viewConfig.showGridLines) {
+            for (let row = 0; row < gridSize; row++) {
+                for (let col = 0; col < gridSize; col++) {
+                    const tile = this.tiles[row][col];
+                    tile.clear()
+                        .rect(0, 0, this.currentScale, this.currentScale)
+                        .fill({ color: 0x003300, alpha: 0.3 })
+                        .stroke({ width: 1, color: 0x005500 });
+                    tile.x = col * this.currentScale;
+                    tile.y = row * this.currentScale;
+                }
             }
         }
 
+        this.renderSectors(sectorLabelStyle);
+
         // 2. Initial Creation or Reuse of Labels
         const needsLabelInit = this.axisLabels.h.length === 0;
+        const showCoordinateLabels = this.viewConfig.labelMode === 'COORDINATE';
 
         if (needsLabelInit) {
             this.horizontalLabels.removeChildren();
@@ -203,6 +232,9 @@ export class MapRenderer {
             }
         }
 
+        this.horizontalLabels.visible = showCoordinateLabels;
+        this.verticalLabels.visible = showCoordinateLabels;
+
         // Update label positions
         for (let i = 0; i < gridSize; i++) {
             const hText = this.axisLabels.h[i];
@@ -217,6 +249,52 @@ export class MapRenderer {
         if (this.ownshipSprite && this.ownshipSprite.visible) {
             this.updateOwnship(this.ownshipPos.row, this.ownshipPos.col);
         }
+    }
+
+    renderSectors(labelStyle) {
+        const sectorSize = this.currentScale * 5;
+        this.sectorLayer.visible = this.viewConfig.showSectorLines;
+
+        if (!this.sectorLayer.visible && this.viewConfig.labelMode !== 'SECTOR') {
+            this.sectorLayer.removeChildren();
+            return;
+        }
+
+        if (this.sectorLayer.children.length === 0) {
+            for (let i = 1; i <= 9; i++) {
+                const container = new PIXI.Container();
+                container.label = `sector_${i}`;
+
+                const frame = new PIXI.Graphics();
+                const center = MapUtils.getSectorCenter(i, this.currentScale);
+
+                const text = new PIXI.Text({ text: i.toString(), style: labelStyle });
+                text.anchor.set(0.5);
+                text.position.set(center.x, center.y);
+                text.label = 'sector_label';
+
+                container.addChild(frame, text);
+                this.sectorLayer.addChild(container);
+            }
+        }
+
+        // Update frames and label visibility
+        this.sectorLayer.children.forEach((container, idx) => {
+            const i = idx + 1;
+            const frame = container.children[0];
+            const text = container.children[1];
+            const bounds = MapUtils.getSectorBounds(i);
+
+            frame.clear();
+            if (this.viewConfig.showSectorLines) {
+                frame.rect(bounds.minCol * this.currentScale, bounds.minRow * this.currentScale, sectorSize, sectorSize)
+                    .stroke({ width: 2, color: 0x00aa00, alpha: 0.5 });
+            }
+
+            text.visible = this.viewConfig.labelMode === 'SECTOR';
+            const center = MapUtils.getSectorCenter(i, this.currentScale);
+            text.position.set(center.x, center.y);
+        });
     }
 
 
@@ -311,9 +389,14 @@ export class MapRenderer {
 
         // Colored overlay with reduced alpha
         this.selectionGraphic
-            .rect(0, 0, size, size)
-            .fill({ color: highlightColor, alpha: 0.25 })
-            .stroke({ width: 2, color: highlightColor, alpha: 0.6 });
+            .rect(0, 0, size, size);
+
+        if (this.viewConfig.miniMode) {
+            this.selectionGraphic.fill({ color: highlightColor, alpha: 0.6 });
+        } else {
+            this.selectionGraphic.fill({ color: highlightColor, alpha: 0.25 })
+                .stroke({ width: 2, color: highlightColor, alpha: 0.6 });
+        }
 
         this.selectionGraphic.x = col * size;
         this.selectionGraphic.y = row * size;
@@ -341,6 +424,32 @@ export class MapRenderer {
             this.activeGlows.delete('selection');
         }
         this.resetAxis();
+    }
+
+    /**
+     * Highlights an entire sector (1-9). Used for drone/sonar feedback.
+     * @param {number} sectorId - Sector ID (1-9)
+     * @param {number} tint - Color tint
+     */
+    highlightSector(sectorId, tint = SystemColors.detection) {
+        const bounds = MapUtils.getSectorBounds(sectorId);
+        const sectorSize = this.currentScale * 5;
+
+        // Reuse selection graphic or create dedicated feedback graphic?
+        // Let's use a dedicated feedback graphic if multiple sectors need to be shown, 
+        // but for now, selectionGraphic is fine.
+        this.clearSelection();
+
+        this.selectionGraphic.clear()
+            .rect(0, 0, sectorSize, sectorSize)
+            .fill({ color: tint, alpha: 0.3 })
+            .stroke({ width: 3, color: tint, alpha: 0.7 });
+
+        this.selectionGraphic.x = bounds.minCol * this.currentScale;
+        this.selectionGraphic.y = bounds.minRow * this.currentScale;
+        this.selectionGraphic.visible = true;
+
+        flashSelection(this.app, this.selectionGraphic, 0, 5);
     }
 
     /**
@@ -520,14 +629,33 @@ export class MapRenderer {
 
 
     updateOwnship(row, col, tint = Colors.text, visible = true) {
+        if (this.destroyed) return;
+        this.ownshipPos = { row, col };
+
+        const size = this.currentScale;
+
+        // 1. High contrast square marker (visible in mini-mode)
+        this.ownshipMarker.clear();
+        if (this.viewConfig.miniMode) {
+            this.ownshipMarker
+                .rect(0, 0, size, size)
+                .fill({ color: tint, alpha: 0.8 })
+                .stroke({ width: 2, color: 0x000000, alpha: 0.5 });
+            this.ownshipMarker.x = col * size;
+            this.ownshipMarker.y = row * size;
+            this.ownshipMarker.visible = visible;
+        } else {
+            this.ownshipMarker.visible = false;
+        }
+
+        // 2. Main Ownship Sprite
         if (!this.ownshipSprite) return;
 
-        this.ownshipPos = { row, col };
         this.ownshipSprite.visible = visible;
-        this.ownshipSprite.x = col * this.currentScale + this.currentScale / 2;
-        this.ownshipSprite.y = row * this.currentScale + this.currentScale / 2;
-        this.ownshipSprite.width = this.currentScale * 0.8;
-        this.ownshipSprite.height = this.currentScale * 0.8;
+        this.ownshipSprite.x = col * size + size / 2;
+        this.ownshipSprite.y = row * size + size / 2;
+        this.ownshipSprite.width = size * 0.8;
+        this.ownshipSprite.height = size * 0.8;
         this.ownshipSprite.tint = tint;
     }
 

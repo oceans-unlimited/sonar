@@ -133,5 +133,37 @@ export const MapUtils = {
             x: screenPos.x - gridLocal.x * scale,
             y: screenPos.y - gridLocal.y * scale
         };
+    },
+
+    /**
+     * Returns the grid boundaries for a given sector (1-9).
+     * @param {number} sectorId - Sector ID (1-9)
+     * @returns {object} { minRow, maxRow, minCol, maxCol }
+     */
+    getSectorBounds(sectorId) {
+        const id = Math.max(1, Math.min(9, sectorId)) - 1;
+        const sRow = Math.floor(id / 3);
+        const sCol = id % 3;
+
+        return {
+            minRow: sRow * 5,
+            maxRow: (sRow * 5) + 4,
+            minCol: sCol * 5,
+            maxCol: (sCol * 5) + 4
+        };
+    },
+
+    /**
+     * Gets the pixel center of a sector for label positioning.
+     * @param {number} sectorId - Sector ID (1-9)
+     * @param {number} scale - Current map scale
+     * @returns {object} { x, y }
+     */
+    getSectorCenter(sectorId, scale) {
+        const bounds = this.getSectorBounds(sectorId);
+        return {
+            x: (bounds.minCol * scale) + (2.5 * scale),
+            y: (bounds.minRow * scale) + (2.5 * scale)
+        };
     }
 };

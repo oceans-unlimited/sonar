@@ -105,6 +105,36 @@ export async function createMapTestScene(app, assets) {
         </div>
 
         <div style="margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px;">
+            <strong>View Configurations</strong>
+            <div style="margin-top: 5px;">
+                <label><input type="checkbox" id="chk-mini-mode"> Minimap Mode (Solid Fill)</label>
+            </div>
+            <div style="margin-top: 5px;">
+                <label><input type="checkbox" id="chk-sectors"> Show Sector Lines</label>
+            </div>
+            <div style="margin-top: 5px;">
+                <label>Labels: </label>
+                <select id="sel-labels">
+                    <option value="COORDINATE">Coordinate (A1)</option>
+                    <option value="SECTOR">Sector (1-9)</option>
+                    <option value="NONE">None</option>
+                </select>
+            </div>
+            <div style="margin-top: 8px;">
+                <button id="btn-intent-sector" style="background: #3b82f6; color: white;">Mode: SECTOR_SELECT</button>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px;">
+            <strong>Drone/Sonar Feedback</strong>
+            <div style="margin-top: 5px;">
+                <label>Sector (1-9):</label>
+                <input type="number" id="h-feedback-s" value="5" style="width: 30px">
+                <button id="btn-feedback-sector">Mock Feedback</button>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px;">
             <strong>Detonation FX</strong>
             <div style="margin-top: 5px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px;">
                 <input type="number" id="h-exp-r" placeholder="Row (0-14)" value="7">
@@ -184,6 +214,35 @@ export async function createMapTestScene(app, assets) {
         const h = getVal('h-vp-h');
         mapSystem.renderer.setViewport(x, y, w, h);
         log(`Called setViewport(${x}, ${y}, ${w}, ${h})`);
+    });
+
+    // View Config
+    document.getElementById('chk-mini-mode').addEventListener('change', (e) => {
+        mapSystem.controller.setViewConfig({ miniMode: e.target.checked });
+        log(`Minimap mode: ${e.target.checked}`);
+    });
+
+    document.getElementById('chk-sectors').addEventListener('change', (e) => {
+        mapSystem.controller.setViewConfig({ showSectorLines: e.target.checked });
+        log(`Sector lines: ${e.target.checked}`);
+    });
+
+    document.getElementById('sel-labels').addEventListener('change', (e) => {
+        mapSystem.controller.setViewConfig({ labelMode: e.target.value });
+        log(`Label mode: ${e.target.value}`);
+    });
+
+    document.getElementById('btn-intent-sector').addEventListener('click', () => {
+        import('../features/map/mapConstants.js').then(({ MapStates, MapIntents }) => {
+            mapSystem.controller.setState(MapStates.SELECTING, MapIntents.SECTOR_SELECT);
+            log(`Intent set to SECTOR_SELECT`);
+        });
+    });
+
+    document.getElementById('btn-feedback-sector').addEventListener('click', () => {
+        const sectorId = getVal('h-feedback-s');
+        mapSystem.controller.handleEnemyDetection({ sectorId, type: 'DRONE' });
+        log(`Mocked drone feedback for Sector ${sectorId}`);
     });
 
     // Spoofing Logic

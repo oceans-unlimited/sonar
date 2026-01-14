@@ -56,6 +56,8 @@ export class MapController {
         // Initialize menu renderer
         this.menuRenderer = new MapMenuRenderer(renderer, assets);
 
+        this.viewConfig = { ...this.renderer.viewConfig };
+
         this.init();
     }
 
@@ -104,8 +106,13 @@ export class MapController {
         // Store references for cleanup
         this._stateUpdateHandler = (state) => this.handleStateUpdate(state);
         this._interruptHandler = (event, interrupt) => {
-            if (event === 'interruptStarted' && interrupt.type === InterruptTypes.TORPEDO_RESOLUTION) {
-                this.handleDetonationInterrupt(interrupt.payload);
+            if (event === 'interruptStarted') {
+                if (interrupt.type === InterruptTypes.TORPEDO_RESOLUTION) {
+                    this.handleDetonationInterrupt(interrupt.payload);
+                } else if (interrupt.payload?.enemySubId || interrupt.payload?.sectorId) {
+                    // Hook for drone/sonar/enemy feedback
+                    this.handleEnemyDetection(interrupt.payload);
+                }
             }
         };
 
@@ -501,9 +508,44 @@ export class MapController {
         // Show intent menu for WAYPOINT intent
         if (this.intent === MapIntents.WAYPOINT) {
             this.menuRenderer.showIntentMenu(anchor, finalSquareData, { currentIntent: this.intent });
+        } else if (this.intent === MapIntents.SECTOR_SELECT) {
+            const sectorId = MapUtils.getSector(row, col);
+            console.log(`[MapController] Sector selected: ${sectorId}`);
+
+            // Highlight whole sector
+            this.renderer.highlightSector(sectorId);
+
+            this.renderer.container.emit('map:sectorSelected', {
+                sectorId,
+                coords: { row, col }
+            });
         }
 
         this.handleActivity();
+    }
+
+    /**
+     * Set the current view configuration
+     * @param {object} config - Partial viewConfig
+     */
+    setViewConfig(config) {
+        this.viewConfig = { ...this.viewConfig, ...config };
+        this.renderer.viewConfig = this.viewConfig;
+        this.renderer.renderMap();
+    }
+
+    /**
+     * Handles enemy detection feedback (Drone/Sonar)
+     * @param {object} payload - { sectorId, row, col, type }
+     */
+    handleEnemyDetection(payload) {
+        const { sectorId, row, col, type } = payload;
+
+        if (sectorId) {
+            this.renderer.highlightSector(sectorId, SystemColors.weapons);
+        } else if (row !== undefined && col !== undefined) {
+            this.renderer.highlightSelection(row, col, 'weapons');
+        }
     }
 
     setIntent(intent) {
@@ -720,6 +762,12 @@ export class MapController {
     }
 
     syncHUD(cursorOverride = null) {
+        // Respect viewConfig toggle
+        if (this.viewConfig.showHUD === false) {
+            this.renderer.hud.visible = false;
+            return;
+        }
+
         // Auto-show HUD if in interactive states
         if (this.state === MapStates.SELECTING || this.state === MapStates.PAN) {
             this.renderer.hud.visible = true;

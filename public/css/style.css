@@ -51,6 +51,7 @@ canvas {
   padding: 15px;
   border-radius: 8px;
   font-family: 'Goldman', sans-serif;
+  z-index: 2000;
 }
 #overlayPanel button {
   display: block;

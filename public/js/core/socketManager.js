@@ -70,6 +70,14 @@ class SocketManager extends EventEmitter {
     this.socket.emit('button_pushed', buttonData);
   }
 
+  chargeGauge(gauge) {
+    this.socket.emit('charge_gauge', gauge);
+  }
+
+  crossOffSystem(direction, slotId) {
+    this.socket.emit('cross_off_system', { direction, slotId });
+  }
+
   readyInterrupt() {
     this.socket.emit('ready_interrupt');
   }
@@ -81,7 +89,16 @@ class SocketManager extends EventEmitter {
   submitSonarResponse(response) {
     this.socket.emit('submit_sonar_response', response);
   }
+
+  move(direction) {
+    this.socket.emit('move', direction);
+  }
+
+  chooseInitialPosition(row, column) {
+    this.socket.emit('choose_initial_position', { row, column });
+  }
 }
+
 
 
 export const socketManager = new SocketManager();

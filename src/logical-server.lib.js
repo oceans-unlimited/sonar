@@ -23,6 +23,23 @@ export class LogicalServer {
   };
 
   constructor() {
+    this.usedPlayerNumbers = {};
+    this.state = {
+      version: 0,
+      phase: GlobalPhases.LOBBY,
+      activeInterrupt: null,
+      players: [],
+      adminId: null,
+      submarines: [this.createSubmarine('A'), this.createSubmarine('B')],
+      ready: [],
+      board: generateBoard(),
+      gameStateData: {
+        choosingStartPositions: {
+          playerIdsReadyToContinue: [],
+          submarineIdsWithStartPositionChosen: [],
+        },
+      },
+    };
   }
 
   playerName(playerId) {
@@ -44,6 +61,7 @@ export class LogicalServer {
       col: 0,
       health: 4,
       submarineState: SubmarineStates.SUBMERGED,
+      pastTrack: [],
       submarineStateData: {
         MOVED: {
           engineerCrossedOutSystem: false,
@@ -52,10 +70,10 @@ export class LogicalServer {
         },
         SURFACING: {
           roleTaskCompletion: [
-            {role: 'co', completed: false},
-            {role: 'xo', completed: false},
-            {role: 'eng', completed: false},
-            {role: 'sonar', completed: false},
+            { role: 'co', completed: false },
+            { role: 'xo', completed: false },
+            { role: 'eng', completed: false },
+            { role: 'sonar', completed: false },
           ],
         },
       },
@@ -87,18 +105,14 @@ export class LogicalServer {
 
   disconnect(playerId) {
     delete this.usedPlayerNumbers[playerId];
-    // Remove player record
     this.state.players = this.state.players.filter(p => p.id !== playerId);
-    // Remove from ready list
     this.state.ready = this.state.ready.filter(id => id !== playerId);
-    // Vacate any roles held by this player
     this.state.submarines.forEach(submarine =>
       Object.keys(submarine).forEach(role => {
         if (submarine[role] === playerId) submarine[role] = null;
       })
     );
 
-    // Trigger disconnect interrupt if game is in progress
     const isInProgress = this.state.phase === GlobalPhases.LIVE ||
       (this.state.phase === GlobalPhases.INTERRUPT && this.state.activeInterrupt?.type !== InterruptTypes.PLAYER_DISCONNECT);
 
@@ -108,7 +122,7 @@ export class LogicalServer {
         type: InterruptTypes.PLAYER_DISCONNECT,
         payload: { message: "Player Disconnected" }
       };
-      this.state.ready = []; // Re-reset to be sure
+      this.state.ready = [];
     }
 
     if (this.state.adminId && this.state.adminId === playerId) {
@@ -117,11 +131,8 @@ export class LogicalServer {
     this.state.version++;
   }
 
-
-
   changeName(playerId, new_name) {
     if (this.state.phase !== GlobalPhases.LOBBY) return;
-
     const player = this.state.players.find(p => p.id === playerId);
     if (!player) return;
     player.name = new_name;
@@ -130,38 +141,26 @@ export class LogicalServer {
 
   selectRole(playerId, submarine, role) {
     if (this.state.phase !== GlobalPhases.LOBBY) return;
-
-    if (
-      0 <= submarine &&
-      submarine < this.state.submarines.length &&
-      !this.state.submarines[submarine][role]
-    ) {
-      // leave existing role
+    if (0 <= submarine && submarine < this.state.submarines.length && !this.state.submarines[submarine][role]) {
       this.state.submarines.forEach(submarineObj =>
         Object.keys(submarineObj).forEach(rk => {
           if (submarineObj[rk] === playerId) submarineObj[rk] = null;
         })
       );
-      // go to new role
       this.state.submarines[submarine][role] = playerId;
-
-      // un-ready the player
       this.state.ready = this.state.ready.filter(id => id !== playerId);
+      this.state.version++;
     }
-    this.state.version++;
   }
 
   leaveRole(playerId) {
     if (this.state.phase !== GlobalPhases.LOBBY) return;
-
     this.state.submarines.forEach(submarine =>
       Object.keys(submarine).forEach(role => {
         if (submarine[role] === playerId) submarine[role] = null;
       })
     );
-
     this.state.ready = this.state.ready.filter(id => id !== playerId);
-
     this.state.version++;
   }
 
@@ -172,16 +171,17 @@ export class LogicalServer {
       Object.keys(sub).some(role => sub[role] === playerId)
     ) && !this.state.ready.includes(playerId)) {
       this.state.ready.push(playerId);
+      this.state.version++;
     }
 
     const allRolesAreReady = this.state.submarines.every(sub =>
       ['co', 'xo', 'sonar', 'eng'].every(rk => this.state.ready.includes(sub[rk]))
     );
-    
+
     if (allRolesAreReady && this.state.phase === GlobalPhases.LOBBY) {
       this.state.phase = GlobalPhases.GAME_BEGINNING;
     }
-    
+
     this.state.version++;
   }
 
@@ -194,7 +194,7 @@ export class LogicalServer {
     this.state.activeInterrupt = {
       type: InterruptTypes.START_POSITIONS,
       payload: { message: "Captains selecting starting positions" },
-      data: {submarineIdsWithStartPositionChosen: []},
+      data: { submarineIdsWithStartPositionChosen: [] },
     };
     this.state.ready = []; // Reset ready states for initial position phase
 
@@ -209,9 +209,7 @@ export class LogicalServer {
   }
 
   notReady(playerId) {
-    if (this.state.phase !== GlobalPhases.LOBBY)
-      return;
-
+    if (this.state.phase !== GlobalPhases.LOBBY) return;
     this.state.ready = this.state.ready.filter(id => id !== playerId);
     this.state.version++;
   }
@@ -237,6 +235,8 @@ export class LogicalServer {
 
           allSubsHaveChosen = this.state.submarines.every(s => subIdsThatHaveChosen.find(c => c === s.id));
         }
+        this.state.ready = this.state.ready.filter(id => id !== playerId);
+        this.state.version++;
       }
     }
 
@@ -271,12 +271,22 @@ export class LogicalServer {
 
   readyInterrupt(playerId) {
     if (this.state.phase !== GlobalPhases.INTERRUPT) return;
-    if (this.state.ready.includes(playerId)) return;
 
-    this.state.ready.push(playerId);
-    this.state.version++;
+    const isStartPositions = this.state.activeInterrupt?.type === InterruptTypes.START_POSITIONS;
+    const sub = this.state.submarines.find(s => s.co === playerId);
 
-    // Check if all players in the game are ready
+    if (this.state.ready.includes(playerId)) {
+      this.state.ready = this.state.ready.filter(id => id !== playerId);
+      this.state.version++;
+    } else {
+      if (isStartPositions && sub) {
+        const hasChosen = this.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.includes(sub.id);
+        if (!hasChosen) return;
+      }
+      this.state.ready.push(playerId);
+      this.state.version++;
+    }
+
     const allPlayersReady = this.state.submarines.every(sub =>
       ['co', 'xo', 'sonar', 'eng'].every(role => {
         const pId = sub[role];
@@ -293,7 +303,7 @@ export class LogicalServer {
     if (this.state.phase !== GlobalPhases.LIVE)
       return;
 
-    let {sub} = this.#getRoleAndSub(playerId);
+    let { sub } = this.#getRoleAndSub(playerId);
     if (!sub || sub.submarineState !== SubmarineStates.SUBMERGED)
       return;
 
@@ -302,7 +312,7 @@ export class LogicalServer {
 
     sub.actionGauges.drone = 0;
 
-    let minRow = Math.floor((sector - 1)/3) * 5;
+    let minRow = Math.floor((sector - 1) / 3) * 5;
     let maxRow = minRow + 5;
     let minCol = Math.floor((sector - 1) % 3) * 5;
     let maxCol = minCol + 5;
@@ -312,7 +322,7 @@ export class LogicalServer {
     this.state.activeInterrupt = {
       type: InterruptTypes.DRONE,
       payload: {},
-      data: {sector: sector, enemySubInSector: enemySubInSector, subIdInitiatingDrone: sub.id},
+      data: { sector: sector, enemySubInSector: enemySubInSector, subIdInitiatingDrone: sub.id },
     }
   }
 
@@ -320,7 +330,7 @@ export class LogicalServer {
     if (this.state.phase !== GlobalPhases.LIVE)
       return;
 
-    let {sub} = this.#getRoleAndSub(playerId);
+    let { sub } = this.#getRoleAndSub(playerId);
     if (!sub || sub.submarineState !== SubmarineStates.SUBMERGED)
       return;
 
@@ -340,29 +350,25 @@ export class LogicalServer {
   submitSonarResponse(playerId, response) {
     const rxSub = this.state.submarines.find(sub => sub.co === playerId);
     if (!rxSub || !this.state.activeInterrupt || this.state.activeInterrupt.type !== InterruptTypes.SONAR_PING) return;
-
-    // Update active interrupt with response
     this.state.activeInterrupt.payload.response = response;
     this.state.version++;
   }
 
   move(playerId, direction) {
-    if (this.state.phase !== GlobalPhases.LIVE)
-      return;
-
+    if (this.state.phase !== GlobalPhases.LIVE) return;
     let movingSub = this.state.submarines.find(sub => sub.co === playerId);
     if (movingSub && movingSub.submarineState === SubmarineStates.SUBMERGED) {
       if (direction == 'N' || direction == 'S' || direction == 'E' || direction == 'W') {
         let newRow = movingSub.row + rowDeltas[direction];
         let newCol = movingSub.col + colDeltas[direction];
         if (0 <= newRow && newRow <= this.state.board.length &&
-            0 <= newCol && newCol <= this.state.board[0].length &&
-            this.state.board[newRow][newCol] !== LAND) {
+          0 <= newCol && newCol <= this.state.board[0].length &&
+          this.state.board[newRow][newCol] !== LAND) {
           if (!movingSub.past_track.some(p => p.row === newRow && p.col === newCol)) {
             if (!movingSub.mines.some(m => m.row === newRow && m.col === newCol)) {
               movingSub.row = newRow;
               movingSub.col = newCol;
-              movingSub.past_track.push({row: newRow, col: newCol});
+              movingSub.past_track.push({ row: newRow, col: newCol });
               movingSub.submarineState = SubmarineStates.MOVED;
               // Reset, since might be set from prior movement.
               this.#setStateDataMOVED(movingSub, direction);
@@ -371,13 +377,11 @@ export class LogicalServer {
         }
       }
     }
-
-    this.state.version++;
   }
 
   #setStateDataMOVED(
       /**@type {ReturnType<typeof this.createSubmarine>} */ sub,
-      direction) {
+    direction) {
     sub.submarineStateData.MOVED = {
       engineerCrossedOutSystem: false,
       xoChargedGauge: sub.actionGauges.mine === 3 &&
@@ -394,30 +398,17 @@ export class LogicalServer {
     if (sub && sub.submarineState === SubmarineStates.MOVED) {
       let stateData = sub.submarineStateData[sub.submarineState];
       if (!stateData.xoChargedGauge) {
-        let gaugeIsValid = Object.keys(sub.actionGauges).some(k => k === gauge);
-        if (gaugeIsValid) {
-          let max = 3;
-          if (gauge === 'silence')
-            max = 5;
-
-          if (sub.actionGauges[gauge] < max) {
-            sub.actionGauges[gauge]++;
-            stateData.xoChargedGauge = true;
-
-            if (stateData.xoChargedGauge && stateData.engineerCrossedOutSystem) {
-              // Reset for next time.
-              stateData.xoChargedGauge = false;
-              stateData.engineerCrossedOutSystem = false;
-              // Back to normal state.
-              sub.submarineState = SubmarineStates.SUBMERGED;
-            }
-
+        let max = gauge === 'silence' ? 5 : 3;
+        if (sub.actionGauges[gauge] < max) {
+          sub.actionGauges[gauge]++;
+          stateData.xoChargedGauge = true;
+          if (stateData.xoChargedGauge && stateData.engineerCrossedOutSystem) {
+            sub.submarineState = SubmarineStates.SUBMERGED;
           }
+          this.state.version++;
         }
       }
     }
-
-    this.state.version++;
   }
 
   crossOffSystem(playerId, direction, slotId) {
@@ -488,10 +479,9 @@ export class LogicalServer {
 
           this.#checkForGameOver();
         }
+        this.state.version++;
       }
     }
-
-    this.state.version++;
   }
 
   surface(playerId) {
@@ -518,8 +508,8 @@ export class LogicalServer {
   /**Returns true if sub can submerge. */
   completeSurfacingTask(playerId) {
     this.state.version++;
-    
-    let {sub, role} = this.#getRoleAndSub(playerId);
+
+    let { sub, role } = this.#getRoleAndSub(playerId);
     if (!sub || !role)
       return;
 
@@ -558,7 +548,7 @@ export class LogicalServer {
   silence(playerId, direction, spaces) {
     this.state.version++;
 
-    let {sub} = this.#getRoleAndSub(playerId);
+    let { sub } = this.#getRoleAndSub(playerId);
     if (!sub || sub.submarineState !== SubmarineStates.SUBMERGED || this.state.phase !== GlobalPhases.LIVE)
       return;
 
@@ -585,11 +575,11 @@ export class LogicalServer {
       let nextCol = newCol + colDeltas[direction];
 
       if (nextRow < 0 || nextRow >= this.state.board.length
-          || nextCol < 0 || nextCol >= this.state.board[nextRow].length
-          || this.state.board[nextRow][nextCol] !== WATER)
+        || nextCol < 0 || nextCol >= this.state.board[nextRow].length
+        || this.state.board[nextRow][nextCol] !== WATER)
         break;
       else {
-        sub.past_track.push({row: nextRow, col: nextCol});
+        sub.past_track.push({ row: nextRow, col: nextCol });
         newRow = nextRow;
         newCol = nextCol;
       }
@@ -603,7 +593,7 @@ export class LogicalServer {
 
     if (this.state.phase !== GlobalPhases.LIVE)
       return;
-    
+
     let sub = this.getSub(playerId);
     if (!sub || sub.submarineState !== SubmarineStates.SUBMERGED)
       return;
@@ -669,7 +659,7 @@ export class LogicalServer {
     if (sub.mines.some(m => m.row === row && m.col === col))
       return;
 
-    sub.mines.push({row, col});
+    sub.mines.push({ row, col });
   }
 
   triggerMine(playerId, row, col) {
@@ -701,7 +691,7 @@ export class LogicalServer {
   }
 
   #doDamage(row, col) {
-    let damagedSubs = this.state.submarines.filter(s => Math.abs(s.row - row) < 2 && Math.abs(s.col - col) < 2).map(s => ({subId: s.id, damage: s.col === col && s.row === row ? 2 : 1}));
+    let damagedSubs = this.state.submarines.filter(s => Math.abs(s.row - row) < 2 && Math.abs(s.col - col) < 2).map(s => ({ subId: s.id, damage: s.col === col && s.row === row ? 2 : 1 }));
 
     damagedSubs.forEach(d => {
       let s = this.state.submarines.find(s => s.id === d.subId);
@@ -722,4 +712,5 @@ export class LogicalServer {
       role: !sub ? undefined : Object.keys(sub).find(k => sub[k] === playerId),
     };
   }
+
 }

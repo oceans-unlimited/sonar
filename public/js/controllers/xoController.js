@@ -4,6 +4,7 @@ import { SystemColors } from "../core/uiStyle.js";
 import { simulationClock } from "../core/clock/simulationClock.js";
 import { interruptManager } from "../features/interrupts/InterruptManager.js";
 import { getInterruptUIOptions } from "../renderers/interrupts/interruptUIConfigs.js";
+import { socketManager } from "../core/socketManager.js";
 
 /**
  * XO Controller
@@ -64,6 +65,10 @@ export class XOController {
         };
         window.addEventListener('keydown', this._onKeyDown);
 
+        // 3. Socket Handling
+        socketManager.on('stateUpdate', (state) => this.handleStateUpdate(state));
+        if (socketManager.lastState) this.handleStateUpdate(socketManager.lastState);
+
         // Interrupt Handling
         interruptManager.subscribe((event, interrupt) => {
             if (event === 'interruptStarted' || event === 'interruptUpdated') {
@@ -100,6 +105,61 @@ export class XOController {
         if (this.renderer.scene) {
             this.renderer.scene.emit('hide_interrupt_overlay');
         }
+    }
+
+    handleStateUpdate(state) {
+        if (!state || !socketManager.playerId) return;
+
+        const mySub = state.submarines.find(sub =>
+            sub.co === socketManager.playerId ||
+            sub.xo === socketManager.playerId ||
+            sub.sonar === socketManager.playerId ||
+            sub.eng === socketManager.playerId
+        );
+
+        if (!mySub) return;
+
+        // Sync levels
+        Object.keys(this.subsystemLevels).forEach(key => {
+            if (mySub.actionGauges[key] !== undefined) {
+                this.subsystemLevels[key] = mySub.actionGauges[key];
+                this.updateFills(key);
+            }
+        });
+
+        const isLive = state.phase === 'LIVE';
+        const isPostMove = mySub.submarineState === 'POST_MOVEMENT';
+        const hasCharged = isPostMove && mySub.submarineStateData.POST_MOVEMENT?.xoChargedGauge;
+        const isClockRunning = simulationClock.isRunning();
+
+        this.renderer.views.subsystems.forEach((row, key) => {
+            const isFull = this.subsystemLevels[key] >= this.maxLevels[key];
+
+            if (!isLive || !isClockRunning) {
+                this.setRowDisabled(key);
+                return;
+            }
+
+            if (isPostMove) {
+                if (hasCharged) {
+                    this.setRowDisabled(key);
+                } else {
+                    if (isFull) {
+                        this.setRowDisabled(key); // Cannot charge if already full
+                    } else {
+                        this.setRowActive(key);
+                        // Optional: pulse highlight to indicate action required?
+                    }
+                }
+            } else {
+                // NORMAL LIVE STATE
+                if (isFull) {
+                    this.setReadyToDischarge(key);
+                } else {
+                    this.setRowDisabled(key); // Cannot charge during normal running (CO must move first)
+                }
+            }
+        });
     }
 
     handleInterruptAction(action) {
@@ -189,48 +249,20 @@ export class XOController {
             return;
         }
 
-        // 1. Charge
-        this.subsystemLevels[key]++;
-        this.updateFills(key);
-        console.log(`[XOController] Charged ${key}: ${this.subsystemLevels[key]}/${max}`);
-
-        // 2. Charging Event Sync: If full -> ReadyToDischarge, else Disabled
-        this.renderer.views.subsystems.forEach((_, k) => {
-            if (this.subsystemLevels[k] >= this.maxLevels[k]) {
-                this.setReadyToDischarge(k);
-            } else {
-                this.setRowDisabled(k);
-            }
-        });
-
-        // Stub socket call
-        console.log(`[XOController] Stub: Charging gauge ${key}`);
+        // 1. Charge (via Server)
+        console.log(`[XOController] Requesting charge for ${key}`);
+        socketManager.chargeGauge(key);
     }
 
     discharge(key) {
-        this.subsystemLevels[key] = 0;
-        this.updateFills(key);
-        console.log(`[XOController] Discharged ${key}`);
-
-        // Discharge behavior: this row becomes disabled
-        this.setRowDisabled(key);
-
-        // Stub socket call
-        console.log(`[XOController] Stub: Discharging ${key}`);
+        console.log(`[XOController] Requesting discharge for ${key}`);
+        // TODO: Implement discharge on server
+        // For now, it stays a client-side stub or we add a server trigger
+        socketManager.socket.emit('discharge_gauge', key);
     }
 
     handleMove() {
-        if (!simulationClock.isRunning()) return;
-        console.log("[XOController] Handling Move (Mocked by M Key)");
-
-        // Move Event Sync: If full -> Disabled, else Active
-        this.renderer.views.subsystems.forEach((_, key) => {
-            if (this.subsystemLevels[key] >= this.maxLevels[key]) {
-                this.setRowDisabled(key);
-            } else {
-                this.setRowActive(key);
-            }
-        });
+        // This was a legacy mock, no longer needed as we sync from server
     }
 
     destroy() {

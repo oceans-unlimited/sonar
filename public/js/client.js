@@ -71,34 +71,25 @@ window.interruptController = interruptController;
     six_gauge_fill6: await Assets.load('assets/ui/6_gauge_fill6.svg'),
     scenario_sys: await Assets.load('assets/ui/scenario_sys.svg'),
     button: await Assets.load('assets/ui/button.svg'),
+    filled_box: await Assets.load('assets/ui/filled_box.svg'),
     pause: await Assets.load('assets/ui/pause.svg'),
     captain_badge: await Assets.load('assets/ui/cpt.svg'),
     arrow: await Assets.load('assets/ui/arrow.svg'),
+    ownship: await Assets.load('assets/ui/ownship.svg'),
+    map_select: await Assets.load('assets/ui/map_select.svg'),
+    reticule: await Assets.load('assets/ui/reticule.svg'),
+    map_dot: await Assets.load('assets/ui/map_dot.svg'),
   };
+
 
   await SceneManager.init(app, assets, socketManager, audioManager);
 
-  document.getElementById('sceneTitleBtn').addEventListener('click', () => {
-    SceneManager.changeScene('title');
-  });
-  document.getElementById('sceneMenuBtn').addEventListener('click', () => {
-    SceneManager.changeScene('menu');
-  });
-  document.getElementById('sceneConnBtn').addEventListener('click', () => {
-    SceneManager.changeScene('conn');
-  });
-  document.getElementById('sceneDebugRotationBtn').addEventListener('click', () => {
-    SceneManager.changeScene('debugRotation');
-  });
-  document.getElementById('sceneLobbyBtn').addEventListener('click', () => {
-    SceneManager.changeScene('lobby');
-  });
-  document.getElementById('sceneEngineBtn').addEventListener('click', () => {
-    SceneManager.changeScene('engine');
-  });
-  document.getElementById('sceneXoBtn').addEventListener('click', () => {
-    SceneManager.changeScene('xo');
-  });
+  const sceneSelector = document.getElementById('sceneSelector');
+  if (sceneSelector) {
+    sceneSelector.addEventListener('change', (e) => {
+      SceneManager.changeScene(e.target.value);
+    });
+  }
 
   document.getElementById('triggerPauseBtn').addEventListener('click', () => {
     window.interruptController.requestPause();

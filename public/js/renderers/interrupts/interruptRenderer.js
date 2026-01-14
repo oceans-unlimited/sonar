@@ -21,8 +21,11 @@ export function renderInterruptUI(app, assets, options = {}) {
     const availableButtons = options.availableButtons || [];
     const buttonOverrides = options.buttonOverrides || {};
 
-    // Ready/Thumb indicator (shown if showReadyIndicator is true or if isReady is defined)
-    if (options.showReadyIndicator || typeof options.isReady !== 'undefined') {
+    // Ready/Thumb indicator
+    // Show if explicitly requested, OR if isReady is defined AND showReadyIndicator is NOT explicitly false
+    const shouldShowThumb = options.showReadyIndicator === true || (typeof options.isReady !== 'undefined' && options.showReadyIndicator !== false);
+
+    if (shouldShowThumb) {
         const thumb = new PIXI.Sprite(assets.thumb);
         thumb.anchor.set(0.5);
         thumb.width = 40;
@@ -61,22 +64,38 @@ export function renderInterruptUI(app, assets, options = {}) {
     layers.primary.addChild(msgText);
 
     const buttons = buildInterruptButtons({
+        app,    // Pass app
+        assets, // Pass assets
         onInterrupt: options.onInterrupt,
         availableButtons,
         buttonOverrides
     });
+
+
     layers.primary.addChild(buttons.container);
     buttons.container.position.set(0, 80); // Offset buttons down further to avoid thumb overlap
 
     root.interruptButtons = buttons;
 
-    // Center the background in the overlay root if no position provided
+    // Center or align to area
     if (options.center) {
         layers.primary.position.set(
             (app.screen.width - 420) / 2,
             (app.screen.height - 160) / 2
         );
+    } else if (options.area === 'control_panel') {
+        const padding = 20;
+        layers.primary.position.set(
+            app.screen.width - 420 - padding,
+            (app.screen.height - 160) / 2
+        );
+        // Disable dimmer for side-panel interrupts to allow map interaction
+        if (layers.dimmer) {
+            layers.dimmer.visible = false;
+            layers.dimmer.eventMode = 'none';
+        }
     }
+
 
     return root;
 }

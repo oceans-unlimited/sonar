@@ -18,12 +18,14 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
 
   // Define server-side logic for web socket connections.
   ioServer.on("connection", (socket) => {
+    // Use persistent playerId if provided (e.g., from localStorage on Pi/Client), else fallback to socket.id
+    const playerId = socket.handshake.auth?.playerId || socket.id;
 
     socket.on("disconnect", () => {
-      log(`Player disconnected: ${socket.id}`);
+      log(`Player disconnected: ${playerId} (socket: ${socket.id})`);
 
       const wasInGame = logicalServer.state.phase === 'LIVE' || logicalServer.state.phase === 'INTERRUPT';
-      logicalServer.disconnect(socket.id);
+      logicalServer.disconnect(playerId);
 
       if (wasInGame) {
         log('Broadcasting player disconnect interrupt');
@@ -36,29 +38,29 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
 
 
     socket.on("change_name", new_name => {
-      log(`Player ${socket.id} changed name to ${new_name}`);
+      log(`Player ${playerId} changed name to ${new_name}`);
 
-      logicalServer.changeName(socket.id, new_name);
+      logicalServer.changeName(playerId, new_name);
 
       log('Broadcasting state update after name change');
       ioServer.emit("state", logicalServer.state);
     });
 
     socket.on("select_role", ({ submarine, role }) => {
-      logicalServer.selectRole(socket.id, submarine, role);
+      logicalServer.selectRole(playerId, submarine, role);
       log('Broadcasting state update after role selection');
       ioServer.emit("state", logicalServer.state);
     });
 
     socket.on("leave_role", () => {
-      log(`Player ${socket.id} left their role`);
-      logicalServer.leaveRole(socket.id);
+      log(`Player ${playerId} left their role`);
+      logicalServer.leaveRole(playerId);
       log('Broadcasting state update after leaving role');
       ioServer.emit("state", logicalServer.state);
     })
 
     socket.on("ready", () => {
-      log(`Player ${socket.id} is ready`);
+      log(`Player ${playerId} is ready`);
 
       logicalServer.ready(socket.id);
       if (logicalServer.state.phase === GlobalPhases.GAME_BEGINNING) {
@@ -75,15 +77,14 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
     });
 
     socket.on("not_ready", () => {
-      log(`Player ${socket.id} is not ready`);
-      logicalServer.notReady(socket.id);
+      log(`Player ${playerId} is not ready`);
+      logicalServer.notReady(playerId);
       log('Broadcasting state update after not ready');
       ioServer.emit("state", logicalServer.state);
     });
 
     socket.on("choose_initial_position", ({ row, column }) => {
-      let columnLetter = String.fromCharCode('A'.charCodeAt(0) + column);
-      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to chose initial position row ${row}, column ${columnLetter} (${column}).`);
+      log(`Player ${logicalServer.playerName(playerId)} (${playerId}) chose initial position (${row}, ${column}).`);
 
       let allSubsHaveChosen = logicalServer.chooseInitialPosition(socket.id, row, column);
       if (allSubsHaveChosen) {
@@ -112,8 +113,8 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
     });
 
     socket.on("request_pause", () => {
-      log(`Player ${logicalServer.playerName(socket.id)} requested pause`);
-      logicalServer.requestPause(socket.id);
+      log(`Player ${logicalServer.playerName(playerId)} requested pause`);
+      logicalServer.requestPause(playerId);
       ioServer.emit("state", logicalServer.state);
     });
 
@@ -146,27 +147,25 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
     });
 
     socket.on("move", (direction) => {
-      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to move ${direction}.`);
+      log(`Player ${logicalServer.playerName(playerId)} (${playerId}) attempted to move ${direction}.`);
 
-      logicalServer.move(socket.id, direction);
+      logicalServer.move(playerId, direction);
 
       log('Broadcasting state update after attempted movement.');
-      logicalServer.state.version++;
       ioServer.emit("state", logicalServer.state);
     });
 
     socket.on('charge_gauge', (gauge) => {
-      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to charge gauge ${gauge}.`);
+      log(`Player ${logicalServer.playerName(playerId)} (${playerId}) attempted to charge gauge ${gauge}.`);
 
-      logicalServer.chargeGauge(socket.id, gauge);
+      logicalServer.chargeGauge(playerId, gauge);
 
       log('Broadcasting state update after attempt to charge gauge.');
-      logicalServer.state.version++;
       ioServer.emit("state", logicalServer.state);
     });
 
     socket.on('cross_off_system', ({ direction, slotId }) => {
-      log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to cross off slot ${direction}, ${slotId}.`);
+      log(`Player ${logicalServer.playerName(playerId)} (${playerId}) attempted to cross off slot ${direction}, ${slotId}.`);
 
       logicalServer.crossOffSystem(socket.id, direction, slotId);
       if (logicalServer.state.phase === GlobalPhases.GAME_OVER) {
@@ -203,16 +202,16 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
       ioServer.emit("state", logicalServer.state);
     });
 
-    socket.on('silence', ({/**@type {'N' | 'S' | 'E' | 'W'} */ direction, /**@type {number} */ spaces}) => {
+    socket.on('silence', ({/**@type {'N' | 'S' | 'E' | 'W'} */ direction, /**@type {number} */ spaces }) => {
       log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted silence.`);
 
       logicalServer.silence(socket.id, direction, spaces);
-      
+
       log('Broadcasting state update after silence attempt.');
       ioServer.emit("state", logicalServer.state);
     });
 
-    socket.on('launch_torpedo', ({row, col}) => {
+    socket.on('launch_torpedo', ({ row, col }) => {
       log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted torpedo launch.`);
 
       logicalServer.launchTorpedo(socket.id, row, col);
@@ -227,13 +226,13 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
       ioServer.emit("state", logicalServer.state);
     });
 
-    socket.on('drop_mine', ({row, col}) => {
+    socket.on('drop_mine', ({ row, col }) => {
       log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to drop a mine.`);
       logicalServer.dropMine(socket.id, row, col);
       ioServer.emit("state", logicalServer.state);
     })
 
-    socket.on('trigger_mine', ({row, col}) => {
+    socket.on('trigger_mine', ({ row, col }) => {
       log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to trigger a mine.`);
       logicalServer.triggerMine(socket.id, row, col);
       if (logicalServer.state.phase === GlobalPhases.INTERRUPT && logicalServer.startGame.activeInterrupt.type === InterruptTypes.MINE_TRIGGER_RESOLUTION) {
@@ -246,12 +245,13 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
       ioServer.emit("state", logicalServer.state);
     });
 
-    logicalServer.addPlayer(socket.id);
+    logicalServer.addPlayer(playerId);
 
-    log(`Player connected: ${socket.id} (${logicalServer.playerName(socket.id)})`);
-    socket.emit("player_id", socket.id);
+    log(`Player connected: ${playerId} (socket: ${socket.id})`);
+    socket.emit("player_id", playerId);
     ioServer.emit("state", logicalServer.state);
   });
+
 
   // Start and return the actual server.
   httpServer.listen(port, () => {

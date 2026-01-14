@@ -22,13 +22,14 @@ export const Font = {
   family: "Orbitron",
   size: 22,
   lineHeight: 30,
-  letterSpacing: 2,
+  letterSpacing: 3,
   uppercase: true,
 };
 
 // Bolder weight, good for titles, headings
 export const headerFont = {
   family: "Goldman",
+  fontWeight: "bold",
   size: 30,
   lineHeight: 30,
   letterSpacing: 2,

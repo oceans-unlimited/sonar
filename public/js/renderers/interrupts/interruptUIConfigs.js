@@ -61,8 +61,12 @@ export function getInterruptUIOptions(interrupt, isReady, playerRole) {
             options.buttonOverrides = {
                 pause: { label: isReady ? "CONFIRMED" : "CONFIRM POSITION", color: isReady ? 0x00ff00 : 0x3b82f6 }
             };
+            options.showReadyIndicator = true; // Explicitly show thumb for Captain
         } else {
             options.message = "Captains are choosing starting positions...";
+            options.availableButtons = [];
+            options.buttonOverrides = {};
+            options.showReadyIndicator = false; // Explicitly hide thumb
         }
     }
     // TORPEDO_RESOLUTION & SCENARIO_ACTION (In-Game, Visual only)

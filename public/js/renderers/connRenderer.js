@@ -17,9 +17,9 @@ export class ConnRenderer {
             controlsPanel: null,
             helmButtons: new Map(),
             systemRows: new Map(),
-            dataOverlay: null,
             root: null
         };
+
     }
 
     render(parent) {
@@ -59,17 +59,15 @@ export class ConnRenderer {
         // 5. System Rows
         this.renderSystemRows(buttonsContainer, CONTROLS_WIDTH);
 
-        // 6. Data Overlay
-        this.renderDataOverlay(root);
-
         return {
+
             root,
             mapContainer: this.views.mapContainer,
             controlsPanel: this.views.controlsPanel,
             helmButtons: this.views.helmButtons,
-            systemRows: this.views.systemRows,
-            dataOverlay: this.views.dataOverlay
+            systemRows: this.views.systemRows
         };
+
     }
 
     renderHeader(parent, width) {
@@ -217,17 +215,4 @@ export class ConnRenderer {
         return row;
     }
 
-    renderDataOverlay(parent) {
-        this.views.dataOverlay = new PIXI.Container();
-        this.views.dataOverlay.x = 20;
-        this.views.dataOverlay.y = this.app.screen.height - 100;
-        parent.addChild(this.views.dataOverlay);
-
-        const posText = new PIXI.Text({
-            text: 'POSITION: H8\nSECTOR: 5',
-            style: { fontFamily: Font.family, fontSize: 16, fill: Colors.roleSonar }
-        });
-        this.views.dataOverlay.addChild(posText);
-        this.views.posText = posText;
-    }
 }

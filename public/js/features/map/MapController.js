@@ -1,9 +1,12 @@
 import * as PIXI from 'pixi.js';
 import { MapConstants, MapStates, MapIntents } from './mapConstants.js';
-import { animateMapZoom, animateMapPosition } from './mapEffects.js';
+import { animateMapZoom, animateMapPosition, animateDetonation } from './mapEffects.js';
 import { MapUtils } from '../../utils/mapUtils.js';
+import { MapMenuRenderer } from './MapMenuRenderer.js';
 import { socketManager } from '../../core/socketManager.js';
-import { SystemColors } from '../../core/uiStyle.js';
+import { interruptManager } from '../interrupts/InterruptManager.js';
+import { InterruptTypes } from '../interrupts/InterruptTypes.js';
+import { Colors, SystemColors } from '../../core/uiStyle.js';
 
 
 /**
@@ -12,19 +15,35 @@ import { SystemColors } from '../../core/uiStyle.js';
  * Stubbed/Mocked server interaction per user request.
  */
 export class MapController {
-    constructor(app, renderer, behaviors) {
+    constructor(app, renderer, behaviors, assets) {
         this.app = app;
         this.renderer = renderer;
         this.behaviors = behaviors;
+        this.assets = assets;
 
         this.state = MapStates.SELECTING; // Default state
-        this.intent = null;
+        this.intent = MapIntents.WAYPOINT; // Default to WAYPOINT, persists between selections
         this.isCentered = true;
 
         this.previewSquare = null; // formerly hoveredSquare
         this.selectedSquare = null;
-        this.ownship = { row: 7, col: 7 }; // Default placeholder
+        this.ownship = { row: 7, col: 7, pastTrack: [], mines: [] }; // Default placeholder
+        this.showOwnship = true; // Visibility preference
         this.terrain = null;
+
+        // Intent-specific persistent data
+        this.waypoints = { current: null }; // { current: {row, col} }
+        this.targets = { torpedo: null }; // { torpedo: {row, col} }
+        this.marks = []; // Array of {row, col}, max 5
+
+        // Stored coordinates for persistent elements (for repositioning on zoom)
+        this.storedWaypoint = null;
+        this.storedTorpedoTarget = null;
+        this.storedMarks = [];
+
+        this.tracks = {
+            ownship: { color: Colors.text, visible: true, maskCurrentPosition: true }
+        };
 
         this.inactivityTimer = null;
         this.startInactivityTimer();
@@ -33,6 +52,9 @@ export class MapController {
         this.targetPos = new PIXI.Point(7, 7); // Default center
 
         this.zoomLevels = [90, 60, 30];
+
+        // Initialize menu renderer
+        this.menuRenderer = new MapMenuRenderer(renderer, assets);
 
         this.init();
     }
@@ -49,7 +71,7 @@ export class MapController {
 
         // Exit Logic
         if (this.state === MapStates.SELECTING && newState !== MapStates.SELECTING) {
-            this.intent = null;
+            // Only clear selection, keep intent persistent
             this.clearSelection();
         }
 
@@ -79,19 +101,46 @@ export class MapController {
     }
 
     init() {
+        // Store references for cleanup
+        this._stateUpdateHandler = (state) => this.handleStateUpdate(state);
+        this._interruptHandler = (event, interrupt) => {
+            if (event === 'interruptStarted' && interrupt.type === InterruptTypes.TORPEDO_RESOLUTION) {
+                this.handleDetonationInterrupt(interrupt.payload);
+            }
+        };
+
         // Listen for state updates from the socket
-        socketManager.on('stateUpdate', (state) => this.handleStateUpdate(state));
+        socketManager.on('stateUpdate', this._stateUpdateHandler);
 
         // Handle immediate initialization if state is already available
         if (socketManager.lastState) {
             this.handleStateUpdate(socketManager.lastState);
         }
 
+        // Listen for menu selections
+        this.renderer.container.on('map:menuSelected', (data) => this.handleMenuSelection(data));
+
+        // Listen for interrupts
+        interruptManager.subscribe(this._interruptHandler);
+
         this.renderer.renderMap();
         this.renderer.clampPosition();
     }
 
+    destroy() {
+        if (this._stateUpdateHandler) {
+            socketManager.off('stateUpdate', this._stateUpdateHandler);
+        }
+        if (this._interruptHandler) {
+            interruptManager.unsubscribe(this._interruptHandler);
+        }
+        if (this.inactivityTimer) {
+            clearTimeout(this.inactivityTimer);
+        }
+    }
+
     handleStateUpdate(state) {
+
         if (!state || !socketManager.playerId) return;
 
         // Find which submarine the local player belongs to
@@ -103,6 +152,10 @@ export class MapController {
         );
 
         if (mySub) {
+            // Track previous position to detect movement
+            const previousRow = this.ownship.row;
+            const previousCol = this.ownship.col;
+
             // Update Ownship State with Server Data Model
             this.ownship = {
                 row: mySub.row,
@@ -112,19 +165,39 @@ export class MapController {
                 state: mySub.submarineState
             };
 
+            // Re-center map on ownship if position has changed
+            if (previousRow !== this.ownship.row || previousCol !== this.ownship.col) {
+                const newCenter = new PIXI.Point(this.ownship.col, this.ownship.row);
+                // Force re-center even if animating (e.g. after a detonation)
+                this.centerOnPosition(newCenter, null, false, true);
+                console.log(`[MapController] Re-centering on ownship at (${this.ownship.row}, ${this.ownship.col})`);
+            }
+
             // Tint if in START_POSITIONS
             const isStartPositions = state.phase === 'INTERRUPT' && state.activeInterrupt?.type === 'START_POSITIONS';
             const hasChosen = state.gameStateData?.choosingStartPositions?.submarineIdsWithStartPositionChosen?.includes(mySub.id);
 
             if (isStartPositions) {
                 if (hasChosen) {
-                    this.renderer.updateOwnship(this.ownship.row, this.ownship.col, SystemColors.detection);
-                } else if (this.renderer.ownshipSprite) {
-                    this.renderer.ownshipSprite.visible = false;
+                    this.renderer.updateOwnship(this.ownship.row, this.ownship.col, SystemColors.detection, true);
+                } else {
+                    this.renderer.updateOwnship(this.ownship.row, this.ownship.col, Colors.text, false);
                 }
             } else {
-                this.renderer.updateOwnship(this.ownship.row, this.ownship.col);
+                this.renderer.updateOwnship(this.ownship.row, this.ownship.col, Colors.text, this.showOwnship);
             }
+
+            // Update past track visualization
+            // Programmatic masking: hide track node at ownship grid square when sprite is visible
+            const maskCurrentPosition = this.renderer.ownshipSprite?.visible || false;
+
+            // Sync current masking state to track config
+            this.tracks.ownship.maskCurrentPosition = maskCurrentPosition;
+
+            this.renderer.updateTrack('ownship', this.ownship.pastTrack, {
+                ...this.tracks.ownship
+            });
+
             this.syncHUD();
         } else if (this.renderer.ownshipSprite) {
             this.renderer.ownshipSprite.visible = false;
@@ -159,14 +232,31 @@ export class MapController {
             this.renderer.renderMap();
         }
         this.renderer.clampPosition();
+
+        // Update persistent element positions after resize
+        this.updatePersistentElementPositions();
     }
 
     setZoom(targetScale) {
         if (this.state === MapStates.ANIMATING) return; // Lock during animation
         this.setState(MapStates.ANIMATING);
         this.isCentered = false;
+
+        // Hide overlays during zoom, but store original visibility
+        const trackWasVisible = this.renderer.trackLayer.visible;
+        const hoverWasVisible = this.renderer.hoverLayer.visible;
+
+        this.renderer.trackLayer.visible = false;
+        this.renderer.hoverLayer.visible = false;
+
         animateMapZoom(this.app, this.renderer, targetScale, MapConstants.ZOOM_ANIMATION_DURATION, () => {
+            // Restore overlays to their previous visibility state
+            this.renderer.trackLayer.visible = trackWasVisible;
+            this.renderer.hoverLayer.visible = hoverWasVisible;
+
             this.setState(MapStates.SELECTING);
+            // Update persistent element positions after zoom
+            this.updatePersistentElementPositions();
         });
     }
 
@@ -204,9 +294,11 @@ export class MapController {
     }
 
     onInactivity() {
-        // If inactive in SELECTING, re-center
+        // If inactive in SELECTING, re-center on ownship
         if (this.state === MapStates.SELECTING) {
-            this.centerOnPosition();
+            console.log('[MapController] Inactivity triggered, returning to ownship');
+            const ownshipPos = new PIXI.Point(this.ownship.col, this.ownship.row);
+            this.centerOnPosition(ownshipPos);
         }
     }
 
@@ -218,7 +310,14 @@ export class MapController {
         return true;
     }
 
-    centerOnPosition(pos = this.targetPos) {
+    /**
+     * Centers the map on a specific grid position with a smooth animation
+     * @param {object} pos - {x, y} grid coordinates
+     * @param {function} onComplete - Callback after animation finishes
+     * @param {boolean} keepAnimating - If true, stays in ANIMATING state (for sequences)
+     * @param {boolean} force - If true, allows triggering even if currently animating
+     */
+    centerOnPosition(pos = this.targetPos, onComplete = null, keepAnimating = false, force = false) {
         this.targetPos = pos;
 
         const centerX = this.renderer.maskWidth / 2 + MapConstants.LABEL_GUTTER;
@@ -231,14 +330,52 @@ export class MapController {
         const targetY = centerY - mapY;
 
         // Smooth transition via mapEffects
-        if (this.state === MapStates.ANIMATING) return;
+        if (this.state === MapStates.ANIMATING && !onComplete && !force) return; // Allow if part of a sequence
         this.setState(MapStates.ANIMATING);
 
         animateMapPosition(this.app, this.renderer, targetX, targetY, 400, () => {
             this.isCentered = true;
-            this.setState(MapStates.SELECTING);
+            if (!keepAnimating) {
+                this.setState(MapStates.SELECTING);
+            }
+            if (onComplete) onComplete();
         });
     }
+
+    /**
+     * Handles detonation animation sequence
+     * @param {object} payload - { row, col }
+     */
+    handleDetonationInterrupt(payload) {
+        if (!payload || payload.row === undefined || payload.col === undefined) return;
+
+        const { row, col } = payload;
+        console.log(`%c[MapController]%c Detonation triggered at ${row}, ${col}`, 'color: #ff0000; font-weight: bold;', '');
+
+        // 1. Lock state & Hide overlays
+        this.setState(MapStates.ANIMATING);
+        const hudWasVisible = this.renderer.hud.visible;
+        const trackWasVisible = this.renderer.trackLayer.visible;
+
+        this.renderer.hud.visible = false;
+        this.renderer.trackLayer.visible = false;
+
+        // 2. Pan to target
+        const targetPos = new PIXI.Point(col, row);
+        this.centerOnPosition(targetPos, () => {
+            // 3. Detonate
+            animateDetonation(this.app, this.renderer, row, col, () => {
+                // 4. Unlock state & Restore overlays
+                this.renderer.hud.visible = hudWasVisible;
+                this.renderer.trackLayer.visible = trackWasVisible;
+
+                this.setState(MapStates.SELECTING);
+                this.isCentered = false; // Ensure inactivity timer kicks in
+                this.handleActivity();
+            });
+        }, true); // keepAnimating = true
+    }
+
 
     // Square Selection
     // Input Handling Commands (from Behaviors)
@@ -273,16 +410,7 @@ export class MapController {
         this.renderer.showHover(coords.row, coords.col, isNavigable);
 
         // --- HUD Dispatch ---
-        // Calculate data
-        const range = MapUtils.getRange(this.ownship, coords);
-        const sector = MapUtils.getSector(coords.row, coords.col);
-
-        this.renderer.updateHUD({
-            ownship: this.ownship,
-            target: coords, // Preview acts as target for HUD
-            viewport: null, // Not used extensively yet
-            cursor: null
-        });
+        this.syncHUD(coords);
     }
     handleHoverOut() {
         if (!this.previewSquare) return;
@@ -333,31 +461,47 @@ export class MapController {
         return { x: anchorX, y: anchorY };
     }
 
-    selectSquare(coords) {
+    selectSquare(coords, squareData = null) {
         if (!coords) return;
         const { row, col } = coords;
 
         // Guard order
         if (this.state !== MapStates.SELECTING) return;
         if (this.selectedSquare?.row === row && this.selectedSquare?.col === col) return;
-        if (this.ownship.row === row && this.ownship.col === col) return;
 
         this.selectedSquare = { row, col };
         this.handleHoverOut(); // clear hover
 
-        // Default intent if none exists
+        // Ensure we have a default intent
         if (!this.intent) {
             this.intent = MapIntents.WAYPOINT;
         }
 
+        // Get square data for menu decisions (use provided or get fresh)
+        const finalSquareData = squareData || MapUtils.getSquareData(coords, this.ownship, this.terrain, this.waypoints, this.targets);
+
         const systemName = this.getSystemForIntent(this.intent);
-        this.renderer.highlightSelection(row, col, systemName);
+
+        // Enter ANIMATING state to block input during flash
+        this.setState(MapStates.ANIMATING);
+
+        this.renderer.highlightSelection(row, col, systemName, () => {
+            if (this.state === MapStates.ANIMATING) {
+                this.setState(MapStates.SELECTING);
+            }
+        });
+
         this.renderer.emphasizeAxis(row, col);
 
         const anchor = this.getPopupAnchor(row, col);
 
-        // Emit event: map:selectedSquare
-        this.renderer.container.emit('map:selectedSquare', { row, col, anchor });
+        // Emit event: map:selectedSquare with square data
+        this.renderer.container.emit('map:selectedSquare', { row, col, anchor, squareData: finalSquareData });
+
+        // Show intent menu for WAYPOINT intent
+        if (this.intent === MapIntents.WAYPOINT) {
+            this.menuRenderer.showIntentMenu(anchor, finalSquareData, { currentIntent: this.intent });
+        }
 
         this.handleActivity();
     }
@@ -400,6 +544,113 @@ export class MapController {
         }
     }
 
+    /**
+     * Handles menu selection events
+     * @param {object} data - Menu selection data
+     */
+    handleMenuSelection(data) {
+        const { menuType, option, squareData } = data;
+
+        if (menuType === 'context') {
+            // Context menu changes intent
+            this.setIntent(option.intent);
+        } else if (menuType === 'intent') {
+            // Intent menu performs action
+            if (option.action === 'cancel') {
+                // Cancel waypoint
+                this.clearWaypoint();
+            } else {
+                // Set waypoint
+                this.setWaypoint(squareData.coords);
+            }
+        }
+    }
+
+    /**
+     * Sets a waypoint at the given coordinates
+     * @param {object} coords - {row, col}
+     */
+    setWaypoint(coords) {
+        this.waypoints.current = coords;
+        this.storedWaypoint = coords;
+        this.renderer.updateWaypoint(coords);
+        console.log(`[MapController] Waypoint set at ${coords.row}, ${coords.col}`);
+    }
+
+    /**
+     * Clears the current waypoint
+     */
+    clearWaypoint() {
+        this.waypoints.current = null;
+        this.storedWaypoint = null;
+        this.renderer.clearWaypoint();
+        console.log(`[MapController] Waypoint cleared`);
+    }
+
+    /**
+     * Sets a torpedo target
+     * @param {object} coords - {row, col}
+     */
+    setTorpedoTarget(coords) {
+        this.targets.torpedo = coords;
+        this.storedTorpedoTarget = coords;
+        this.renderer.updateTorpedoTarget(coords);
+        console.log(`[MapController] Torpedo target set at ${coords.row}, ${coords.col}`);
+    }
+
+    /**
+     * Clears torpedo target
+     */
+    clearTorpedoTarget() {
+        this.targets.torpedo = null;
+        this.storedTorpedoTarget = null;
+        this.renderer.clearTorpedoTarget();
+        console.log(`[MapController] Torpedo target cleared`);
+    }
+
+    /**
+     * Adds a mark at the given coordinates
+     * @param {object} coords - {row, col}
+     */
+    addMark(coords) {
+        // Limit to 5 marks, remove oldest if needed
+        if (this.marks.length >= 5) {
+            this.marks.shift();
+            this.storedMarks.shift();
+        }
+        this.marks.push(coords);
+        this.storedMarks.push(coords);
+        this.renderer.updateMarks(this.marks);
+        console.log(`[MapController] Mark added at ${coords.row}, ${coords.col}`);
+    }
+
+    /**
+     * Updates positions of persistent elements when map scales/zooms
+     */
+    updatePersistentElementPositions() {
+        if (this.storedWaypoint) {
+            this.renderer.updateWaypoint(this.storedWaypoint);
+        }
+        if (this.storedTorpedoTarget) {
+            this.renderer.updateTorpedoTarget(this.storedTorpedoTarget);
+        }
+        if (this.storedMarks.length > 0) {
+            this.renderer.updateMarks(this.storedMarks);
+        }
+
+        // Call renderer's internal update to handle tracks and other renderer-managed elements
+        this.renderer.updatePersistentElementPositions();
+    }
+
+    /**
+     * Gets current square data for menu decisions
+     * @param {object} coords - {row, col}
+     * @returns {object} Square data
+     */
+    getSquareData(coords) {
+        return MapUtils.getSquareData(coords, this.ownship, this.terrain, this.waypoints, this.targets);
+    }
+
     getSystemForIntent(intent) {
         switch (intent) {
             case MapIntents.TORPEDO:
@@ -419,21 +670,32 @@ export class MapController {
         // Ensure state is valid for selection
         if (this.state !== MapStates.SELECTING) return;
 
-        // If not already selected, select it first to ensure highlight
-        if (!this.selectedSquare || this.selectedSquare.row !== row || this.selectedSquare.col !== col) {
-            this.selectSquare(coords);
-        }
+        // Select the square without showing the intent menu
+        this.selectedSquare = { row, col };
+        this.handleHoverOut(); // clear hover
 
-        // Verify selection succeeded
-        if (this.selectedSquare?.row !== row || this.selectedSquare?.col !== col) return;
+        // Update highlight with current intent color
+        const systemName = this.getSystemForIntent(this.intent);
+        this.renderer.highlightSelection(row, col, systemName);
 
+        this.renderer.emphasizeAxis(row, col);
+
+        // Get square data and show context menu
+        const contextSquareData = MapUtils.getSquareData(coords, this.ownship, this.terrain, this.waypoints, this.targets);
         const anchor = this.getPopupAnchor(row, col);
+
         this.renderer.container.emit('map:openContextMenu', {
             row,
             col,
             anchor,
-            mode: 'intent'
+            squareData: contextSquareData,
+            mode: 'context'
         });
+
+        // Show context menu (for intent switching) - this replaces the intent menu
+        this.menuRenderer.showContextMenu(anchor, contextSquareData, { currentIntent: this.intent });
+
+        this.handleActivity();
     }
 
     inspectSquare(coords) {
@@ -449,19 +711,42 @@ export class MapController {
 
     clearSelection() {
         this.selectedSquare = null;
-        this.intent = null;
+        // Keep intent persistent - don't clear it here
         this.renderer.clearSelection();
         this.renderer.resetAxis();
+        this.menuRenderer.hide(); // Hide any open menus
         this.renderer.container.emit('map:selectionCleared');
         this.syncHUD();
     }
 
-    syncHUD(cursor = null) {
+    syncHUD(cursorOverride = null) {
+        // Auto-show HUD if in interactive states
+        if (this.state === MapStates.SELECTING || this.state === MapStates.PAN) {
+            this.renderer.hud.visible = true;
+        }
+
+        const target = cursorOverride || this.selectedSquare || this.previewSquare;
+
+        // Priority 1: Use focal point (Selection/Cursor)
+        // Priority 2: Fallback to Ownship
+        const focalRow = target ? target.row : this.ownship.row;
+        const anchorPoint = this.getHUDAnchorPoint(focalRow);
+
         this.renderer.updateHUD({
             ownship: this.ownship,
-            target: this.selectedSquare || this.previewSquare,
-            cursor: cursor
-        });
+            target: target
+        }, anchorPoint);
+    }
+
+    /**
+     * Calculates the optimal HUD anchor point to avoid obscuring a specific row.
+     * @param {number} focalRow - Grid row to avoid
+     * @returns {string} 'top' or 'bottom'
+     */
+    getHUDAnchorPoint(focalRow) {
+        const viewportY = focalRow * this.renderer.currentScale + this.renderer.mapContent.y;
+        const threshold = this.renderer.maskHeight / 2;
+        return (viewportY < threshold) ? 'bottom' : 'top';
     }
 
 
@@ -475,6 +760,48 @@ export class MapController {
     chooseInitialPosition(row, col) {
         console.log(`[MapController] Choosing initial position: ${row}, ${col}`);
         socketManager.chooseInitialPosition(row, col);
+    }
+
+    /**
+     * Sets the visibility of the entire track layer
+     * @param {boolean} visible - Whether the track layer should be visible
+     */
+    setTrackLayerVisibility(visible) {
+        this.renderer.setTrackLayerVisibility(visible);
+    }
+
+    /**
+     * Sets the color of a specific track
+     * @param {string} trackId - Track identifier
+     * @param {number} color - Hex color
+     */
+    setTrackColor(trackId, color) {
+        if (!this.tracks[trackId]) {
+            this.tracks[trackId] = { color, visible: true, maskCurrentPosition: false };
+        } else {
+            this.tracks[trackId].color = color;
+        }
+
+        // Re-render if track exists
+        const track = this.renderer.trackGraphics[trackId];
+        if (track) {
+            this.renderer.updateTrack(trackId, track.positions, this.tracks[trackId]);
+        }
+    }
+
+    /**
+     * Sets the visibility of a specific track
+     * @param {string} trackId - Track identifier
+     * @param {boolean} visible - Whether the track should be visible
+     */
+    setTrackVisibility(trackId, visible) {
+        if (this.tracks[trackId]) {
+            this.tracks[trackId].visible = visible;
+            const track = this.renderer.trackGraphics[trackId];
+            if (track) {
+                track.container.visible = visible;
+            }
+        }
     }
 }
 

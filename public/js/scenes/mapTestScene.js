@@ -8,7 +8,7 @@ export async function createMapTestScene(app, assets) {
 
     // 1. Initialize Map System
     const mapSystem = new MapSystem(app, assets);
-    mapSystem.init({ width: 800, height: 600, center: { x: 7, y: 7 } });
+    mapSystem.init({ width: 800, height: 600 });
     mapSystem.show();
     scene.addChild(mapSystem.container);
 
@@ -83,6 +83,38 @@ export async function createMapTestScene(app, assets) {
                 <button id="btn-spoof-pos">Spoof Pos (Use Ownship)</button>
             </div>
         </div>
+
+        <div style="margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px;">
+            <strong>Track Visualization</strong>
+            <div style="margin-top: 5px;">
+                <label><input type="checkbox" id="chk-track-layer" checked> Show Track Layer</label>
+            </div>
+            <div style="margin-top: 5px;">
+                <label><input type="checkbox" id="chk-ownship-sprite" checked> Show Ownship Sprite</label>
+            </div>
+            <div style="margin-top: 5px;">
+                <button id="btn-clear-track">Clear Track History</button>
+            </div>
+            <div style="margin-top: 5px;">
+                <label>Track Color: </label>
+                <input type="color" id="track-color" value="#ffffff" style="width: 50px;">
+            </div>
+            <div style="margin-top: 5px; font-size: 10px; color: #aaa;">
+                Track Length: <span id="track-length">0</span>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px;">
+            <strong>Detonation FX</strong>
+            <div style="margin-top: 5px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px;">
+                <input type="number" id="h-exp-r" placeholder="Row (0-14)" value="7">
+                <input type="number" id="h-exp-c" placeholder="Col (0-14)" value="7">
+            </div>
+            <div style="margin-top: 5px;">
+                <button id="btn-detonate">Trigger Detonation (700ms FX)</button>
+            </div>
+        </div>
+
         
         <div id="harness-log" style="font-size: 10px; height: 100px; overflow-y: scroll; border: 1px solid #333; padding: 2px; margin-top: 10px;">
             Log initialized...
@@ -120,6 +152,31 @@ export async function createMapTestScene(app, assets) {
         log(`Called highlightSelection(${r}, ${c})`);
     });
 
+    document.getElementById('btn-detonate').addEventListener('click', () => {
+        const r = getVal('h-exp-r');
+        const c = getVal('h-exp-c');
+
+        // Ensure we have a primed state for ownship so range calculations work etc.
+        if (!socketManager.playerId) {
+            spoofPosition(currentR, currentC);
+        }
+
+        // Mock the TORPEDO_RESOLUTION interrupt
+        import('../features/interrupts/InterruptManager.js').then(({ interruptManager }) => {
+            import('../features/interrupts/InterruptTypes.js').then(({ InterruptTypes }) => {
+                interruptManager.requestInterrupt(InterruptTypes.TORPEDO_RESOLUTION, { row: r, col: c });
+
+                // End it after animation duration + buffer (e.g., 2.5s)
+                setTimeout(() => {
+                    interruptManager.resolveInterrupt(InterruptTypes.TORPEDO_RESOLUTION);
+                }, 2500);
+            });
+        });
+
+        log(`Triggered Detonation at ${r}, ${c}`);
+    });
+
+
     document.getElementById('btn-vp').addEventListener('click', () => {
         const x = getVal('h-vp-x');
         const y = getVal('h-vp-y');
@@ -132,10 +189,32 @@ export async function createMapTestScene(app, assets) {
     // Spoofing Logic
     let currentR = 7;
     let currentC = 7;
+    let pastTrack = []; // Accumulate track history
+    let trackColor = 0xFFFFFF; // Default white
 
     const spoofPosition = (r, c) => {
+        // Add current position to track before moving if it's the first point or a new move
+        if (pastTrack.length === 0 || pastTrack[pastTrack.length - 1].row !== currentR || pastTrack[pastTrack.length - 1].col !== currentC) {
+            pastTrack.push({ row: currentR, col: currentC });
+        }
+
+        // Limit track to 15 positions
+        if (pastTrack.length > 15) {
+            pastTrack.shift();
+        }
+
         currentR = r;
         currentC = c;
+
+        // Add new position to track
+        pastTrack.push({ row: r, col: c });
+        if (pastTrack.length > 15) {
+            pastTrack.shift();
+        }
+
+        // Update track length display
+        const trackLenSpan = document.getElementById('track-length');
+        if (trackLenSpan) trackLenSpan.textContent = pastTrack.length;
 
         // Ensure we have a player ID for the controller to recognize "us"
         if (!socketManager.playerId) {
@@ -152,7 +231,7 @@ export async function createMapTestScene(app, assets) {
                 co: myId, // Claim we are the captain
                 row: r,     // Server uses row
                 col: c,     // Server uses col
-                past_track: [], // Server uses snake_case
+                past_track: [...pastTrack], // Server uses snake_case
                 mines: [],
                 submarineState: 'SUBMERGED',
                 color: '#00ff00',
@@ -179,13 +258,46 @@ export async function createMapTestScene(app, assets) {
             ]
         };
 
-        log(`Spoofing State: ${r}, ${c}`);
+        log(`Spoofing State: ${r}, ${c} (Track: ${pastTrack.length})`);
         socketManager.emit('stateUpdate', state);
 
         // Also update the harness inputs to match
         document.getElementById('h-own-r').value = r;
         document.getElementById('h-own-c').value = c;
     };
+
+    // Track Visualization Controls
+    document.getElementById('chk-track-layer').addEventListener('change', (e) => {
+        mapSystem.controller.setTrackLayerVisibility(e.target.checked);
+        log(`Track layer visibility: ${e.target.checked}`);
+    });
+
+    document.getElementById('chk-ownship-sprite').addEventListener('change', (e) => {
+        mapSystem.controller.showOwnship = e.target.checked;
+        log(`Ownship visibility set to: ${e.target.checked}`);
+
+        // Re-trigger state update to update masking
+        const state = socketManager.lastState;
+        if (state) socketManager.emit('stateUpdate', state);
+    });
+
+    document.getElementById('btn-clear-track').addEventListener('click', () => {
+        pastTrack = [];
+        const trackLenSpan = document.getElementById('track-length');
+        if (trackLenSpan) trackLenSpan.textContent = '0';
+        mapSystem.renderer.clearTrack('ownship');
+        log('Track history cleared');
+    });
+
+    document.getElementById('track-color').addEventListener('change', (e) => {
+        const hexColor = e.target.value;
+        trackColor = parseInt(hexColor.replace('#', '0x'), 16);
+        log(`Track color changed to: ${hexColor}`);
+        mapSystem.controller.setTrackColor('ownship', trackColor);
+    });
+
+    // We also need to override the initial track update color in MapController for this test scene if needed,
+    // but the MapController uses Colors.text. For the test harness, we'll just let it use white.
 
     document.getElementById('btn-mv-n').addEventListener('click', () => spoofPosition(currentR - 1, currentC));
     document.getElementById('btn-mv-s').addEventListener('click', () => spoofPosition(currentR + 1, currentC));

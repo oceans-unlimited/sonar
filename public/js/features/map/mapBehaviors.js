@@ -33,7 +33,11 @@ export function attachMapBehaviors(app, controller) {
 
     const fireShortClick = (e) => {
         const coords = controller.getGridFromPointer(e.global);
-        if (coords) controller.selectSquare(coords);
+        if (coords) {
+            // Get square data for intent decisions
+            const squareData = controller.getSquareData(coords);
+            controller.selectSquare(coords, squareData);
+        }
     };
 
     const fireContextPress = (e) => {
@@ -194,8 +198,15 @@ export function attachMapBehaviors(app, controller) {
     window.addEventListener('keyup', onKeyUp);
 
     // Mouse Wheel
+    let lastWheelTime = 0;
+    const WHEEL_THROTTLE = 50;
+
     const onWheel = (e) => {
         e.preventDefault();
+        const now = performance.now();
+        if (now - lastWheelTime < WHEEL_THROTTLE) return;
+        lastWheelTime = now;
+
         const direction = e.deltaY > 0 ? -1 : 1;
         controller.stepZoom(direction);
     };

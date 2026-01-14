@@ -1,3 +1,4 @@
+import * as PIXI from 'pixi.js';
 import { MapRenderer } from './MapRenderer.js';
 import { MapController } from './MapController.js';
 import { attachMapBehaviors } from './mapBehaviors.js';
@@ -11,16 +12,22 @@ export class MapSystem {
         this.app = app;
         this.assets = assets;
         this.renderer = new MapRenderer(app, assets);
-        this.controller = new MapController(app, this.renderer);
+        this.controller = new MapController(app, this.renderer, this.behaviors, this.assets);
         this.behaviors = attachMapBehaviors(app, this.controller);
 
         this.container = this.renderer.container;
     }
 
     init(config = {}) {
-        const { width, height, center = { x: 7, y: 7 } } = config;
+        const { width, height } = config;
         this.controller.resize(width, height);
-        this.controller.centerOnPosition(center);
+
+        // Center on current ownship position (from controller's state)
+        const ownshipCenter = new PIXI.Point(
+            this.controller.ownship.col,
+            this.controller.ownship.row
+        );
+        this.controller.centerOnPosition(ownshipCenter);
     }
 
     show() {
@@ -40,8 +47,11 @@ export class MapSystem {
     }
 
     destroy() {
+        if (this.controller) this.controller.destroy();
+        if (this.renderer) this.renderer.destroy();
         if (this.container) {
             this.container.destroy({ children: true });
         }
     }
+
 }

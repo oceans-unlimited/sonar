@@ -58,6 +58,15 @@ export class MapController {
 
         this.viewConfig = { ...this.renderer.viewConfig };
 
+        // Handle external damage animation locks
+        this._onDamageAnimating = ({ active }) => {
+            if (active) {
+                this.setState(MapStates.ANIMATING);
+            } else if (this.state === MapStates.ANIMATING) {
+                this.setState(MapStates.SELECTING);
+            }
+        };
+
         this.init();
     }
 
@@ -103,6 +112,8 @@ export class MapController {
     }
 
     init() {
+        this.app.stage.on('damage:animating', this._onDamageAnimating);
+
         // Store references for cleanup
         this._stateUpdateHandler = (state) => this.handleStateUpdate(state);
         this._interruptHandler = (event, interrupt) => {
@@ -135,6 +146,8 @@ export class MapController {
     }
 
     destroy() {
+        this.app.stage.off('damage:animating', this._onDamageAnimating);
+
         if (this._stateUpdateHandler) {
             socketManager.off('stateUpdate', this._stateUpdateHandler);
         }

@@ -2,6 +2,8 @@ import * as PIXI from "pixi.js";
 import { Colors, Font, SystemColors } from "../core/uiStyle.js";
 import { renderControlPanel } from "./panelRenderer.js";
 import { applyTintColor, applyGlowEffect } from "../ui/effects/glowEffect.js";
+import { DamageRenderer } from "../features/damage/DamageRenderer.js";
+import { DamageController } from "../features/damage/DamageController.js";
 
 /**
  * Conn Renderer
@@ -48,6 +50,13 @@ export class ConnRenderer {
         // 3. Header Info
         this.renderHeader(this.views.controlsPanel, CONTROLS_WIDTH);
 
+        // 4. Damage System Integration
+        this.damageRenderer = new DamageRenderer(this.app, this.assets);
+        this.damageRenderer.mount(this.views.controlsPanel, this.views.subProfile, this.views.subLabel, root);
+        this.damageRenderer.updateLayout(CONTROLS_WIDTH);
+
+        this.damageController = new DamageController(this.app, this.damageRenderer, root);
+
         // 4. Helm Controls
         const buttonsContainer = new PIXI.Container();
         buttonsContainer.x = 20;
@@ -80,6 +89,7 @@ export class ConnRenderer {
         subProfile.scale.set(0.6);
         subProfile.x = 10;
         header.addChild(subProfile);
+        this.views.subProfile = subProfile;
 
         const subLabel = new PIXI.Text({
             text: 'USS OKLAHOMA',
@@ -88,6 +98,7 @@ export class ConnRenderer {
         subLabel.x = 10;
         subLabel.y = 37;
         header.addChild(subLabel);
+        this.views.subLabel = subLabel;
 
         const cptBadge = new PIXI.Sprite(this.assets.captain_badge);
         cptBadge.anchor.set(1, 0);

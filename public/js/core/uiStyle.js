@@ -51,3 +51,30 @@ export const SystemColors = {
   weapons: 0xe74c3c,   // red
   reactor: 0xb3b3b3,   // grey
 };
+
+export const MessageGradients = {
+  toast: {
+    normal: [
+      { offset: 0, color: 0xffffff, alpha: 0.1 }, // Top: low alpha
+      { offset: 0.9, color: 0xffffff, alpha: 0.6 }, // Slightly above bottom: 0.6
+      { offset: 1, color: 0xffffff, alpha: 0.8 }   // Bottom: high alpha
+    ],
+    uniform: [
+      { offset: 0, color: 0xffffff, alpha: 0.5 }, // Top: 0.5
+      { offset: 0.9, color: 0xffffff, alpha: 0.8 }, // Slightly above bottom: 0.8
+      { offset: 1, color: 0xffffff, alpha: 0.8 }   // Bottom: 0.8
+    ]
+  },
+  docked: {
+    normal: [
+      { offset: 0, color: 0xffffff, alpha: 0.1 }, // Top: low alpha
+      { offset: 0.9, color: 0xffffff, alpha: 0.6 }, // Slightly above bottom: 0.6
+      { offset: 1, color: 0xffffff, alpha: 0.8 }   // Bottom: high alpha
+    ],
+    uniform: [
+      { offset: 0, color: 0xffffff, alpha: 0.5 }, // Top: 0.5
+      { offset: 0.9, color: 0xffffff, alpha: 0.8 }, // Slightly above bottom: 0.8
+      { offset: 1, color: 0xffffff, alpha: 0.8 }   // Bottom: 0.8
+    ]
+  }
+};

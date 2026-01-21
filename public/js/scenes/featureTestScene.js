@@ -2,6 +2,7 @@ import * as PIXI from 'pixi.js';
 import { socketManager } from '../core/socketManager.js';
 import { DamageRenderer } from '../features/damage/DamageRenderer.js';
 import { DamageController } from '../features/damage/DamageController.js';
+import { MessagesSystem } from '../features/messages/MessagesSystem.js';
 import { Colors, Font } from '../core/uiStyle.js';
 
 export async function createFeatureTestScene(app, assets) {
@@ -35,7 +36,66 @@ export async function createFeatureTestScene(app, assets) {
     damageController.lastHealth = 4; // Initialize health tracking for testing
     damageRenderer.update(4); // Initialize visual state
 
-    // 3. Create HTML Harness
+    // 3. Initialize Messages Systems (both layouts for testing)
+    const messagesSystemToast = new MessagesSystem(app, assets, {
+        layout: 'toast',
+        width: 400,
+        height: 100
+    });
+
+    messagesSystemToast.init({
+        playerSub: 'sub-test',
+        playerRole: 'captain',
+        socketManager: socketManager
+    });
+
+    // Prime the controller with initial state
+    messagesSystemToast.controller.handleStateUpdate({
+        submarines: [{
+            id: 'sub-test',
+            name: 'USS TEST BED',
+            x: 0,
+            y: 0,
+            health: 4
+        }],
+        phase: 'LIVE'
+    });
+
+    // Position toast somewhat centered (expands upward, ensure full visibility)
+    messagesSystemToast.container.x = app.screen.width / 2 - 200; // Center horizontally
+    messagesSystemToast.container.y = app.screen.height / 2 - 100; // Center vertically (expands to 200px)
+    scene.addChild(messagesSystemToast.container);
+
+    const messagesSystemDocked = new MessagesSystem(app, assets, {
+        layout: 'docked',
+        width: 400,
+        height: 200
+    });
+
+    messagesSystemDocked.init({
+        playerSub: 'sub-test',
+        playerRole: 'captain',
+        socketManager: socketManager
+    });
+
+    // Prime the controller with initial state
+    messagesSystemDocked.controller.handleStateUpdate({
+        submarines: [{
+            id: 'sub-test',
+            name: 'USS TEST BED',
+            x: 0,
+            y: 0,
+            health: 4
+        }],
+        phase: 'LIVE'
+    });
+
+    // Position docked near top
+    messagesSystemDocked.container.x = app.screen.width / 2 - 200; // Center horizontally
+    messagesSystemDocked.container.y = 50; // Near top
+    scene.addChild(messagesSystemDocked.container);
+
+    // 4. Create HTML Harness
     const harnessId = 'feature-test-harness';
     let harness = document.getElementById(harnessId);
     if (harness) harness.remove();
@@ -86,6 +146,16 @@ export async function createFeatureTestScene(app, assets) {
             </div>
         </div>
 
+        <div style="margin-bottom: 20px;">
+            <strong>Message Systems (Toast & Docked)</strong>
+            <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+                <button id="btn-msg-move" style="padding: 5px;">Sim Movement</button>
+                <button id="btn-msg-damage" style="padding: 5px;">Sim Damage</button>
+                <button id="btn-msg-status" style="padding: 5px;">Sim Status</button>
+                <button id="btn-msg-clear" style="padding: 5px;">Clear Messages</button>
+            </div>
+        </div>
+
         <div id="feat-log" style="font-size: 11px; height: 120px; overflow-y: auto; background: #111; padding: 5px; border: 1px solid #333;">
             System Ready...
         </div>
@@ -93,9 +163,10 @@ export async function createFeatureTestScene(app, assets) {
 
     document.body.appendChild(harness);
 
-    // 4. Test Logic
+    // 5. Test Logic
     let mockHealth = 4;
     let isSubA = true;
+    let mockPosition = { x: 0, y: 0 };
 
     const log = (msg) => {
         const featLog = document.getElementById('feat-log');
@@ -159,10 +230,79 @@ export async function createFeatureTestScene(app, assets) {
         updateMockState(mockHealth); // Re-trigger state with new color/context
     });
 
+    // Message system test buttons
+    document.getElementById('btn-msg-move').addEventListener('click', () => {
+        // Simulate movement by sending mock state updates
+        mockPosition.x += 1;
+        mockPosition.y += 1;
+
+        const mockState = {
+            submarines: [{
+                id: 'sub-test',
+                name: 'USS TEST BED',
+                x: mockPosition.x,
+                y: mockPosition.y,
+                health: mockHealth
+            }],
+            phase: 'LIVE'
+        };
+
+        // Trigger state update for both systems
+        messagesSystemToast.controller.handleStateUpdate(mockState);
+        messagesSystemDocked.controller.handleStateUpdate(mockState);
+        log(`Simulated movement to (${mockPosition.x}, ${mockPosition.y}) for both layouts`);
+    });
+
+    document.getElementById('btn-msg-damage').addEventListener('click', () => {
+        // Simulate damage
+        const damage = 1;
+        mockHealth = Math.max(0, mockHealth - damage);
+
+        const mockState = {
+            submarines: [{
+                id: 'sub-test',
+                name: 'USS TEST BED',
+                x: mockPosition.x,
+                y: mockPosition.y,
+                health: mockHealth
+            }],
+            phase: 'LIVE'
+        };
+
+        // Trigger state update for both systems
+        messagesSystemToast.controller.handleStateUpdate(mockState);
+        messagesSystemDocked.controller.handleStateUpdate(mockState);
+        document.getElementById('health-val').textContent = mockHealth;
+        log(`Simulated ${damage} damage, health now: ${mockHealth} for both layouts`);
+    });
+
+    document.getElementById('btn-msg-status').addEventListener('click', () => {
+        // Add a manual status message to both systems
+        messagesSystemToast.addMessage('STATUS', {
+            submarine: 'USS TEST BED',
+            status: 'System test completed'
+        });
+        messagesSystemDocked.addMessage('STATUS', {
+            submarine: 'USS TEST BED',
+            status: 'System test completed'
+        });
+        log('Added manual status message to both layouts');
+    });
+
+    document.getElementById('btn-msg-clear').addEventListener('click', () => {
+        messagesSystemToast.clearMessages();
+        messagesSystemDocked.clearMessages();
+        log('Cleared all messages from both layouts');
+    });
+
+
+
     // Cleanup
     scene.on('destroyed', () => {
         if (harness) harness.remove();
         damageController.destroy();
+        messagesSystemToast.destroy();
+        messagesSystemDocked.destroy();
     });
 
     return scene;

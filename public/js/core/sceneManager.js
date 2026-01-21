@@ -96,8 +96,8 @@ export const SceneManager = {
 
         gamePhaseManager.subscribe((event, payload) => {
             if (event === ClockEvents.PHASE_CHANGE) {
-                if (this.currentSceneName === 'mapTest') {
-                    console.log("[SceneManager] Ignoring phase change in mapTest mode.");
+                if (this.currentSceneName === 'mapTest' || this.currentSceneName === 'featureTest') {
+                    console.log(`[SceneManager] Ignoring phase change in ${this.currentSceneName} mode.`);
                     return;
                 }
                 this.handlePhaseChange(payload.phase);

@@ -10,7 +10,10 @@ window.interruptController = interruptController;
   // Create a new application
   const app = new Application();
   // The background color is set by the scene, so we don't need it here.
-  await app.init({ resizeTo: window });
+  await app.init({
+    resizeTo: window,
+    eventOptions: { passive: false }
+  });
   document.body.appendChild(app.canvas);
 
   const audioManager = new AudioManager();

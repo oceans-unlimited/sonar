@@ -183,6 +183,8 @@ export class MessagesRenderer {
     // Create PIXI.Text object
     const textObj = this.createMessageText(message);
 
+    const oldTotalHeight = this.getTotalContentHeight();
+
     // Add to list container
     this.listContainer.addChild(textObj);
     this.messageTexts.push(textObj); // Add to end (bottom)
@@ -190,17 +192,43 @@ export class MessagesRenderer {
     // Position messages
     this.updateMessagePositions();
 
-    // Remove oldest messages if over limit (from top)
-    if (this.messageTexts.length > this.maxMessages) {
-      const oldText = this.messageTexts.shift(); // Remove from beginning (top)
-      this.listContainer.removeChild(oldText);
-      oldText.destroy();
-    }
+    const newTotalHeight = this.getTotalContentHeight();
+    const heightDiff = newTotalHeight - oldTotalHeight;
 
     // Smart auto-scroll to new message
-    if (this.behaviors && this.behaviors.scrollToLatest) {
-      this.behaviors.scrollToLatest();
+    // We pass true to trigger the slide-up animation (drift back to 0)
+    if (this.behaviors && this.behaviors.onContentHeightChanged) {
+      this.behaviors.onContentHeightChanged(heightDiff, true);
     }
+  }
+
+  /**
+   * Remove oldest messages to stay within limit.
+   * Called by behaviors when idle at the bottom to avoid jumpy animations.
+   */
+  cullMessages() {
+    // Only cull if we are over the limit
+    if (this.messageTexts.length <= this.maxMessages) return;
+
+    console.log(`[MessagesRenderer] Culling ${this.messageTexts.length - this.maxMessages} old messages`);
+
+    while (this.messageTexts.length > this.maxMessages) {
+      const oldText = this.messageTexts.shift();
+      const removedHeight = oldText.height + 5;
+
+      this.listContainer.removeChild(oldText);
+      oldText.destroy();
+
+      // Notify behaviors to adjust scroll to stay visually stable
+      if (this.behaviors && this.behaviors.onContentHeightChanged) {
+        // We pass isFromTop = true because we are removing from the top.
+        // This ensures the messages at the bottom stay pinned to the bottom of the view.
+        this.behaviors.onContentHeightChanged(-removedHeight, false, true);
+      }
+    }
+
+    // Update positions of remaining messages
+    this.updateMessagePositions();
   }
 
   /**

@@ -13,6 +13,7 @@ export class MessagesBehaviors {
    */
   constructor(renderer, app, config = {}) {
     this.renderer = renderer;
+    this.renderer.behaviors = this; // Link back to renderer
     this.app = app;
     this.config = config;
 
@@ -225,24 +226,19 @@ export class MessagesBehaviors {
     const renderer = this.renderer;
     const totalHeight = renderer.getTotalContentHeight();
     const viewHeight = renderer.dimensions.height;
+    const maxScroll = Math.max(0, totalHeight - viewHeight);
+
+    // Clamp scroll offset to valid range
+    this.scrollOffset = Math.max(0, Math.min(maxScroll, this.scrollOffset));
+    this.targetScrollOffset = Math.max(0, Math.min(maxScroll, this.targetScrollOffset));
 
     // Move the list container. 
     // Default position: bottom of content at bottom of view.
-    // listContainer.y = viewHeight - totalHeight
-    // Then apply scrollOffset (positive scrollOffset means we move content DOWN to see older messages)
-    // Wait, scrollOffset logic: 
-    // handleScroll says: this.targetScrollOffset = Math.max(0, Math.min(maxScroll, this.targetScrollOffset - deltaY));
-    // If deltaY is negative (scroll up), targetScrollOffset increases.
-    // Since newest are at bottom, scrolling up should reveal OLDER (top) messages.
-    // oldest at y=0, newest at y=totalHeight.
-    // To see oldest, we need listContainer.y to be >= 0.
-
-    // Bottom-aligned view (default):
-    const baseY = Math.min(0, viewHeight - totalHeight);
+    const baseY = viewHeight - totalHeight;
     renderer.listContainer.y = baseY + this.scrollOffset;
 
     // Add scroll indicator if content extends beyond view
-    const canScrollHistory = this.scrollOffset < this.getMaxScroll() - 10;
+    const canScrollHistory = this.scrollOffset < maxScroll - 10;
     const canScrollLatest = this.scrollOffset > 10;
 
     this.showScrollHint(canScrollHistory, canScrollLatest);
@@ -298,20 +294,30 @@ export class MessagesBehaviors {
    * @param {number} duration - Animation duration in ms
    * @private
    */
-  scrollToLatest() {
-    const timeSinceLastScroll = Date.now() - this.lastInteractionTime;
-    const SCROLL_COOLDOWN = 1000; // 1 second cooldown
+  /**
+   * Handle content height changes (e.g., new message added or old one removed)
+   * @param {number} heightDiff - Change in total content height
+   * @param {boolean} triggerDrift - For additions, whether to slide back to bottom
+   * @param {boolean} isFromTop - Whether the change happens at the top of the list (culling)
+   */
+  onContentHeightChanged(heightDiff, triggerDrift = true, isFromTop = false) {
+    // If the change happens at the bottom (addition), we adjust offset to keep view stable.
+    // If it happens at the top (culling), we don't adjust because the baseY change 
+    // and content shift already cancel each other out.
+    if (!isFromTop) {
+      this.scrollOffset += heightDiff;
 
-    //Only auto-scroll if:
-    //1. User hasn't interacted recently
-    //2. User isn't actively scrolling
-    if (!this.isUserScrolling || timeSinceLastScroll > SCROLL_COOLDOWN) {
-      this.targetScrollOffset = 0;
-      this.isUserScrolling = false;
-
-      this.lastInteractionTime = Date.now();
-      this.lastScrollTime = Date.now();
+      // If triggerDrift is true and user is not scrolling, 
+      // we want to drift back to 0 (latest messages).
+      if (triggerDrift && !this.isUserScrolling) {
+        this.targetScrollOffset = 0;
+      } else {
+        // Otherwise, we keep the relative scroll target stable too
+        this.targetScrollOffset += heightDiff;
+      }
     }
+
+    this.updateScrollPosition();
   }
 
   /**
@@ -327,6 +333,10 @@ export class MessagesBehaviors {
 
     if (Math.abs(this.scrollOffset - this.targetScrollOffset) > 0.1) {
       this.updateScrollPosition();
+    } else if (Math.abs(this.scrollOffset) < 1 && !this.isUserScrolling) {
+      // When we are idle at the bottom, perform cleanup of old messages
+      // slide has finished, so we can cull without visual disruption
+      this.renderer.cullMessages();
     }
 
     // Revert mask to normal mode if not scrolling recently

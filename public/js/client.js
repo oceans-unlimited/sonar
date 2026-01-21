@@ -10,7 +10,10 @@ window.interruptController = interruptController;
   // Create a new application
   const app = new Application();
   // The background color is set by the scene, so we don't need it here.
-  await app.init({ resizeTo: window });
+  await app.init({
+    resizeTo: window,
+    eventOptions: { passive: false }
+  });
   document.body.appendChild(app.canvas);
 
   const audioManager = new AudioManager();
@@ -87,7 +90,18 @@ window.interruptController = interruptController;
   const sceneSelector = document.getElementById('sceneSelector');
   if (sceneSelector) {
     sceneSelector.addEventListener('change', (e) => {
-      SceneManager.changeScene(e.target.value);
+      const sceneName = e.target.value;
+
+      // 1. Instantly blur the element to trigger final browser UI update for the select
+      e.target.blur();
+
+      // 2. Use double-RAF to ensure a full frame is painted (the dropdown closing)
+      // before we begin the potentially heavy scene transition.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          SceneManager.changeScene(sceneName);
+        });
+      });
     });
   }
 

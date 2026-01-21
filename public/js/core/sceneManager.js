@@ -76,6 +76,8 @@ let assets;
 let socketManager;
 let audioManager;
 
+let isChangingScene = false;
+
 export const SceneManager = {
     /**
      * Initializes the scene manager.
@@ -90,14 +92,17 @@ export const SceneManager = {
         socketManager = sockManager;
         audioManager = audManager;
 
+        // Ensure ticker is running from the start
+        app.ticker.start();
+
         socketManager.on('stateUpdate', (state) => {
             this.onStateUpdate(state);
         });
 
         gamePhaseManager.subscribe((event, payload) => {
             if (event === ClockEvents.PHASE_CHANGE) {
-                if (this.currentSceneName === 'mapTest') {
-                    console.log("[SceneManager] Ignoring phase change in mapTest mode.");
+                if (this.currentSceneName === 'mapTest' || this.currentSceneName === 'featureTest') {
+                    console.log(`[SceneManager] Ignoring phase change in ${this.currentSceneName} mode.`);
                     return;
                 }
                 this.handlePhaseChange(payload.phase);
@@ -191,26 +196,56 @@ export const SceneManager = {
      * @param {string} sceneName - The name of the scene to switch to.
      */
     async changeScene(sceneName) {
-        if (currentScene) {
-            await fadeTo(currentScene, 0, 500);
-            app.stage.removeChild(currentScene);
-            currentScene.destroy({ children: true });
-        }
+        if (isChangingScene) return;
+        isChangingScene = true;
 
-        if (scenes[sceneName]) {
-            this.currentSceneName = sceneName;
-            let state = socketManager.lastState;
-            if (sceneName === 'engine') {
-                state = { submarines: [{ engineLayout: mockLayout }] };
+        try {
+            if (currentScene) {
+                // Yield to allow UI update before starting transition
+                await new Promise(resolve => requestAnimationFrame(resolve));
+
+                await fadeTo(currentScene, 0, 200); // Very fast fade out
+
+                app.stage.removeChild(currentScene);
+                currentScene.destroy({ children: true });
+                currentScene = null;
+
+                // Yield to allow garbage collection and layout
+                await new Promise(resolve => setTimeout(resolve, 0));
             }
-            const newScene = await scenes[sceneName](app, assets, audioManager, state);
-            if (newScene instanceof PIXI.Container) {
-                currentScene = newScene;
-                app.stage.addChild(currentScene);
-                await fadeIn(500);
+
+            if (scenes[sceneName]) {
+                this.currentSceneName = sceneName;
+                let state = socketManager.lastState;
+                if (sceneName === 'engine') {
+                    state = { submarines: [{ engineLayout: mockLayout }] };
+                }
+
+                // Yield before scene creation
+                await new Promise(resolve => setTimeout(resolve, 0));
+
+                // Create new scene - factory functions should be fast, but we'll yield after anyway
+                const newScene = await scenes[sceneName](app, assets, audioManager, state);
+
+                if (newScene instanceof PIXI.Container) {
+                    currentScene = newScene;
+                    // Yield before adding to stage to separate JS execution from browser painting
+                    await new Promise(resolve => requestAnimationFrame(resolve));
+
+                    app.stage.addChild(currentScene);
+
+                    // Trigger fade in on the next frame
+                    requestAnimationFrame(() => {
+                        fadeIn(200);
+                    });
+                }
+            } else {
+                console.error(`Scene "${sceneName}" not found.`);
             }
-        } else {
-            console.error(`Scene "${sceneName}" not found.`);
+        } catch (error) {
+            console.error(`[SceneManager] Error during scene change:`, error);
+        } finally {
+            isChangingScene = false;
         }
     }
 };

@@ -86,9 +86,13 @@ export class TitleRenderer {
 
             if (tw.isDone && !menuCreated) {
                 menuCreated = true;
-                setTimeout(() => {
+                this.menuTimeout = setTimeout(() => {
+                    if (container.destroyed) return;
                     tw.clear();
-                    this.createMenu(container, tw.container.x, tw.container.y + tw.textObj.height + 40);
+                    // Check if tw and its container are still alive before accessing properties
+                    if (tw && tw.container && !tw.container.destroyed && tw.textObj && !tw.textObj.destroyed) {
+                        this.createMenu(container, tw.container.x, tw.container.y + tw.textObj.height + 40);
+                    }
                 }, 1000);
             }
         };
@@ -97,6 +101,7 @@ export class TitleRenderer {
         // Cleanup hook
         container.on('destroyed', () => {
             this.app.ticker.remove(tickerCallback);
+            if (this.menuTimeout) clearTimeout(this.menuTimeout);
             tw.destroy();
         });
 

@@ -41,7 +41,7 @@ export class MessagesController {
     if (!this.previousState) {
       console.log('MessagesController: First state update. Initializing previousState.');
       // First state update - just store it
-      this.previousState = JSON.parse(JSON.stringify(newState));
+      this.previousState = newState;
       return;
     }
 
@@ -60,7 +60,7 @@ export class MessagesController {
     }
 
     // Update previous state
-    this.previousState = JSON.parse(JSON.stringify(newState));
+    this.previousState = newState;
   }
 
   /**

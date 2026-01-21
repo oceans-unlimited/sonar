@@ -17,14 +17,25 @@ export class MessagesBehaviors {
     this.app = app;
     this.config = config;
 
+    this.isDragging = false;
+    this.dragStartY = 0;
+    this.dragStartTime = 0;
+    this.dragDistance = 0;
+    this.isExpanded = false;
+    this.expansionAnimate = null;
+
     this.inactivityTimer = null;
     this.scrollOffset = 0;
     this.targetScrollOffset = 0;
     this.lastScrollTime = Date.now();
+    this.lastInteractionTime = Date.now();
 
     // Bind methods
     this.onToastClick = this.onToastClick.bind(this);
     this.onScroll = this.onScroll.bind(this);
+    this.onPointerDown = this.onPointerDown.bind(this);
+    this.onPointerMove = this.onPointerMove.bind(this);
+    this.onPointerUp = this.onPointerUp.bind(this);
     this.onInactivityTimeout = this.onInactivityTimeout.bind(this);
     this.updateAnimations = this.updateAnimations.bind(this);
 
@@ -40,23 +51,22 @@ export class MessagesBehaviors {
    */
   setupBehaviors() {
     const container = this.renderer.container;
-    const isMobile = window.innerWidth < 768 || 'ontouchstart' in window;
 
     container.eventMode = 'static';
     container.hitArea = new Rectangle(0, 0, this.renderer.dimensions.width, this.renderer.dimensions.height);
 
+    // Mouse wheel scrolling
+    container.on('wheel', this.onScroll);
+
+    // Unified pointer-based dragging (for both Toast and Docked)
+    // This allows mouse-drag on desktop and touch-drag on mobile
+    container.on('pointerdown', this.onPointerDown);
+    container.on('pointermove', this.onPointerMove);
+    container.on('pointerup', this.onPointerUp);
+    container.on('pointerupoutside', this.onPointerUp);
+
     if (this.renderer.layout === 'toast') {
-      if (isMobile) {
-        // Mobile: prioritize touch scrolling over click expansion
-        this.setupTouchScrolling();
-      } else {
-        // Desktop: click to expand
-        container.cursor = 'pointer';
-        container.on('pointerdown', this.onToastClick);
-      }
-    } else if (this.renderer.layout === 'docked') {
-      // Docked mode: always scrollable
-      this.setupScrolling();
+      container.cursor = 'pointer';
     }
 
     // Start animation ticker
@@ -70,8 +80,8 @@ export class MessagesBehaviors {
   onToastClick() {
     // Always expand on click (no toggle behavior)
     this.isUserScrolling = false;
+    this.renderer.setMaskMode('uniform');
     this.animateContainerExpansion(true);
-    this.resetInactivityTimer();
   }
 
   /**
@@ -80,24 +90,39 @@ export class MessagesBehaviors {
    * @private
    */
   animateContainerExpansion(expand) {
+    if (this.renderer.layout !== 'toast') return;
+
     const renderer = this.renderer;
     const container = renderer.container;
+
+    // Use stored baseHeight to calculate stable target
+    const baseHeight = renderer.baseHeight;
+    const targetHeight = expand ? baseHeight * 2 : baseHeight;
+
+    // Stop if already at target
+    if (this.isExpanded === expand && Math.abs(renderer.dimensions.height - targetHeight) < 1) {
+      return;
+    }
+
+    this.isExpanded = expand;
+
+    // Remove any existing expansion ticker
+    if (this.expansionAnimate) {
+      this.app.ticker.remove(this.expansionAnimate);
+    }
 
     const startHeight = renderer.dimensions.height;
     const bottomY = container.y + startHeight; // Fixed bottom edge
 
-    const targetHeight = expand ? startHeight * 2 : startHeight / 2;
-    // Note: We use renderer.dimensions.height to control the mask reveal
-
     let elapsed = 0;
-    const duration = 300; // 0.3s as per plan
+    const duration = 250; // Snappy 0.25s
 
-    const animate = (ticker) => {
-      elapsed += ticker.deltaTime * 16.67; // Convert to ms
+    this.expansionAnimate = (ticker) => {
+      elapsed += ticker.deltaTime * 16.67;
       const t = Math.min(1, elapsed / duration);
 
-      // Ease-in-out function
-      const easedT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      // Ease-out expo for premium feel
+      const easedT = t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
 
       renderer.dimensions.height = startHeight + (targetHeight - startHeight) * easedT;
 
@@ -109,74 +134,75 @@ export class MessagesBehaviors {
       this.updateScrollPosition();
 
       if (t >= 1) {
-        this.app.ticker.remove(animate);
+        this.app.ticker.remove(this.expansionAnimate);
+        this.expansionAnimate = null;
       }
     };
 
-    this.app.ticker.add(animate);
+    this.app.ticker.add(this.expansionAnimate);
   }
 
   /**
-   * Setup scrolling for docked mode
+   * Universal pointer down handler for dragging and clicks
+   * @param {Object} event - PIXI interaction event
    * @private
    */
-  setupScrolling() {
-    const container = this.renderer.container;
+  onPointerDown(event) {
+    this.dragStartY = event.data.global.y;
+    this.dragStartTime = Date.now();
+    this.isDragging = true;
+    this.dragDistance = 0;
+    this.isUserScrolling = true; // Mark as active to prevent auto-scrolling
 
-    // Mouse wheel scrolling
-    container.on('wheel', this.onScroll);
+    // Set uniform mode immediately on press/touch for all layouts
+    this.renderer.setMaskMode('uniform');
 
-    // For mobile/touch scrolling (basic implementation)
-    let touchStartY = 0;
-    container.on('touchstart', (event) => {
-      touchStartY = event.data.global.y;
-    });
-
-    container.on('touchmove', (event) => {
-      const deltaY = touchStartY - event.data.global.y;
-      touchStartY = event.data.global.y;
-      this.handleScroll(deltaY * 2); // Amplify touch scrolling
-    });
+    // Expand toast immediately on press
+    if (this.renderer.layout === 'toast') {
+      this.animateContainerExpansion(true);
+    }
   }
 
   /**
-   * Setup touch scrolling for mobile toast mode
+   * Universal pointer move handler for dragging
+   * @param {Object} event - PIXI interaction event
    * @private
    */
-  setupTouchScrolling() {
-    const container = this.renderer.container;
+  onPointerMove(event) {
+    if (!this.isDragging) return;
 
-    let touchStartY = 0;
-    let touchStartTime = 0;
-    let isUserScrolling = false;
+    const currentY = event.data.global.y;
+    const deltaY = this.dragStartY - currentY;
 
-    container.on('touchstart', (event) => {
-      touchStartY = event.data.global.y;
-      touchStartTime = Date.now();
-      this.isUserScrolling = true;
-    });
+    // Accumulate total dragging distance to distinguish click from drag
+    this.dragDistance += Math.abs(deltaY);
 
-    container.on('touchmove', (event) => {
-      const deltaY = touchStartY - event.data.global.y;
-      const velocity = Math.abs(deltaY) / (Date.now() - touchStartTime);
+    // Only scroll if we've moved a threshold distance
+    if (this.dragDistance > 10) {
+      this.handleScroll(deltaY * 1.5);
+      this.dragStartY = currentY;
+    }
+  }
 
-      // Require minimum velocity or distance to prevent false scrolling
-      if (Math.abs(deltaY) > 15 || velocity > 0.5) {
-        this.isUserScrolling = true;
-        this.handleScroll(deltaY * 2);
-        touchStartY = event.data.global.y;
-        touchStartTime = Date.now();
-      }
-    });
+  /**
+   * Universal pointer up handler for finishing drags and detecting clicks
+   * @private
+   */
+  onPointerUp() {
+    if (!this.isDragging) return;
+    this.isDragging = false;
 
-    container.on('touchend', () => {
-      // Only trigger click if it was a tap (not a scroll)
-      if (!this.isUserScrolling) {
-        // Treat as click - expand toast
+    // Detection for "Click/Tap" vs "Scroll/Drag"
+    // Short duration and low movement = Click
+    const dragDuration = Date.now() - this.dragStartTime;
+    if (this.dragDistance < 15 && dragDuration < 300) {
+      if (this.renderer.layout === 'toast') {
         this.onToastClick();
       }
-      this.isUserScrolling = false;
-    });
+    }
+
+    this.isUserScrolling = false;
+    this.resetInactivityTimer(); // Finally start timer on release
   }
 
   /**
@@ -191,6 +217,7 @@ export class MessagesBehaviors {
     event.stopPropagation();
 
     this.handleScroll(event.deltaY);
+    this.resetInactivityTimer();
   }
 
   /**
@@ -214,7 +241,6 @@ export class MessagesBehaviors {
     this.renderer.setMaskMode('uniform');
     this.lastScrollTime = Date.now();
 
-    this.resetInactivityTimer();
     this.updateScrollPosition();
   }
 
@@ -224,6 +250,7 @@ export class MessagesBehaviors {
    */
   updateScrollPosition() {
     const renderer = this.renderer;
+    if (!renderer || !renderer.listContainer || renderer.container.destroyed) return;
     const totalHeight = renderer.getTotalContentHeight();
     const viewHeight = renderer.dimensions.height;
     const maxScroll = Math.max(0, totalHeight - viewHeight);
@@ -278,11 +305,14 @@ export class MessagesBehaviors {
    * @private
    */
   onInactivityTimeout() {
-    // Reset scroll state
+    // 1. First revert to normal gradient fill
+    this.renderer.setMaskMode('normal');
+
+    // 2. Return to 0 offset (latest messages)
     this.targetScrollOffset = 0;
     this.isUserScrolling = false;
 
-    // Layout-specific cleanup
+    // 3. For toast, collapse the container
     if (this.renderer.layout === 'toast') {
       this.animateContainerExpansion(false);
     }
@@ -337,11 +367,6 @@ export class MessagesBehaviors {
       // When we are idle at the bottom, perform cleanup of old messages
       // slide has finished, so we can cull without visual disruption
       this.renderer.cullMessages();
-    }
-
-    // Revert mask to normal mode if not scrolling recently
-    if (Date.now() - this.lastInteractionTime > 300 && !this.isUserScrolling) {
-      this.renderer.setMaskMode('normal');
     }
   }
 

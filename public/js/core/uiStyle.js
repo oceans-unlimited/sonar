@@ -55,26 +55,26 @@ export const SystemColors = {
 export const MessageGradients = {
   toast: {
     normal: [
-      { offset: 0, color: 0xffffff, alpha: 0.1 }, // Top: low alpha
-      { offset: 0.9, color: 0xffffff, alpha: 0.6 }, // Slightly above bottom: 0.6
-      { offset: 1, color: 0xffffff, alpha: 0.8 }   // Bottom: high alpha
+      { offset: 0.1, color: 0xffffff, alpha: 0.8 },
+      { offset: 0.35, color: 0xffffff, alpha: 0.35 },
+      { offset: 1, color: 0xffffff, alpha: 0.2 }
     ],
     uniform: [
-      { offset: 0, color: 0xffffff, alpha: 0.5 }, // Top: 0.5
-      { offset: 0.9, color: 0xffffff, alpha: 0.8 }, // Slightly above bottom: 0.8
-      { offset: 1, color: 0xffffff, alpha: 0.8 }   // Bottom: 0.8
+      { offset: 0, color: 0xffffff, alpha: 0.5 },
+      { offset: 0.5, color: 0xffffff, alpha: 0.6 },
+      { offset: 1, color: 0xffffff, alpha: 0.5 }
     ]
   },
   docked: {
     normal: [
-      { offset: 0, color: 0xffffff, alpha: 0.1 }, // Top: low alpha
-      { offset: 0.9, color: 0xffffff, alpha: 0.6 }, // Slightly above bottom: 0.6
-      { offset: 1, color: 0xffffff, alpha: 0.8 }   // Bottom: high alpha
+      { offset: 0.1, color: 0xffffff, alpha: 1.0 },
+      { offset: 0.4, color: 0xffffff, alpha: 0.5 },
+      { offset: 1, color: 0xffffff, alpha: 0.3 }
     ],
     uniform: [
-      { offset: 0, color: 0xffffff, alpha: 0.5 }, // Top: 0.5
-      { offset: 0.9, color: 0xffffff, alpha: 0.8 }, // Slightly above bottom: 0.8
-      { offset: 1, color: 0xffffff, alpha: 0.8 }   // Bottom: 0.8
+      { offset: 0, color: 0xffffff, alpha: 0.5 },
+      { offset: 0.5, color: 0xffffff, alpha: 0.8 },
+      { offset: 1, color: 0xffffff, alpha: 0.5 }
     ]
   }
 };

@@ -90,7 +90,18 @@ window.interruptController = interruptController;
   const sceneSelector = document.getElementById('sceneSelector');
   if (sceneSelector) {
     sceneSelector.addEventListener('change', (e) => {
-      SceneManager.changeScene(e.target.value);
+      const sceneName = e.target.value;
+
+      // 1. Instantly blur the element to trigger final browser UI update for the select
+      e.target.blur();
+
+      // 2. Use double-RAF to ensure a full frame is painted (the dropdown closing)
+      // before we begin the potentially heavy scene transition.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          SceneManager.changeScene(sceneName);
+        });
+      });
     });
   }
 

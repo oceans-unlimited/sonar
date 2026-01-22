@@ -20,39 +20,10 @@ export function createEngineScene(app, assets, audioManager, state) {
     const controller = new EngineController(app, renderer);
     controller.init();
 
-    // 3. Attach Behaviors & Populate Buttons
-    // This connects the renderer's slots with specialized buttons and state managers.
-    // In a real game, 'state' would inform which buttons are pushed.
-    const MOCK_LAYOUT = state.submarines[0].engineLayout;
+    // 3. Effects
+    const flickerCallback = applyFlickerEffect(app, [scene]);
 
-    view.directionTemplates.forEach((template, direction) => {
-        const directionLayout = MOCK_LAYOUT.directions[direction];
-
-        template.slots.forEach(slot => {
-            const systemData = directionLayout.frameSlots[slot.slotId] || directionLayout.reactorSlots[slot.slotId];
-            if (systemData) {
-                const button = renderer.renderSystemButton(systemData.system);
-                slot.addChild(button);
-
-                const stateManager = createButtonStateManager(button, app, assets.disabled);
-
-                button.on('pointerdown', () => {
-                    if (!stateManager.isPushed()) {
-                        controller.handleButtonPress(direction, slot.slotId, systemData.system);
-                        stateManager.setPushed();
-                    }
-                });
-
-                if (systemData.pushed) {
-                    stateManager.setPushed();
-                } else {
-                    stateManager.setDisabled(); // Default to disabled as in original
-                }
-            }
-        });
-    });
-
-    // Keyboard simulation (as in original)
+    // Keyboard simulation for development/debugging
     const handleKeyDown = (e) => {
         if (['ArrowUp', 'ArrowLeft', 'ArrowRight', 'ArrowDown'].includes(e.key)) {
             const dirMap = { ArrowUp: 'N', ArrowDown: 'S', ArrowLeft: 'W', ArrowRight: 'E' };
@@ -60,9 +31,6 @@ export function createEngineScene(app, assets, audioManager, state) {
         }
     };
     window.addEventListener('keydown', handleKeyDown);
-
-    // 4. Effects
-    const flickerCallback = applyFlickerEffect(app, [scene]);
 
     scene.on('destroyed', () => {
         app.ticker.remove(flickerCallback);

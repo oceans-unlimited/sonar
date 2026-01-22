@@ -50,6 +50,14 @@ export const SystemColors = {
   detection: 0x00ff00, // green
   weapons: 0xe74c3c,   // red
   reactor: 0xb3b3b3,   // grey
+  vessel: 0x00aaff,    // cyan/blue
+};
+
+// Colors for the circuit button frames (distinct from system colors)
+export const CircuitColors = {
+  A: 0x00aaff, // Cyan
+  B: 0x9b59b6, // Purple
+  C: 0xe67e22  // Orange
 };
 
 export const MessageGradients = {

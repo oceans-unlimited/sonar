@@ -2,7 +2,8 @@
 export class AudioManager {
   constructor() {
     this.context = new (window.AudioContext || window.webkitAudioContext)();
-    this.buffer = null;
+    this.buffers = {};
+    this.sources = {};
     this.isResumed = false;
   }
 
@@ -14,18 +15,35 @@ export class AudioManager {
     }
   }
 
-  async loadBeep(url) {
+  async loadSound(name, url) {
     const res = await fetch(url);
     const arrayBuffer = await res.arrayBuffer();
-    this.buffer = await this.context.decodeAudioData(arrayBuffer);
+    this.buffers[name] = await this.context.decodeAudioData(arrayBuffer);
   }
 
-  playBeep(pitch = 1.0) {
-    if (!this.buffer) return;
+  playSound(name, { loop = false, pitch = 1.0 } = {}) {
+    if (!this.buffers[name]) return;
+
+    // Stop any existing sound with the same name
+    if (this.sources[name]) {
+      this.sources[name].stop();
+    }
+
     const src = this.context.createBufferSource();
-    src.buffer = this.buffer;
+    src.buffer = this.buffers[name];
     src.playbackRate.value = pitch;
+    src.loop = loop;
     src.connect(this.context.destination);
     src.start(0);
+
+    this.sources[name] = src;
+  }
+
+  stopSound(name) {
+    if (this.sources[name]) {
+      this.sources[name].stop();
+      delete this.sources[name];
+    }
   }
 }
+

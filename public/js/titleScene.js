@@ -1,137 +1,72 @@
-// js/titleScene.js
-import { Graphics, FillGradient, Assets, Sprite, Text, Container, TextStyle } from "pixi.js";
-import { GodrayFilter } from "pixi-filters";
-import { AudioManager } from './core/audioManager.js';
-import { TypewriterText } from './core/typewriter.js';
-import { Colors, Font, Layout } from "./core/uiStyle.js";
-import { SceneManager } from './core/sceneManager.js';
-import { applyFlickerEffect } from "./core/uiEffects.js";
-import { socketManager } from './core/socketManager.js';
+import { Container } from "pixi.js";
+import { TitleRenderer } from "./renderers/titleRenderer.js";
+import { TitleController } from "./controllers/titleController.js";
 
-
-export async function createTitleScene(app, assets) {
+/**
+ * Title Scene (MVC Orchestration)
+ * Wires the TitleRenderer to the TitleController.
+ */
+export async function createTitleScene(app, assets, audioManager) {
   const scene = new Container();
 
-  // Background gradient overlay
-  const bg = new Graphics();
-  const gradient = new FillGradient({
-    type: "linear",
-    start: { x: 0, y: 0 },
-    end: { x: 0, y: app.screen.height },
-    colorStops: [
-      { offset: 0, color: 0x263138 },
-      { offset: 0.3, color: 0x171f21 },
-      { offset: 0.8, color: 0x0c0c0c }
-    ],
-    textureSpace: 'global'
-  });
-  bg.fill(gradient);
-  bg.rect({ x: 0, y: 0, w: app.screen.width, h: app.screen.height });
-  scene.addChild(bg);
+  // 1. Initialize Renderer
+  const renderer = new TitleRenderer(app, assets, audioManager);
+  const views = renderer.render(scene);
 
-  const rays = new Sprite(assets.god_rays);
+  // 2. Initialize Controller
+  const controller = new TitleController(app, renderer);
+  controller.init();
 
-  rays.alpha = 0.1;
-  rays.width = app.screen.width;
-  rays.height = app.screen.height * 1.5; // oversize for movement
-  scene.addChild(rays);
+  // 3. Since the menu is created asynchronously after the typewriter effect,
+  // we need to wait or poll for the buttons to be attached.
+  // However, Pixi Containers are dynamic. We can attach a listener to the scene 
+  // or use a simpler approach: The renderer's createMenu method puts buttons in `views.buttons`.
+  // Since `views` is returned by reference, we can check it.
 
-  // Add god-ray filter
-  const godray = new GodrayFilter({
-    alpha: 0.2,
-    gain: 0.3,
-    lacunarity: 2.7,
-    angle: 20,
-    parallel: true
-  });
-  rays.filters = [godray];
+  // Better Approach: The renderer is driving the animation loop. 
+  // We can't attach listeners immediately because the buttons don't exist yet.
+  // Solution: We'll wrap the `createMenu` logic in the renderer to emit an event or callback,
+  // but sticking to "thin shell" philosophy, we can just intercept the click events if we assign them 
+  // inside the renderer via a property, OR we just check for existence in a ticker?
 
-  const audioManager = new AudioManager();
-  await audioManager.loadBeep('assets/audio/beep_01.wav');
+  // Simplest Cleanest MVC Fix:
+  // The renderer creates visual objects. When it creates them, they are just generic interactive objects.
+  // We can't easily wait for them here without exposing the animation promise.
+  // Let's modify the renderer to accept a callback for when the menu is ready, OR
+  // just use event delegation? No, Pixi interaction is on objects.
 
-  const style = new TextStyle({
-    fontFamily: 'Orbitron',
-    fontSize: 24,
-    fill: '#33ff33',
-    dropShadow: true,
-    dropShadowColor: '#00aa00',
-    dropShadowDistance: 1,
-  });
+  // REVISION: I will inject the interaction logic into the renderer via a "bind" method 
+  // or simply wait. Let's rely on the fact that `views.buttons` will be populated eventually.
+  // We can use a property observer or just loop.
 
-  const tw = new TypewriterText(
-    'INITIALIZING SYSTEMS...\nESTABLISHING SATELLITE UPLINK...',
-    style,
-    audioManager,
-    { speed: 40, pitchRange: [0.9, 1.3] }
-  );
+  // ACTUALLY: The cleanest way is to pass the callbacks TO the renderer, 
+  // but that blurs the line. 
+  // Let's have the renderer emit a 'menuReady' event from the scene container.
+  // Wait, `createMenu` in renderer is internal. 
 
-  tw.container.x = 60;
-  tw.container.y = 100;
-  scene.addChild(tw.container);
+  // Let's patch the renderer to emit an event on the scene container?
+  // Or just Polling for now is robust enough for this simple case.
 
-  const tickerCallback = (ticker) => {
-    rays.y += 0.05 * ticker.deltaTime; //slow drift
-    if (rays.y > 0) rays.y = -app.screen.height * 0.5;
+  const checkForButtons = () => {
+    if (views.buttons && views.buttons.start && !views.buttons.start.hasControllerAttached) {
 
-  // subtle flicker/pulse
-    rays.alpha = 0.1 + Math.sin(ticker.lastTime * 0.001) * 0.05;
+      // Wire Start Button
+      views.buttons.start.on('pointertap', () => controller.handleStart());
+      views.buttons.start.hasControllerAttached = true;
 
-  // animate godray phase
-    godray.time += 0.01 * ticker.deltaTime;
+      // Wire Settings Button
+      if (views.buttons.settings) {
+        views.buttons.settings.on('pointertap', () => controller.handleSettings());
+      }
 
-    tw.update(app.ticker.deltaMS);
-
-    if (tw.isDone && !scene.menu) {
-      createMenu();
+      app.ticker.remove(checkForButtons);
     }
   };
-  app.ticker.add(tickerCallback);
-
-  function createMenu() {
-    const menu = new Container();
-    scene.menu = menu;
-    scene.addChild(menu);
-
-    const items = ["Start", "Settings"];
-    const menuTexts = [];
-    let offsetY = tw.container.y + tw.textObj.height + 40;
-
-    for (const item of items) {
-      const text = new Text({
-        text: item.toUpperCase(),
-        style: {
-          fontFamily: Font.family,
-          fontSize: Font.size,
-          fill: Colors.text,
-          letterSpacing: Font.letterSpacing,
-        }
-      });
-      text.x = tw.container.x;
-      text.y = offsetY;
-      menu.addChild(text);
-      menuTexts.push(text);
-      offsetY += Font.lineHeight;
-
-      if (item === 'Start') {
-        text.eventMode = 'static';
-        text.cursor = 'pointer';
-        text.on('pointertap', () => {
-          socketManager.ready();
-        });
-      }
-    }
-
-    const cursor = new Text({ text: ">", style: { fontFamily: Font.family, fontSize: Font.size, fill: Colors.text }});
-    cursor.x = menuTexts[0].x - 20;
-    cursor.y = menuTexts[0].y;
-    menu.addChild(cursor);
-
-    applyFlickerEffect(app, [...menuTexts, cursor], 0.15, 3);
-  }
+  app.ticker.add(checkForButtons);
 
   scene.on('destroyed', () => {
-    app.ticker.remove(tickerCallback);
-    tw.destroy();
+    app.ticker.remove(checkForButtons);
+    controller.destroy();
   });
 
   return scene;

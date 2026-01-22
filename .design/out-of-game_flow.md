@@ -28,15 +28,15 @@ Quitting the browser tab or leaving a team role will move a player out of the "r
 
 ## During the Game
 
-Once the game has begun, there are two things that can pause gameplay for everyone (aside from in-game pause actions).
+Once the game has begun, there are two things that can interrupt gameplay for everyone (aside from in-game interrupts).
 * A user disconnects (defined as the user is unable to play and the server can detect that the user is unable to play).
-* A captain pauses the game.
+* A captain "pauses" the game.
 
-When the captain pauses the game (aside from in-game pause actions), the only way the game resumes is if all players select "ready".
+When the captain "pauses" the game (aside from in-game interrupts), the only way the game resumes is if all players select "ready". (Ready state is the key to verify all players have positive control)
 
 When a user disconnects, the game is paused until a user joins the server, selects the team/role of the disconnected user, and then indicates "ready" in the lobby. After they have joined the game, everyone must still have indicated "ready" on the pause screen to resume the game.
 
-In-game pauses are superceded by out-of-game pauses.
+In-game interrupts are superceded by out-of-game(disconnect)interrupts.
 
 ## After the Game
 

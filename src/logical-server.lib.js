@@ -1,0 +1,716 @@
+import { EngineLayoutGenerator } from "./engineLayout.lib.js";
+import { generateBoard } from "./board-layout.lib.js";
+import { W as WATER, L as LAND } from "./board-layout.lib.js";
+import { GlobalPhases, InterruptTypes, SubmarineStates } from "./constants.js";
+
+const rowDeltas = { N: -1, S: 1, E: 0, W: 0 };
+const colDeltas = { N: 0, S: 0, E: 1, W: -1 };
+
+export class LogicalServer {
+  usedPlayerNumbers = {};
+  state = {
+    winner: null,
+    version: 0,
+    phase: GlobalPhases.LOBBY,
+    /**@type {{type: string, payload: {}, data: {}}} */
+    activeInterrupt: null, // { type, payload, data }
+    /**@type {{id: string, name: string, connectionOrder: number, ready: boolean}[]} */
+    players: [],
+    adminId: null,
+    submarines: [this.createSubmarine('A'), this.createSubmarine('B')],
+    ready: [],
+    board: generateBoard(),
+  };
+
+  constructor() {
+    this.usedPlayerNumbers = {};
+    this.state = {
+      version: 0,
+      phase: GlobalPhases.LOBBY,
+      activeInterrupt: null,
+      players: [],
+      adminId: null,
+      submarines: [this.createSubmarine('A'), this.createSubmarine('B')],
+      ready: [],
+      board: generateBoard(),
+      gameStateData: {
+        choosingStartPositions: {
+          playerIdsReadyToContinue: [],
+          submarineIdsWithStartPositionChosen: [],
+        },
+      },
+    };
+  }
+
+  playerName(playerId) {
+    return this.state.players.find(p => p.id === playerId)?.name;
+  }
+
+  createSubmarine(id) {
+    const engineLayoutGenerator = new EngineLayoutGenerator();
+    return {
+      id: id,
+      name: `Sub ${id}`,
+      co: null,
+      xo: null,
+      sonar: null,
+      eng: null,
+      engineLayout: engineLayoutGenerator.generateLayout(),
+      actionGauges: { mine: 0, torpedo: 0, drone: 0, sonar: 0, silence: 0 },
+      row: 0,
+      col: 0,
+      health: 4,
+      submarineState: SubmarineStates.SUBMERGED,
+      pastTrack: [],
+      submarineStateData: {
+        MOVED: {
+          engineerCrossedOutSystem: false,
+          xoChargedGauge: false,
+          directionMoved: ' ',
+        },
+        SURFACING: {
+          roleTaskCompletion: [
+            { role: 'co', completed: false },
+            { role: 'xo', completed: false },
+            { role: 'eng', completed: false },
+            { role: 'sonar', completed: false },
+          ],
+        },
+      },
+      /**@type {{row: number, col: number}[]} */
+      past_track: [],
+      /**@type {{row: number, col: number}[]} */
+      mines: [],
+    }
+  }
+
+  addPlayer(playerId) {
+    let playerNumber = 1;
+    while (Object.values(this.usedPlayerNumbers).some(usedNumber => playerNumber === usedNumber))
+      playerNumber++;
+    this.usedPlayerNumbers[playerId] = playerNumber;
+
+    const playerName = `Player ${playerNumber}`;
+    this.state.players.push({
+      id: playerId,
+      name: playerName,
+      connectionOrder: Date.now(),
+      ready: false,
+    });
+
+    if (!this.state.adminId) this.state.adminId = playerId;
+
+    this.state.version++;
+  }
+
+  disconnect(playerId) {
+    delete this.usedPlayerNumbers[playerId];
+    this.state.players = this.state.players.filter(p => p.id !== playerId);
+    this.state.ready = this.state.ready.filter(id => id !== playerId);
+    this.state.submarines.forEach(submarine =>
+      Object.keys(submarine).forEach(role => {
+        if (submarine[role] === playerId) submarine[role] = null;
+      })
+    );
+
+    const isInProgress = this.state.phase === GlobalPhases.LIVE ||
+      (this.state.phase === GlobalPhases.INTERRUPT && this.state.activeInterrupt?.type !== InterruptTypes.PLAYER_DISCONNECT);
+
+    if (isInProgress) {
+      this.state.phase = GlobalPhases.INTERRUPT;
+      this.state.activeInterrupt = {
+        type: InterruptTypes.PLAYER_DISCONNECT,
+        payload: { message: "Player Disconnected" }
+      };
+      this.state.ready = [];
+    }
+
+    if (this.state.adminId && this.state.adminId === playerId) {
+      this.state.adminId = null;
+    }
+    this.state.version++;
+  }
+
+  changeName(playerId, new_name) {
+    if (this.state.phase !== GlobalPhases.LOBBY) return;
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return;
+    player.name = new_name;
+    this.state.version++;
+  }
+
+  selectRole(playerId, submarine, role) {
+    if (this.state.phase !== GlobalPhases.LOBBY) return;
+    if (0 <= submarine && submarine < this.state.submarines.length && !this.state.submarines[submarine][role]) {
+      this.state.submarines.forEach(submarineObj =>
+        Object.keys(submarineObj).forEach(rk => {
+          if (submarineObj[rk] === playerId) submarineObj[rk] = null;
+        })
+      );
+      this.state.submarines[submarine][role] = playerId;
+      this.state.ready = this.state.ready.filter(id => id !== playerId);
+      this.state.version++;
+    }
+  }
+
+  leaveRole(playerId) {
+    if (this.state.phase !== GlobalPhases.LOBBY) return;
+    this.state.submarines.forEach(submarine =>
+      Object.keys(submarine).forEach(role => {
+        if (submarine[role] === playerId) submarine[role] = null;
+      })
+    );
+    this.state.ready = this.state.ready.filter(id => id !== playerId);
+    this.state.version++;
+  }
+
+  ready(playerId) {
+    if (this.state.phase !== GlobalPhases.LOBBY) return;
+
+    if (this.state.submarines.some(sub =>
+      Object.keys(sub).some(role => sub[role] === playerId)
+    ) && !this.state.ready.includes(playerId)) {
+      this.state.ready.push(playerId);
+      this.state.version++;
+    }
+
+    const allRolesAreReady = this.state.submarines.every(sub =>
+      ['co', 'xo', 'sonar', 'eng'].every(rk => this.state.ready.includes(sub[rk]))
+    );
+
+    if (allRolesAreReady && this.state.phase === GlobalPhases.LOBBY) {
+      this.state.phase = GlobalPhases.GAME_BEGINNING;
+    }
+
+    this.state.version++;
+  }
+
+  startGame() {
+    if (this.state.phase !== GlobalPhases.GAME_BEGINNING)
+      return;
+
+    // Instead of directly going to 'in_game' / LIVE, we go to INTERRUPT: START_POSITIONS
+    this.state.phase = GlobalPhases.INTERRUPT;
+    this.state.activeInterrupt = {
+      type: InterruptTypes.START_POSITIONS,
+      payload: { message: "Captains selecting starting positions" },
+      data: { submarineIdsWithStartPositionChosen: [] },
+    };
+    this.state.ready = []; // Reset ready states for initial position phase
+
+
+    const engineLayoutGenerator = new EngineLayoutGenerator();
+    this.state.submarines.forEach(sub => {
+      sub.engineLayout = engineLayoutGenerator.generateLayout();
+    });
+    this.state.board = generateBoard();
+
+    this.state.version++;
+  }
+
+  notReady(playerId) {
+    if (this.state.phase !== GlobalPhases.LOBBY) return;
+    this.state.ready = this.state.ready.filter(id => id !== playerId);
+    this.state.version++;
+  }
+
+  chooseInitialPosition(playerId, row, column) {
+    let sub = this.state.submarines.find(sub => sub.co === playerId);
+    const isStartPositionsInterrupt = this.state.phase === GlobalPhases.INTERRUPT &&
+      this.state.activeInterrupt?.type === InterruptTypes.START_POSITIONS;
+
+    let allSubsHaveChosen = false;
+    if (sub && isStartPositionsInterrupt) {
+      let subIdsThatHaveChosen = this.state.activeInterrupt.data.submarineIdsWithStartPositionChosen;
+      let thisSubAlreadyChose = subIdsThatHaveChosen.find(s => s === sub.id);
+      if (!thisSubAlreadyChose) {
+        let chosenPositionIsValid = 0 <= row && row <= this.state.board.length &&
+          0 <= column && column <= this.state.board[0].length;
+        if (chosenPositionIsValid && this.state.board[row][column] === WATER) {
+          sub.row = row;
+          sub.col = column;
+          if (!this.state.activeInterrupt.data.submarineIdsWithStartPositionChosen.includes(sub.id)) {
+            this.state.activeInterrupt.data.submarineIdsWithStartPositionChosen.push(sub.id);
+          }
+
+          allSubsHaveChosen = this.state.submarines.every(s => subIdsThatHaveChosen.find(c => c === s.id));
+        }
+        this.state.ready = this.state.ready.filter(id => id !== playerId);
+        this.state.version++;
+      }
+    }
+
+    this.state.version++;
+    return allSubsHaveChosen;
+  }
+
+  resumeFromInterrupt() {
+    if (this.state.phase !== GlobalPhases.INTERRUPT)
+      return;
+
+    this.state.phase = GlobalPhases.LIVE;
+    this.state.activeInterrupt = null;
+    this.state.ready = [];
+    this.state.version++;
+
+    // Can happen from some interrupt states--e.g. torpedo--so do it every time here.
+    this.#checkForGameOver();
+  }
+
+  requestPause(playerId) {
+    if (this.state.phase !== GlobalPhases.LIVE) return;
+
+    this.state.phase = GlobalPhases.INTERRUPT;
+    this.state.activeInterrupt = {
+      type: InterruptTypes.PAUSE,
+      payload: { message: "Paused by Captain" }
+    };
+    this.state.ready = []; // Reset ready states for out-of-game interrupt
+    this.state.version++;
+  }
+
+  readyInterrupt(playerId) {
+    if (this.state.phase !== GlobalPhases.INTERRUPT) return;
+
+    const isStartPositions = this.state.activeInterrupt?.type === InterruptTypes.START_POSITIONS;
+    const sub = this.state.submarines.find(s => s.co === playerId);
+
+    if (this.state.ready.includes(playerId)) {
+      this.state.ready = this.state.ready.filter(id => id !== playerId);
+      this.state.version++;
+    } else {
+      if (isStartPositions && sub) {
+        const hasChosen = this.state.gameStateData.choosingStartPositions.submarineIdsWithStartPositionChosen.includes(sub.id);
+        if (!hasChosen) return;
+      }
+      this.state.ready.push(playerId);
+      this.state.version++;
+    }
+
+    const allPlayersReady = this.state.submarines.every(sub =>
+      ['co', 'xo', 'sonar', 'eng'].every(role => {
+        const pId = sub[role];
+        return !pId || this.state.ready.includes(pId);
+      })
+    );
+
+    return allPlayersReady;
+  }
+
+  drone(playerId, sector) {
+    this.state.version++;
+
+    if (this.state.phase !== GlobalPhases.LIVE)
+      return;
+
+    let { sub } = this.#getRoleAndSub(playerId);
+    if (!sub || sub.submarineState !== SubmarineStates.SUBMERGED)
+      return;
+
+    if (sub.actionGauges.drone < 3)
+      return;
+
+    sub.actionGauges.drone = 0;
+
+    let minRow = Math.floor((sector - 1) / 3) * 5;
+    let maxRow = minRow + 5;
+    let minCol = Math.floor((sector - 1) % 3) * 5;
+    let maxCol = minCol + 5;
+    let enemySubInSector = this.state.submarines.some(s => s.id !== sub.id && s.row >= minRow && s.row < maxRow && s.col >= minCol && s.col < maxCol);
+
+    this.state.phase = GlobalPhases.INTERRUPT;
+    this.state.activeInterrupt = {
+      type: InterruptTypes.DRONE,
+      payload: {},
+      data: { sector: sector, enemySubInSector: enemySubInSector, subIdInitiatingDrone: sub.id },
+    }
+  }
+
+  sonar(playerId) {
+    if (this.state.phase !== GlobalPhases.LIVE)
+      return;
+
+    let { sub } = this.#getRoleAndSub(playerId);
+    if (!sub || sub.submarineState !== SubmarineStates.SUBMERGED)
+      return;
+
+    if (sub.actionGauges.sonar < 3)
+      return;
+
+    sub.actionGauges.sonar = 0;
+
+    this.state.phase = GlobalPhases.INTERRUPT;
+    this.state.activeInterrupt = {
+      type: InterruptTypes.SONAR_PING,
+      payload: {},
+      data: {},
+    }
+  }
+
+  submitSonarResponse(playerId, response) {
+    const rxSub = this.state.submarines.find(sub => sub.co === playerId);
+    if (!rxSub || !this.state.activeInterrupt || this.state.activeInterrupt.type !== InterruptTypes.SONAR_PING) return;
+    this.state.activeInterrupt.payload.response = response;
+    this.state.version++;
+  }
+
+  move(playerId, direction) {
+    if (this.state.phase !== GlobalPhases.LIVE) return;
+    let movingSub = this.state.submarines.find(sub => sub.co === playerId);
+    if (movingSub && movingSub.submarineState === SubmarineStates.SUBMERGED) {
+      if (direction == 'N' || direction == 'S' || direction == 'E' || direction == 'W') {
+        let newRow = movingSub.row + rowDeltas[direction];
+        let newCol = movingSub.col + colDeltas[direction];
+        if (0 <= newRow && newRow <= this.state.board.length &&
+          0 <= newCol && newCol <= this.state.board[0].length &&
+          this.state.board[newRow][newCol] !== LAND) {
+          if (!movingSub.past_track.some(p => p.row === newRow && p.col === newCol)) {
+            if (!movingSub.mines.some(m => m.row === newRow && m.col === newCol)) {
+              movingSub.row = newRow;
+              movingSub.col = newCol;
+              movingSub.past_track.push({ row: newRow, col: newCol });
+              movingSub.submarineState = SubmarineStates.MOVED;
+              // Reset, since might be set from prior movement.
+              this.#setStateDataMOVED(movingSub, direction);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  #setStateDataMOVED(
+      /**@type {ReturnType<typeof this.createSubmarine>} */ sub,
+    direction) {
+    sub.submarineStateData.MOVED = {
+      engineerCrossedOutSystem: false,
+      xoChargedGauge: sub.actionGauges.mine === 3 &&
+        sub.actionGauges.torpedo === 3 &&
+        sub.actionGauges.sonar === 3 &&
+        sub.actionGauges.silence === 5 &&
+        sub.actionGauges.drone === 3,
+      directionMoved: direction,
+    };
+  }
+
+  chargeGauge(playerId, gauge) {
+    let sub = this.state.submarines.find(s => s.xo === playerId);
+    if (sub && sub.submarineState === SubmarineStates.MOVED) {
+      let stateData = sub.submarineStateData[sub.submarineState];
+      if (!stateData.xoChargedGauge) {
+        let max = gauge === 'silence' ? 5 : 3;
+        if (sub.actionGauges[gauge] < max) {
+          sub.actionGauges[gauge]++;
+          stateData.xoChargedGauge = true;
+          if (stateData.xoChargedGauge && stateData.engineerCrossedOutSystem) {
+            sub.submarineState = SubmarineStates.SUBMERGED;
+          }
+          this.state.version++;
+        }
+      }
+    }
+  }
+
+  crossOffSystem(playerId, direction, slotId) {
+    let sub = this.state.submarines.find(s => s.eng === playerId);
+    if (sub && sub.submarineState === SubmarineStates.MOVED) {
+      let stateData = sub.submarineStateData[sub.submarineState];
+      if (!stateData.engineerCrossedOutSystem && direction === stateData.directionMoved) {
+        let slotAlreadyCrossedOut = sub.engineLayout.crossedOutSlots.some(slot => slot.direction === direction && slot.slotId === slotId);
+        if (!slotAlreadyCrossedOut) {
+          sub.engineLayout.crossedOutSlots.push({ direction, slotId });
+          stateData.engineerCrossedOutSystem = true;
+
+          if (stateData.xoChargedGauge && stateData.engineerCrossedOutSystem) {
+            // Reset for the future.
+            stateData.engineerCrossedOutSystem = false;
+            stateData.xoChargedGauge = false;
+            // Change state.
+            sub.submarineState = SubmarineStates.SUBMERGED;
+          }
+
+          // Now check for different outcomes based on what was crossed off.
+          // - Circuit completed => clear that circuit.
+          // - All slots in a direction are crossed off => take one damage.
+          // - All radiation symbols are crossed off => take one damage.
+          // - Damage taken => clear all crossed-off slots.
+
+          let clearedCircuits = sub.engineLayout.circuits.filter(
+            circuit => circuit.connections.every(
+              connection => sub.engineLayout.crossedOutSlots.some(
+                slot => connection.direction === slot.direction && connection.slotId === slot.slotId)));
+          clearedCircuits.forEach(circuit => circuit.connections.forEach(connection => {
+            let indexOfCrossedOutSlot = sub.engineLayout.crossedOutSlots.findIndex(slot => slot.direction === connection.direction && slot.slotId === connection.slotId);
+            sub.engineLayout.crossedOutSlots.splice(indexOfCrossedOutSlot, 1);
+          }));
+
+          let directionData = sub.engineLayout.directions[direction];
+          let frameSlotKeys = Object.keys(directionData.frameSlots);
+          let allFrameSlotsCrossedOut = frameSlotKeys.every(frameSlotKey => sub.engineLayout.crossedOutSlots.some(crossedOutSlot =>
+            crossedOutSlot.slotId === frameSlotKey && crossedOutSlot.direction == direction
+          ));
+          let reactorSlotKeys = Object.keys(directionData.reactorSlots);
+          let allReactorSlotsCrossedOut = reactorSlotKeys.every(reactorSlotKey => sub.engineLayout.crossedOutSlots.some(crossedOutSlot =>
+            crossedOutSlot.slotId === reactorSlotKey && crossedOutSlot.direction === direction
+          ));
+          let entireDirectionCrossedOut = allFrameSlotsCrossedOut && allReactorSlotsCrossedOut;
+
+          let directionKeys = Object.keys(sub.engineLayout.directions);
+          let allReactorsCrossedOut = directionKeys.every(d => {
+            let directionData = sub.engineLayout.directions[d];
+            let reactorSlotKeys = Object.keys(directionData.reactorSlots);
+            return reactorSlotKeys.every(slotId =>
+              directionData.reactorSlots[slotId] !== 'reactor' ||
+              sub.engineLayout.crossedOutSlots.some(crossedOutSlot =>
+                crossedOutSlot.slotId === slotId && crossedOutSlot.direction === d
+              )
+            );
+          });
+
+          if (entireDirectionCrossedOut) {
+            sub.health--;
+            sub.engineLayout.crossedOutSlots.splice(0, sub.engineLayout.crossedOutSlots.length);
+          }
+          if (allReactorsCrossedOut) {
+            sub.health--;
+            sub.engineLayout.crossedOutSlots.splice(0, sub.engineLayout.crossedOutSlots.length);
+          }
+          sub.health = Math.max(0, sub.health);
+
+          this.#checkForGameOver();
+        }
+        this.state.version++;
+      }
+    }
+  }
+
+  surface(playerId) {
+    this.state.version++;
+
+    // find the submarine I'm on
+    let surfacingSub = this.state.submarines.find(s => [s.co, s.xo, s.eng, s.sonar].some(p => p === playerId));
+    if (!surfacingSub)
+      return;
+
+    // make sure the global phase and sub state is right (must be SUBMERGED)
+    if (this.state.phase !== GlobalPhases.LIVE || surfacingSub.submarineState !== SUBMERGED)
+      return;
+
+    // set sub state to SURFACING, and reset task data
+    surfacingSub.submarineState = SubmarineStates.SURFACING;
+    surfacingSub.submarineStateData.SURFACING.roleTaskCompletion.forEach(
+      roleAndCompleted => {
+        roleAndCompleted.completed = false;
+      }
+    );
+  }
+
+  /**Returns true if sub can submerge. */
+  completeSurfacingTask(playerId) {
+    this.state.version++;
+
+    let { sub, role } = this.#getRoleAndSub(playerId);
+    if (!sub || !role)
+      return;
+
+    if (this.state.phase !== GlobalPhases.LIVE || sub.submarineState !== SUBMERGED)
+      return;
+
+    const taskData = sub.submarineStateData.SURFACING.roleTaskCompletion;
+    // Previous roles in the order must have completed the task.
+    let playerTaskIndex = taskData.findIndex(t => t.role === role);
+    for (let i = 0; i < taskData.playerTaskIndex; ++i) {
+      if (!taskData[i].completed)
+        return;
+    }
+
+    taskData[playerTaskIndex].completed = true;
+    if (playerTaskIndex === taskData.length - 1) {
+      sub.submarineState = SubmarineStates.SURFACED;
+      sub.engineLayout.crossedOutSlots.splice(0);
+      sub.past_track.splice(0);
+      return true;
+    } else {
+      false;
+    }
+  }
+
+  submerge(subId) {
+    this.state.version++;
+
+    let sub = this.state.submarines.find(s => s.id === subId);
+    if (!sub || sub.submarineState !== SubmarineStates.SURFACED || this.state.phase !== GlobalPhases.LIVE)
+      return;
+
+    sub.submarineState = SubmarineStates.SUBMERGED;
+  }
+
+  silence(playerId, direction, spaces) {
+    this.state.version++;
+
+    let { sub } = this.#getRoleAndSub(playerId);
+    if (!sub || sub.submarineState !== SubmarineStates.SUBMERGED || this.state.phase !== GlobalPhases.LIVE)
+      return;
+
+    if (sub.actionGauges.silence < 5)
+      return;
+
+    if (!Object.keys(rowDeltas).some(k => k === direction))
+      return;
+
+    sub.actionGauges.silence = 0;
+
+    if (spaces > 0) {
+      // Even if sub can't actually move in the specified direction, player tried to move.
+      sub.submarineState = SubmarineStates.MOVED;
+      this.#setStateDataMOVED(sub, direction);
+    }
+
+    // Go as far as you can in this direction before hitting something.
+    let newRow = sub.row;
+    let newCol = sub.col;
+    let spacesToMove = Math.min(spaces, 4);
+    for (let spacesMoved = 0; spacesMoved < spacesToMove; ++spacesMoved) {
+      let nextRow = newRow + rowDeltas[direction];
+      let nextCol = newCol + colDeltas[direction];
+
+      if (nextRow < 0 || nextRow >= this.state.board.length
+        || nextCol < 0 || nextCol >= this.state.board[nextRow].length
+        || this.state.board[nextRow][nextCol] !== WATER)
+        break;
+      else {
+        sub.past_track.push({ row: nextRow, col: nextCol });
+        newRow = nextRow;
+        newCol = nextCol;
+      }
+    }
+    sub.row = newRow;
+    sub.col = newCol;
+  }
+
+  launchTorpedo(playerId, row, col) {
+    this.state.version++;
+
+    if (this.state.phase !== GlobalPhases.LIVE)
+      return;
+
+    let sub = this.getSub(playerId);
+    if (!sub || sub.submarineState !== SubmarineStates.SUBMERGED)
+      return;
+
+    if (sub.actionGauges.torpedo < 3)
+      return;
+
+    sub.actionGauges.torpedo = 0;
+
+    let /**@type {{subId: string, damage: 1 | 2}[]} */ damagedSubs;
+    if (row < 0 || row > this.state.board.length || col < 0 || col > this.state.board[row].length || this.state.board[row][col] === LAND || Math.abs(sub.row - row) + Math.abs(sub.col - col) > 4)
+      damagedSubs = [];
+    else
+      damagedSubs = this.#doDamage(row, col);
+
+    this.state.phase = GlobalPhases.INTERRUPT;
+    this.state.activeInterrupt = {
+      type: InterruptTypes.TORPEDO_RESOLUTION,
+      data: {
+        // So client knows whether it's their sub that did the launch.
+        launchingSubId: sub.id,
+        row: row,
+        col: col,
+        damagedSubs: damagedSubs,
+      }
+    };
+  }
+
+  #checkForGameOver() {
+    this.state.submarines.forEach(s => {
+      if (s.health <= 0)
+        s.submarineState = SubmarineStates.DESTROYED;
+    })
+    if (this.state.submarines.filter(s => s.submarineState !== SubmarineStates.DESTROYED).length <= 1) {
+      this.state.phase = GlobalPhases.GAME_OVER;
+      this.state.winner = this.state.submarines.find(s => s.submarineState !== SubmarineStates.DESTROYED).id;
+    }
+  }
+
+  dropMine(playerId, row, col) {
+    if (this.state.phase !== GlobalPhases.LIVE)
+      return;
+
+    let sub = this.getSub(playerId);
+    if (!sub || sub.actionGauges.mine < 3 || sub.submarineState !== SubmarineStates.SUBMERGED)
+      return;
+
+    sub.actionGauges.mine = 0;
+
+    if (row < 0 || row > this.state.board.length || col < 0 || col > this.state.board[row].length)
+      return;
+
+    if (this.state.board[row][col] === LAND)
+      return;
+
+    let distanceToMine = Math.abs(row - sub.row) + Math.abs(col - sub.col);
+    if (distanceToMine !== 1)
+      return;
+
+    if (sub.past_track.some(p => p.row === row && p.col === col))
+      return;
+
+    if (sub.mines.some(m => m.row === row && m.col === col))
+      return;
+
+    sub.mines.push({ row, col });
+  }
+
+  triggerMine(playerId, row, col) {
+    if (this.state.phase !== GlobalPhases.LIVE)
+      return;
+
+    let sub = this.getSub(playerId);
+    if (!sub || sub.submarineState !== SubmarineStates.SUBMERGED)
+      return;
+
+    let mineIndex = sub.mines.findIndex(m => m.row === row && m.col === col);
+    if (mineIndex < 0)
+      return;
+
+    let mine = sub.mines.splice(mineIndex, 1)[0];
+    let damagedSubs = this.#doDamage(mine.row, mine.col);
+
+    this.state.phase = GlobalPhases.INTERRUPT;
+    this.state.activeInterrupt = {
+      type: InterruptTypes.MINE_TRIGGER_RESOLUTION,
+      data: {
+        // So client knows whether it's their sub that did the launch.
+        launchingSubId: sub.id,
+        row: row,
+        col: col,
+        damagedSubs: damagedSubs,
+      }
+    };
+  }
+
+  #doDamage(row, col) {
+    let damagedSubs = this.state.submarines.filter(s => Math.abs(s.row - row) < 2 && Math.abs(s.col - col) < 2).map(s => ({ subId: s.id, damage: s.col === col && s.row === row ? 2 : 1 }));
+
+    damagedSubs.forEach(d => {
+      let s = this.state.submarines.find(s => s.id === d.subId);
+      s.health = Math.max(0, s.health - d.damage);
+    });
+
+    return damagedSubs;
+  }
+
+  getSub(playerId) {
+    return this.state.submarines.find(s => [s.co, s.xo, s.eng, s.sonar].some(p => p === playerId));
+  }
+
+  #getRoleAndSub(playerId) /**@type {sub: ReturnType<typeof createSubmarine>, role: 'co' | 'xo' | 'eng' | 'sonar'} */ {
+    let sub = this.state.submarines.find(s => [s.co, s.xo, s.eng, s.sonar].some(p => p === playerId));
+    return {
+      sub: sub,
+      role: !sub ? undefined : Object.keys(sub).find(k => sub[k] === playerId),
+    };
+  }
+
+}

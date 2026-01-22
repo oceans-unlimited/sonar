@@ -17,20 +17,23 @@ export const Colors = {
   active: 0xffffff
 };
 
+// Thin line, great for body text
 export const Font = {
   family: "Orbitron",
   size: 22,
   lineHeight: 30,
-  letterSpacing: 2,
+  letterSpacing: 3,
   uppercase: true,
 };
 
+// Bolder weight, good for titles, headings
 export const headerFont = {
   family: "Goldman",
+  fontWeight: "bold",
   size: 30,
   lineHeight: 30,
   letterSpacing: 2,
-  uppercase: true,  
+  uppercase: true,
 }
 
 export const Layout = {
@@ -47,4 +50,31 @@ export const SystemColors = {
   detection: 0x00ff00, // green
   weapons: 0xe74c3c,   // red
   reactor: 0xb3b3b3,   // grey
+};
+
+export const MessageGradients = {
+  toast: {
+    normal: [
+      { offset: 0.1, color: 0xffffff, alpha: 0.8 },
+      { offset: 0.35, color: 0xffffff, alpha: 0.35 },
+      { offset: 1, color: 0xffffff, alpha: 0.2 }
+    ],
+    uniform: [
+      { offset: 0, color: 0xffffff, alpha: 0.5 },
+      { offset: 0.5, color: 0xffffff, alpha: 0.6 },
+      { offset: 1, color: 0xffffff, alpha: 0.5 }
+    ]
+  },
+  docked: {
+    normal: [
+      { offset: 0.1, color: 0xffffff, alpha: 1.0 },
+      { offset: 0.4, color: 0xffffff, alpha: 0.5 },
+      { offset: 1, color: 0xffffff, alpha: 0.3 }
+    ],
+    uniform: [
+      { offset: 0, color: 0xffffff, alpha: 0.5 },
+      { offset: 0.5, color: 0xffffff, alpha: 0.8 },
+      { offset: 1, color: 0xffffff, alpha: 0.5 }
+    ]
+  }
 };

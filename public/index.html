@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <title>Captain Sonar Visual Demo</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="/favicon.ico">
   <style>
     body {
       margin: 0;
@@ -33,12 +34,20 @@
     <button id="minimizeBtn"
       style="position: absolute; top: 5px; right: 5px; width: 20px; height: 20px; background: none; border: none; color: white; font-size: 20px; cursor: pointer;">-</button>
     <h2>Scene Select</h2>
-    <button id="sceneTitleBtn">Title Scene</button>
-    <button id="sceneMenuBtn">Menu Scene</button>
-    <button id="sceneConnBtn">Conn Scene</button>
-    <button id="sceneDebugRotationBtn">Debug Rotation Scene</button>
-    <button id="sceneLobbyBtn">Lobby Scene</button>
-    <button id="sceneEngineBtn">Engine Scene</button>
+    <select id="sceneSelector"
+      style="width: 100%; padding: 5px; margin-bottom: 10px; background: #333; color: white; border: 1px solid #555;">
+      <option value="title">Title Scene</option>
+      <option value="menu">Menu Scene</option>
+      <option value="conn">Conn Scene</option>
+      <option value="debugRotation">Debug Rotation Scene</option>
+      <option value="lobby">Lobby Scene</option>
+      <option value="engine">Engine Scene</option>
+      <option value="xo">XO Scene</option>
+      <option value="mapTest">Map Test Harness</option>
+      <option value="featureTest">Feature Test Room</option>
+    </select>
+    <hr style="border: 0; border-top: 1px solid #444; margin: 10px 0;">
+    <button id="triggerPauseBtn" style="background: #d97706;">Trigger Global Pause</button>
   </div>
 
   <button id="maximizeBtn"

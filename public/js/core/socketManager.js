@@ -19,23 +19,9 @@ class SocketManager extends EventEmitter {
       this.emit('stateUpdate', state);
     });
 
-    // Server may emit either a plain id string or an object like { id, name }
-    this.socket.on('player_id', (payload) => {
-      let id = null;
-      let name = undefined;
-      if (typeof payload === 'string') {
-        id = payload;
-      } else if (payload && typeof payload === 'object') {
-        id = payload.id;
-        if (payload.name) name = payload.name;
-      }
-
-      if (id) {
-        this.playerId = id;
-      }
-      if (name) {
-        this.playerName = name;
-      }
+    // Server emits a plain id string
+    this.socket.on('player_id', (id) => {
+      this.playerId = id;
 
       // Keep backward-compatible event emission
       this.emit('playerId', id);
@@ -53,8 +39,19 @@ class SocketManager extends EventEmitter {
     this.socket.emit('change_name', name);
   }
 
-  selectRole(submarine, role) {
-    this.socket.emit('select_role', { submarine, role });
+  selectRole(subId, role) {
+    // Map client-facing role names to server-side submarine keys
+    const roleAlias = (r) => {
+      if (!r) return r;
+      const key = String(r).toLowerCase();
+      if (key === 'captain' || key === 'co') return 'co';
+      if (key === '1stofficer' || key === 'xo' || key === 'firstofficer') return 'xo';
+      if (key.includes('sonar')) return 'sonar';
+      if (key === 'engineer' || key === 'eng' || key === 'radio') return 'eng';
+      return r;
+    };
+    let subIndex = this.lastState.submarines.findIndex(sub => sub.id === subId);
+    this.socket.emit('select_role', { submarine: subIndex, role: roleAlias(role) });
   }
 
   leaveRole() {
@@ -72,7 +69,37 @@ class SocketManager extends EventEmitter {
   pushButton(buttonData) {
     this.socket.emit('button_pushed', buttonData);
   }
+
+  chargeGauge(gauge) {
+    this.socket.emit('charge_gauge', gauge);
+  }
+
+  crossOffSystem(direction, slotId) {
+    this.socket.emit('cross_off_system', { direction, slotId });
+  }
+
+  readyInterrupt() {
+    this.socket.emit('ready_interrupt');
+  }
+
+  requestPause() {
+    this.socket.emit('request_pause');
+  }
+
+  submitSonarResponse(response) {
+    this.socket.emit('submit_sonar_response', response);
+  }
+
+  move(direction) {
+    this.socket.emit('move', direction);
+  }
+
+  chooseInitialPosition(row, column) {
+    this.socket.emit('choose_initial_position', { row, column });
+  }
 }
+
+
 
 export const socketManager = new SocketManager();
 

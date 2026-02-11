@@ -144,14 +144,19 @@ Use `tst/test-helpers.js` for common Socket.IO test utilities:
 - **WebSocket Handling**: `src/server.lib.js`
 - **Constants**: `src/constants.js`
 
-### Client Architecture
-- **Entry Point**: `public/js/client.js`
-- **Scenes**: `public/js/scenes/` - Lifecycle management
-- **Controllers**: `public/js/controllers/` - State coordination
-- **Renderers**: `public/js/renderers/` - Visual construction
-- **Behaviors**: `public/js/ui/behaviors/` - UI interaction logic
-- **Features**: `public/js/features/` - Persistent systems
-- **Core**: `public/js/core/` - Global services
+### Client Architecture (New - src/)
+- **Entry Point**: `src/main.jsx` (Vite-bundled)
+- **Scenes**: `src/scenes/` - Component orchestration factories
+- **Controllers**: `src/control/` - OOP-based state coordination (extending BaseController)
+- **Render Layer**: `src/render/` - Class-based UI components (Button, Panel, etc.)
+- **Behavior Layer**: `src/behavior/` - Interactable wiring and visual state coordinators
+- **Core Services**: `src/core/` - Global singletons (SocketManager, SceneManager, UIStyle)
+- **Features**: `src/feature/` - Long-lived persistent systems (Map, Interrupts)
+- **Debug System**: `src/debug/` - Director Mode, scenarios, and overlays
+
+### Existing (Deprecated) Client Style
+- Files in `public/js/` follow a functional module pattern and are being phased out in favor of the class-based architecture in `src/`.
+- Gradual migration: New scenes should be built in `src/`, legacy ones maintained in `public/js/` until refactored.
 
 ### Strict Separation of Concerns
 **NEVER** mix responsibilities:
@@ -182,21 +187,22 @@ Follow conventional commit format:
 
 ## File Organization Rules
 
-### Client-Side Structure
+### Client-Side Structure (src/)
 ```
-public/js/
-├── client.js              # Application entry
-├── core/                  # Global services
+src/
+├── main.jsx              # Application entry
+├── core/                 # Global services
 │   ├── socketManager.js
 │   ├── sceneManager.js
 │   └── uiStyle.js
-├── features/              # Persistent systems
+├── feature/              # Persistent systems
 │   ├── map/
-│   └── submarine/
-├── controllers/           # State coordination
-├── scenes/                # Lifecycle management
-├── renderers/             # Visual construction
-└── ui/behaviors/          # Interaction logic
+│   └── interrupt/
+├── control/              # OOP Controllers
+├── scenes/               # Scene Factories
+├── render/               # UI Components
+│   └── effects/          # Visual effects
+└── behavior/             # Interaction logic
 ```
 
 ### Server-Side Structure

@@ -3,6 +3,7 @@ import { SceneManager } from './core/sceneManager.js';
 import { socketManager } from './core/socketManager.js';
 import { AudioManager } from './core/audioManager.js';
 import { interruptController } from './features/interrupts/InterruptController.js';
+import '@pixi/layout';
 
 window.interruptController = interruptController;
 
@@ -38,6 +39,8 @@ const waitForFonts = () => {
 
   // Create a new application
   const app = new Application();
+  globalThis.__PIXI_APP__ = app;
+
   // The background color is set by the scene, so we don't need it here.
   await app.init({
     resizeTo: window,

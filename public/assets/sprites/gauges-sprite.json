@@ -1,0 +1,29 @@
+{
+  "frames": {
+    "gauge_03.png": { "frame": { "x": 0, "y": 0, "w": 78, "h": 106 } },
+    "gauge_33.png": { "frame": { "x": 78, "y": 0, "w": 78, "h": 106 } },
+    "gauge_66.png": { "frame": { "x": 156, "y": 0, "w": 78, "h": 106 } },
+    "gauge_04.png": { "frame": { "x": 234, "y": 0, "w": 78, "h": 106 } },
+    "gauge_25.png": { "frame": { "x": 0, "y": 106, "w": 78, "h": 106 } },
+    "gauge_50.png": { "frame": { "x": 78, "y": 106, "w": 78, "h": 106 } },
+    "gauge_75.png": { "frame": { "x": 156, "y": 106, "w": 78, "h": 106 } },
+    "gauge_05.png": { "frame": { "x": 234, "y": 106, "w": 78, "h": 106 } },
+    "gauge_20.png": { "frame": { "x": 0, "y": 212, "w": 78, "h": 106 } },
+    "gauge_40.png": { "frame": { "x": 78, "y": 212, "w": 78, "h": 106 } },
+    "gauge_60.png": { "frame": { "x": 156, "y": 212, "w": 78, "h": 106 } },
+    "gauge_80.png": { "frame": { "x": 234, "y": 212, "w": 78, "h": 106 } },
+    "gauge_06.png": { "frame": { "x": 0, "y": 318, "w": 78, "h": 106 } },
+    "gauge_16.png": { "frame": { "x": 78, "y": 318, "w": 78, "h": 106 } },
+    "gauge_06_33.png": { "frame": { "x": 156, "y": 318, "w": 78, "h": 106 } },
+    "gauge_06_50.png": { "frame": { "x": 234, "y": 318, "w": 78, "h": 106 } },
+    "gauge_06_66.png": { "frame": { "x": 0, "y": 424, "w": 78, "h": 106 } },
+    "gauge_82.png": { "frame": { "x": 78, "y": 424, "w": 78, "h": 106 } },
+    "gauge_100.png": { "frame": { "x": 156, "y": 424, "w": 78, "h": 106 } }
+  },
+  "meta": {
+    "image": "gauges-sprite.png",
+    "format": "RGBA8888",
+    "size": { "w": 312, "h": 530 },
+    "scale": 1
+  }
+}

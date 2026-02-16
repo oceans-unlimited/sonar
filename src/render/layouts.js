@@ -7,11 +7,11 @@ export const buttonBlockPatterns = {
         gap: 12
     },
     vertical: {
+        width: 'auto',
+        height: 'auto',
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'stretch',
-        width: 'auto',
-        height: '100%',
         gap: 12
     }
 }
@@ -21,7 +21,7 @@ export const panelPatterns = {
         width: 'auto',
         minWidth: '275',
         height: 'auto',
-        padding: 15,
+        padding: 17,
         flexDirection: 'column'
     },
 }

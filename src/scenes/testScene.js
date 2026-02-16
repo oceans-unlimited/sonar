@@ -10,18 +10,16 @@ import Panel from '../render/panel';
 import { wireButton } from '../behavior/buttonBehavior';
 
 /**
- * @param {import('pixi.js').Application} app
- * @param {object} assets
- * @param {import('../core/socketManager').socketManager} socketManager
+ * @param {import('../control/baseController').BaseController} controller
  * @returns {Container}
  */
-export async function createTestScene(app, assets, socketManager) {
+export async function createTestScene(controller, ticker) {
     const scene = new Container();
     scene.label = 'testScene';
 
     scene.layout = {
-        width: app.screen.width,
-        height: app.screen.height,
+        width: 'auto',
+        height: 'auto',
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'flex-start',
@@ -66,8 +64,8 @@ export async function createTestScene(app, assets, socketManager) {
     // ─────────── Panel 2: Info Buttons ───────────
     const panel2 = new Panel('control', {
         label: 'panel_info',
-        backgroundColor: 0x111122,
-        borderColor: 0x3498db,
+        backgroundColor: '#111122',
+        borderColor: '#3498db',
         borderWidth: 2,
         borderRadius: 8
     });
@@ -75,7 +73,7 @@ export async function createTestScene(app, assets, socketManager) {
     const infoButtons = [];
     for (let i = 0; i < 4; i++) {
         const btnDef = {
-            asset: 'button',
+            asset: 'sub_profileA',
             color: 0x9b59b6,
             profile: 'basic'
         };

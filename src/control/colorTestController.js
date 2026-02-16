@@ -24,8 +24,8 @@ export class ColorTestController extends BaseController {
     // ─────────── Lifecycle ───────────
 
     onViewBound(view) {
+        super.onViewBound(view);
         console.log('[ColorTestController] View bound.');
-        this.onSocket('DIRECTOR_CMD', (cmd) => this.handleEvent('DIRECTOR_CMD', cmd));
     }
 
     // ─────────── Handlers ───────────
@@ -49,13 +49,6 @@ export class ColorTestController extends BaseController {
 
         if (typeof window !== 'undefined' && window.logEvent) {
             window.logEvent(`Border cycled: ${panelId} → 0x${this.testColors[this.colorIndex].toString(16)}`);
-        }
-    }
-
-    handleDirectorCmd(cmd) {
-        console.log('[ColorTestController] Director command:', cmd);
-        if (cmd.type && this.handlers[cmd.type]) {
-            this.handleEvent(cmd.type, cmd.payload);
         }
     }
 }

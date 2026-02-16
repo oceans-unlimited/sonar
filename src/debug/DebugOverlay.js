@@ -7,6 +7,7 @@ export class DebugOverlay {
         this.panel = null;
         this.toggleButton = null;
         this.isCollapsed = false;
+        this.currentSceneKey = 'xo'; // Initialize with the default selected scene
     }
 
     mount() {
@@ -83,6 +84,10 @@ export class DebugOverlay {
     }
 
     render() {
+        // Get the initial scene key to render scenario options correctly
+        const initialSceneKey = this.sceneManager.getAvailableScenes().find(scene => scene === 'xo') || this.sceneManager.getAvailableScenes()[0];
+        this.currentSceneKey = initialSceneKey;
+
         this.panel.innerHTML = `
       <h3 style="margin: 0 0 15px 0; color: #00ff00; border-bottom: 2px solid #00ff00; padding-bottom: 8px; font-size: 18px;">🎬 DIRECTOR MODE</h3>
       
@@ -97,7 +102,7 @@ export class DebugOverlay {
         <label style="display: block; margin-bottom: 8px; font-weight: bold;">Select Scenario:</label>
         <select id="scenario-select" style="width: 100%; padding: 10px; background: #000; color: #00ff00; border: 1px solid #00ff00; border-radius: 4px; font-size: 14px;">
           <option value="">-- Choose Scenario --</option>
-          ${this.renderScenarioOptions()}
+          ${this.renderScenarioOptions(this.currentSceneKey)}
         </select>
       </div>
       
@@ -155,15 +160,22 @@ export class DebugOverlay {
         this.attachEventListeners();
     }
 
-    renderScenarioOptions() {
+    renderScenarioOptions(selectedSceneKey = null) {
         let html = '';
         for (const [category, scenarios] of Object.entries(SCENARIO_CATEGORIES)) {
-            html += `<optgroup label="${category}">`;
-            for (const scenarioKey of scenarios) {
+            const filteredScenarios = scenarios.filter(scenarioKey => {
                 const scenario = SCENARIO_REGISTRY[scenarioKey];
-                html += `<option value="${scenarioKey}">${scenario.name}</option>`;
+                return !selectedSceneKey || scenario.scene === selectedSceneKey;
+            });
+
+            if (filteredScenarios.length > 0) {
+                html += `<optgroup label="${category}">`;
+                for (const scenarioKey of filteredScenarios) {
+                    const scenario = SCENARIO_REGISTRY[scenarioKey];
+                    html += `<option value="${scenarioKey}">${scenario.name}</option>`;
+                }
+                html += `</optgroup>`;
             }
-            html += `</optgroup>`;
         }
         return html;
     }
@@ -171,15 +183,22 @@ export class DebugOverlay {
     renderSceneOptions() {
         const scenes = this.sceneManager.getAvailableScenes();
         return scenes.map(scene => `
-      <option value="${scene}" ${scene === 'xo' ? 'selected' : ''}>${scene.toUpperCase()}</option>
+      <option value="${scene}" ${scene === this.currentSceneKey ? 'selected' : ''}>${scene.toUpperCase()}</option>
     `).join('');
     }
 
     attachEventListeners() {
-        document.getElementById('scene-select').addEventListener('change', (e) => {
+        const sceneSelect = document.getElementById('scene-select');
+        const scenarioSelect = document.getElementById('scenario-select');
+
+        sceneSelect.addEventListener('change', (e) => {
             const sceneKey = e.target.value;
+            this.currentSceneKey = sceneKey; // Update currentSceneKey
             this.sceneManager.loadScene(sceneKey);
             this.logEvent(`Scene changed to: ${sceneKey.toUpperCase()}`, '#00ffff');
+
+            // Re-render scenario options for the newly selected scene
+            scenarioSelect.innerHTML = `<option value="">-- Choose Scenario --</option>${this.renderScenarioOptions(sceneKey)}`;
         });
 
         document.getElementById('load-scenario-btn').addEventListener('click', () => {
@@ -225,8 +244,15 @@ export class DebugOverlay {
         document.getElementById('scenario-name').textContent = scenario.name;
 
         // Load scene module
-        if (scenario.scene) {
+        if (scenario.scene && scenario.scene !== this.currentSceneKey) {
             await this.sceneManager.loadScene(scenario.scene);
+            this.currentSceneKey = scenario.scene; // Update if scenario changes scene
+            // Also update the scene-select dropdown to reflect the change
+            const sceneSelect = document.getElementById('scene-select');
+            if (sceneSelect) sceneSelect.value = scenario.scene;
+            // And re-render scenario options for the new scene
+            const scenarioSelect = document.getElementById('scenario-select');
+            if (scenarioSelect) scenarioSelect.innerHTML = `<option value="">-- Choose Scenario --</option>${this.renderScenarioOptions(scenario.scene)}`;
         }
 
         await this.director.loadScenario(scenario);

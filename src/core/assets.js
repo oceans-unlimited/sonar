@@ -65,6 +65,8 @@ const ASSET_LIST = {
     circuitFrame: 'assets/ui/circuit_frame.svg',
     gridTag: 'assets/ui/grid_tag.svg',
     reactorTag: 'assets/ui/reactor_tag.svg',
+    // Sprite Sheets
+    gauges: 'assets/sprites/gauges-sprite.json'
 };
 
 const FONT_LIST = {
@@ -119,6 +121,10 @@ export class AssetManager {
         }
 
         console.log(`[AssetManager] Assets loaded: ${Object.keys(this.assets).length}`);
+
+        // 3. Define spritesheets
+        this.gaugeSheet = this.assets.gauges;
+
         return this.assets;
     }
 

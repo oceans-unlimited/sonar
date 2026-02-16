@@ -36,10 +36,11 @@ import { assetManager } from './core/assets';
     const assets = await assetManager.init();
 
     // 3. Create Scene Manager
-    const sceneManager = new SceneManager(app, assets, socketManager);
+    const sceneManager = new SceneManager(app);
 
     // 4. Director Mode (test harness)
     const isTestMode = new URLSearchParams(window.location.search).has('mode', 'test');
+
     if (isTestMode) {
         console.log('🎬 DIRECTOR MODE ACTIVATED');
         const { Director } = await import('./debug/Director');
@@ -55,16 +56,13 @@ import { assetManager } from './core/assets';
 
         const overlay = new DebugOverlay(director, sceneManager);
         overlay.mount();
-
-        // Default to 'xo' if in test mode, can be changed via overlay selector
-        await sceneManager.loadScene('xo');
     } else {
         // 5. Production Mode — bind real socket
         if (typeof io !== 'undefined') {
             socketManager.bindSocket(io());
         }
-
-        // Load default scene
-        await sceneManager.loadScene('engineer');
     }
+
+    // Load default scene (test)
+    await sceneManager.init();
 })();

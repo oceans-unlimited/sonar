@@ -1,6 +1,6 @@
 # Button Behaviors & Effects System
 
-The Button system in **Laboratory** follows a strict **Controller-Driven Composition** architecture. It separates the visual construction of a button from its mechanical logic and visual feedback, allowing for highly reusable components and a data-driven scene definition.
+The Button system in **Sonar** follows a strict **Controller-Driven Composition** architecture. It separates the visual construction of a button from its mechanical logic and visual feedback, allowing for highly reusable components and a data-driven scene definition.
 
 ---
 

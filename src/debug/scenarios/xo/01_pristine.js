@@ -5,6 +5,7 @@
 
 export default {
     name: "XO - Pristine",
+    scene: 'xo',
     initialState: {
         submarines: [
             {
@@ -16,7 +17,7 @@ export default {
                     mine: { level: 0, max: 3 },
                     torpedo: { level: 0, max: 3 },
                     silence: { level: 0, max: 6 },
-                    scenario: { level: 0, max: 4 }
+                    scenario: { level: 0, max: 5 }
                 }
             }
         ]

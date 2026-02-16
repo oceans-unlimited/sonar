@@ -31,6 +31,7 @@ export const Colors = {
 
 // ──────────────────────── Alpha Values ────────────────────────
 export const Alphas = {
+    faint: 0.05,
     dim: 0.4,
     medium: 0.6,
     bright: 0.85,

@@ -27,7 +27,7 @@ export class XOController extends BaseController {
             mine: 3,
             torpedo: 3,
             silence: 6,
-            scenario: 4
+            scenario: 5
         };
 
         this.isInteractionLocked = true;
@@ -43,6 +43,7 @@ export class XOController extends BaseController {
     // ─────────── Lifecycle ───────────
 
     onViewBound(view) {
+        super.onViewBound(view);
         console.log('[XOController] View bound.');
 
         // Register rows from the view if they exist
@@ -51,9 +52,6 @@ export class XOController extends BaseController {
                 this.registerVisual(`row_${key}`, row);
             });
         }
-
-        // Listen for game state updates
-        this.onSocket('stateUpdate', (state) => this.onGameStateUpdate(state));
     }
 
     onGameStateUpdate(state) {
@@ -70,7 +68,7 @@ export class XOController extends BaseController {
             if (sub.actionGauges && sub.actionGauges[key] !== undefined) {
                 this.subsystemLevels[key] = sub.actionGauges[key];
                 const row = this.visuals.get(`row_${key}`);
-                if (row) row.setLevel(this.subsystemLevels[key]);
+                if (row && row.setGaugeLevel) row.setGaugeLevel(this.subsystemLevels[key]);
             }
         });
 
@@ -91,9 +89,9 @@ export class XOController extends BaseController {
             const canCharge = !this.isInteractionLocked && !isFull;
             const canDischarge = isLive && isFull;
 
-            row.eventMode = (canCharge || canDischarge) ? 'static' : 'none';
-            row.cursor = (canCharge || canDischarge) ? 'pointer' : 'default';
-            row.alpha = (canCharge || canDischarge) ? 1.0 : 0.6;
+            if (row.setInteractiveState) {
+                row.setInteractiveState(canCharge || canDischarge);
+            }
         });
     }
 
@@ -120,12 +118,5 @@ export class XOController extends BaseController {
         console.log(`[XOController] Discharging: ${key}`);
         // TODO: Emit discharge to server
         this.socketManager.socket?.emit('discharge_gauge', key);
-    }
-
-    handleDirectorCmd(cmd) {
-        console.log(`[XOController] Director command:`, cmd);
-        if (cmd.type === 'stateUpdate') {
-            this.onGameStateUpdate(cmd.payload);
-        }
     }
 }

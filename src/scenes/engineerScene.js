@@ -1,135 +1,146 @@
-/**
- * Engineer Scene Factory
- * Constructs the Engineer station's visual elements.
- * Uses Button, ButtonBlock, and wireButton for the new architecture.
- */
-
-import { Container } from 'pixi.js';
-import Button, { createButtonFromDef } from '../render/button';
-import ButtonBlock from '../render/buttonBlock';
-import { wireButton } from '../behavior/buttonBehavior';
-import { SystemColors } from '../core/uiStyle';
+import { SYSTEM_ASSETS } from '../render/constants/systemAssets.js';
+import { Container, Text } from 'pixi.js';
+import { createButtonFromDef } from '../render/button.js';
+import ButtonBlock from '../render/buttonBlock.js';
+import { wireButton } from '../behavior/buttonBehavior.js';
 
 /**
- * @param {import('pixi.js').Application} app
- * @param {object} assets
- * @param {import('../core/socketManager').socketManager} socketManager
- * @returns {Container} The scene container
+ * Builds the Engineer scene graph.
+ * This function now creates a container with a loading message and attaches a `populate`
+ * method to it, which can be called later when data is available.
+ * 
+ * @param {Object} controller - The active SceneController instance.
+ * @param {import('pixi.js').Ticker} ticker - The application ticker.
+ * @returns {Container} The constructed scene container, initially in a loading state.
  */
-export async function createEngineScene(app, assets, socketManager) {
-    const scene = new Container();
-    scene.label = 'engineerScene';
+export function createEngineScene(controller, ticker) {
+    const sceneContent = new Container();
+    sceneContent.label = 'engineScene';
 
-    // Use PixiLayout on the scene container
-    scene.layout = {
-        width: app.screen.width,
-        height: app.screen.height,
+    // The layout is now hard-coded as this is a specific scene
+    sceneContent.layout = {
         flexDirection: 'column',
-        justifyContent: 'flex-start',
-        alignItems: 'center',
-        padding: 20,
-        gap: 15
+        // gap: 20,
+        justifyContent: 'space-between',
+        // alignItems: 'baseline',
     };
 
-    // ─────────── Direction Rows ───────────
-    const directions = ['N', 'E', 'W', 'S'];
-    const directionColors = {
-        N: 0x00aaff,
-        E: 0x2ecc71,
-        W: 0xf1c40f,
-        S: 0xe74c3c
-    };
-
-    for (const dir of directions) {
-        const color = directionColors[dir];
-
-        // Create slot buttons for this direction
-        const slotButtons = [];
-        const slots = ['slot01', 'slot02', 'slot03'];
-
-        for (const slotId of slots) {
-            const btnDef = {
-                asset: 'circuit_frame',
-                color: color,
-                profile: 'circuit'
-            };
-            const buttonView = createButtonFromDef(btnDef);
-            slotButtons.push(buttonView);
+    const loadingText = new Text({
+        text: 'Awaiting initial state from server...',
+        style: {
+            fontFamily: 'Courier New',
+            fontSize: 18,
+            fill: '#00ff00',
+            align: 'center',
         }
-
-        // Create button block for this direction
-        const block = new ButtonBlock(slotButtons, 'horizontal', {
-            label: `block_${dir}`,
-            heading: dir,
-            color: color,
-            header: true,
-            line: true
-        });
-
-        scene.addChild(block);
-    }
-
-    // ─────────── Reactor Row ───────────
-    const reactorButtons = [];
-    for (let i = 1; i <= 3; i++) {
-        const btnDef = {
-            asset: 'reactor',
-            color: SystemColors.reactor,
-            profile: 'reactor'
-        };
-        const buttonView = createButtonFromDef(btnDef);
-        reactorButtons.push(buttonView);
-    }
-
-    const reactorBlock = new ButtonBlock(reactorButtons, 'horizontal', {
-        label: 'block_reactor',
-        heading: 'REACTOR',
-        color: SystemColors.reactor,
-        header: true,
-        line: true
     });
+    loadingText.anchor.set(0.5);
+    sceneContent.addChild(loadingText);
 
-    scene.addChild(reactorBlock);
+    /**
+     * Populates the scene with content once the initial layout is received.
+     * @param {Object} initialLayout - The engine layout data from the server.
+     */
+    sceneContent.populate = (initialLayout) => {
+        // Remove loading message
+        sceneContent.removeChild(loadingText);
+        loadingText.destroy();
 
-    // ─────────── Wire Buttons ───────────
-    // This wiring creates the interactive behavior and returns control APIs
-    // The controller will pick these up via registerButton()
-    scene._buttonControls = new Map();
-
-    scene.children.forEach(child => {
-        if (child instanceof ButtonBlock) {
-            child.buttons.forEach(btn => {
-                if (btn instanceof Button) {
-                    const profile = btn.label === 'reactor_btn' ? 'reactor' : 'circuit';
-                    // Extract the ID from the button def (stored during creation)
-                    const buttonId = btn.label || `btn_${Math.random().toString(36).substr(2, 6)}`;
-
-                    const ctrl = wireButton(btn, {
-                        id: buttonId,
-                        profile: profile,
-                        onPress: (id) => {
-                            // Parse direction and slot from the block/button structure
-                            const blockLabel = child.label || '';
-                            const direction = blockLabel.replace('block_', '');
-
-                            if (typeof window !== 'undefined' && window.logEvent) {
-                                window.logEvent(`Button pressed: ${id} (${direction})`);
-                            }
-
-                            // Route to controller
-                            if (scene._controller) {
-                                scene._controller.handleEvent('CROSS_OFF', {
-                                    direction,
-                                    slotId: id.split('_')[1] || id
-                                });
-                            }
+        // Create a lookup for circuit colors: "direction:slotId" -> colorHex
+        const circuitColorMap = {};
+        if (initialLayout.circuits) {
+            initialLayout.circuits.forEach(circuit => {
+                if (circuit.connections) {
+                    circuit.connections.forEach(conn => {
+                        // We only care about frame slots for now regarding circuit colors
+                        if (conn.slotType === 'frame') {
+                            const key = `${conn.direction}:${conn.slotId}`;
+                            circuitColorMap[key] = circuit.color;
                         }
                     });
-                    scene._buttonControls.set(buttonId, ctrl);
                 }
             });
         }
-    });
 
-    return scene;
+        const directionOrder = ['N', 'E', 'S', 'W'];
+
+        directionOrder.forEach(dirKey => {
+            const dirData = initialLayout.directions[dirKey];
+            if (!dirData) return;
+
+            const blockButtons = [];
+
+            // Function to process button creation
+            const processButton = (slotId, systemName, isFrame) => {
+                const sysConfig = SYSTEM_ASSETS[systemName.toLowerCase()] || SYSTEM_ASSETS.empty;
+
+                let frameColor = undefined;
+                let tagColor = undefined;
+
+                if (isFrame) {
+                    // Look up circuit color
+                    const circuitColor = circuitColorMap[`${dirKey}:${slotId}`];
+
+                    // If part of a circuit, use that color. Otherwise, fallback to system color or grey.
+                    if (circuitColor) {
+                        frameColor = circuitColor;
+                        tagColor = circuitColor;
+                    } else {
+                        frameColor = 0x555555; // Default dark grey for unconnected
+                        tagColor = 0x555555;
+                    }
+                }
+
+                const btnDef = {
+                    id: `${dirKey}:${slotId}`,
+                    asset: sysConfig.asset || (isFrame ? 'empty' : 'reactor'),
+                    color: sysConfig.color, // Icon color remains system color
+                    profile: isFrame ? 'circuit' : 'reactor',
+                    event: 'CROSS_OFF',
+                    frameColor: frameColor,
+                    tagColor: tagColor,
+                };
+
+                const button = createButtonFromDef(btnDef);
+
+                // Wire Metadata
+                const logicDef = {
+                    id: btnDef.id,
+                    address: `engineer.${dirKey}.${isFrame ? 'frame' : 'reactor'}`,
+                    event: 'CROSS_OFF',
+                    preset: 'ACTION', // Engine systems are disable only actions (one-way cross-off)
+                    profile: btnDef.profile
+                };
+
+                const wiredAPI = wireButton(
+                    button,
+                    logicDef,
+                    (e, d) => controller.handleEvent(e, d),
+                    ticker
+                );
+
+                controller.registerButton(btnDef.id, wiredAPI);
+                blockButtons.push(button);
+            };
+
+            // Reactors First
+            Object.entries(dirData.reactorSlots).forEach(([id, name]) => processButton(id, name, false));
+
+            // Frames Second
+            Object.entries(dirData.frameSlots).forEach(([id, name]) => processButton(id, name, true));
+
+            // Create Single Block
+            const blockConfig = {
+                heading: dirKey, // N, E, S, W
+                label: `block_${dirKey.toLowerCase()}`, // Selector ID
+                color: '#FFFFFF', // Default white for text/headers
+                header: true,
+                line: true
+            };
+            const block = new ButtonBlock(blockButtons, 'horizontal', blockConfig);
+            sceneContent.addChild(block);
+        });
+    };
+
+    return sceneContent;
 }

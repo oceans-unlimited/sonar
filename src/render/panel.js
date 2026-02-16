@@ -46,4 +46,12 @@ export default class Panel extends LayoutContainer {
     setBorderColor(color) {
         this.layout = { borderColor: color };
     }
+
+    /**
+     * Updates the alpha of the panel background.
+     * @param {number} alpha - Alpha value (0-1)
+     */
+    setAlpha(alpha) {
+        this.background.alpha = alpha;
+    }
 }

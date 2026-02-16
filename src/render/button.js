@@ -105,6 +105,28 @@ export default class Button extends Container {
         return this;
     }
 
+    /**
+     * Set the background texture. 
+     * @param {string|import('pixi.js').Texture} asset - The texture alias or Texture object.
+     */
+    setAsset(asset) {
+        let texture = null;
+        if (typeof asset === 'string') {
+            texture = Assets.cache.get(asset);
+        } else {
+            texture = asset;
+        }
+
+        if (texture) {
+            this.background.texture = texture;
+            // Ensure scaling is consistent with constructor
+            scaleToHeight(this.background, 65);
+        } else {
+            console.warn(`[Button] Texture not found for asset: ${asset}`);
+        }
+        return this;
+    }
+
     showTag() {
         if (this.tag) this.tag.visible = true;
         return this;
@@ -145,22 +167,21 @@ const PROFILE_CONFIG = {
 };
 
 export function createButtonFromDef(btnDef) {
-    const { id, asset, color, profile = 'basic' } = btnDef;
+    const { asset, color, profile = 'basic' } = btnDef;
 
-    // Resolve texture: check id/asset in cache ONLY if they are strings
+    // Resolve texture: check asset in cache
     let bgIcon = null;
-    if (typeof id === 'string') bgIcon = Assets.cache.get(id);
-    if (!bgIcon && typeof asset === 'string') bgIcon = Assets.cache.get(asset);
 
-    // If not in cache, check if asset is already a texture object
-    if (!bgIcon && asset && typeof asset !== 'string') {
+    if (typeof asset === 'string') {
+        bgIcon = Assets.cache.get(asset);
+    } else if (asset) {
         bgIcon = asset;
     }
 
     const button = new Button(bgIcon, color);
 
     if (!bgIcon) {
-        console.error(`[Button] CRITICAL: background texture not found for id: ${id} or asset: ${asset}.`);
+        console.error(`[Button] CRITICAL: background texture not found for asset: ${asset}.`);
     }
 
     const config = PROFILE_CONFIG[profile.toLowerCase()] || PROFILE_CONFIG.basic;

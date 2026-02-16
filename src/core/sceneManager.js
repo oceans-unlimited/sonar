@@ -3,50 +3,50 @@
  * Uses SCENE_MAP, CONTROLLER_MAP, and DECORATOR_MAP for clean separation.
  */
 
-import * as PIXI from 'pixi.js';
-
 // --- Scene Factories ---
 import { createEngineScene } from '../scenes/engineerScene';
 import { createTestScene } from '../scenes/testScene';
 import { createXOScene } from '../scenes/xoScene';
 
 // --- Controllers ---
+import { BaseController } from '../control/baseController';
 import { EngineerController } from '../control/engineerController';
 import { ColorTestController } from '../control/colorTestController';
 import { XOController } from '../control/xoController';
 
-// --- Decorators ---
-import { decorateEngineerScene } from '../render/decorators/engineerDecorator';
+// Services
+import { socketManager } from './socketManager.js';
 
 // ─────────── Maps ───────────
 
-const SCENE_MAP = {
-    engineer: createEngineScene,
-    test: createTestScene,
-    xo: createXOScene,
+export const CONTROLLER_MAP = {
+    'default': BaseController,
+    'engineer': EngineerController,
+    'test': ColorTestController,
+    'xo': XOController,
 };
 
-const CONTROLLER_MAP = {
-    engineer: EngineerController,
-    test: ColorTestController,
-    xo: XOController,
-};
-
-const DECORATOR_MAP = {
-    engineer: decorateEngineerScene,
+export const SCENE_MAP = {
+    'engineer': createEngineScene,
+    'test': createTestScene,
+    'xo': createXOScene,
 };
 
 // ─────────── Scene Manager Class ───────────
 
 export class SceneManager {
-    constructor(app, assets, socketManager) {
+    constructor(app) {
         this.app = app;
-        this.assets = assets;
-        this.socketManager = socketManager;
-
         this.currentScene = null;
         this.currentController = null;
-        this.currentSceneKey = null;
+
+        // Placeholder for future feature registry
+        this.features = {};
+    }
+
+    async init() {
+        // Load the default scene by its key on startup.
+        await this.loadScene('test');
     }
 
     /**
@@ -72,68 +72,66 @@ export class SceneManager {
 
         if (this.currentController) {
             console.log('[SceneManager] Destroying old controller...');
-            if (typeof this.currentController.destroy === 'function') {
-                this.currentController.destroy();
-            }
+            this.currentController.destroy();
             this.currentController = null;
         }
 
-        // 3. Create the new scene view
-        console.log(`[SceneManager] Building scene: ${sceneKey}`);
-        const sceneView = await sceneFactory(this.app, this.assets, this.socketManager);
+        // 3. Create the Controller (Logic) using the Factory Pattern
+        const ControllerClass = CONTROLLER_MAP[sceneKey] || CONTROLLER_MAP.default;
+        if (!ControllerClass) {
+            console.error(`[SceneManager] Controller not found for key: ${sceneKey}`);
+            return;
+        }
+        console.log(`[SceneManager] Instantiating controller for: ${sceneKey}`);
+        this.currentController = new ControllerClass();
 
-        // 4. Instantiate & bind the controller (if one is registered)
-        const ControllerClass = CONTROLLER_MAP[sceneKey];
-        let controller = null;
-        if (ControllerClass) {
-            controller = new ControllerClass(this.socketManager, this);
-            controller.bindView(sceneView);
-            console.log(`[SceneManager] Controller bound for: ${sceneKey}`);
+        // 3.1. Inject Dependencies (Socket & Features)
+        // We inject the socketManager singleton as the "socket" provider
+        // This decouples the controller from the specific import
+        this.currentController.bindSocket(socketManager);
+
+        if (this.features) {
+            this.currentController.bindFeatures(this.features);
         }
 
-        // 5. Apply decorator (if one is registered)
-        const decorator = DECORATOR_MAP[sceneKey];
-        if (decorator) {
-            decorator(sceneView, controller);
-            console.log(`[SceneManager] Decorator applied for: ${sceneKey}`);
+        // 3.2. Wire Scene Change Callback
+        this.currentController.onSceneChange = (newSceneKey) => {
+            if (SCENE_MAP[newSceneKey]) {
+                this.loadScene(newSceneKey);
+            } else {
+                console.error(`[SceneManager] Scene not found: ${newSceneKey}`);
+            }
+        };
+
+        // 4. Create the View (Visuals) by calling the scene's factory function
+        const sceneContent = await sceneFactory(this.currentController, this.app.ticker);
+
+        if (!sceneContent) {
+            console.error(`[SceneManager] Scene factory for "${sceneKey}" returned nothing.`);
+            return;
         }
 
-        // 6. Add to stage
-        this.app.stage.addChild(sceneView);
-        this.currentScene = sceneView;
-        this.currentController = controller;
-        this.currentSceneKey = sceneKey;
+        // 4.1 Link the view back to the controller
+        this.currentController.bindView(sceneContent);
 
-        console.log(`[SceneManager] Scene "${sceneKey}" loaded. Stage children: ${this.app.stage.children.length}`);
-
-        // 7. Trigger controller lifecycle hook
-        if (controller && typeof controller.onViewBound === 'function') {
-            controller.onViewBound(sceneView);
-        }
-    }
-
-    /**
-     * Get the list of available scene keys.
-     * @returns {string[]}
-     */
-    getAvailableScenes() {
-        return Object.keys(SCENE_MAP);
+        // 5. Add to stage
+        this.currentScene = sceneContent;
+        this.app.stage.addChild(this.currentScene);
     }
 
     /**
      * Destroy the current scene and controller.
      */
     destroy() {
-        if (this.currentScene) {
-            this.app.stage.removeChild(this.currentScene);
-            this.currentScene.destroy({ children: true });
-            this.currentScene = null;
-        }
-        if (this.currentController) {
-            if (typeof this.currentController.destroy === 'function') {
-                this.currentController.destroy();
-            }
-            this.currentController = null;
-        }
+        if (this.currentScene) this.currentScene.destroy({ children: true });
+        if (this.currentController) this.currentController.destroy();
+    }
+
+    /**
+     * Get available scene keys.
+     * @returns {string[]}
+     */
+    getAvailableScenes() {
+        return Object.keys(SCENE_MAP);
     }
 }

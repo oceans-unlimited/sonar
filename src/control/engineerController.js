@@ -25,13 +25,8 @@ export class EngineerController extends BaseController {
     // ─────────── Lifecycle ───────────
 
     onViewBound(view) {
+        super.onViewBound(view);
         console.log('[EngineerController] View bound.');
-
-        // Listen for game state updates
-        this.onSocket('stateUpdate', (state) => this.onGameStateUpdate(state));
-
-        // Listen for Director commands
-        this.onSocket('DIRECTOR_CMD', (cmd) => this.handleEvent('DIRECTOR_CMD', cmd));
     }
 
     onGameStateUpdate(state) {
@@ -110,13 +105,5 @@ export class EngineerController extends BaseController {
 
     handleReactor({ reactorId }) {
         console.log(`[EngineerController] Toggle reactor: ${reactorId}`);
-    }
-
-    handleDirectorCmd(cmd) {
-        console.log(`[EngineerController] Director command:`, cmd);
-        // Process Director-injected commands
-        if (cmd.type === 'stateUpdate') {
-            this.onGameStateUpdate(cmd.payload);
-        }
     }
 }

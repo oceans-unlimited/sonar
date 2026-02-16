@@ -15,6 +15,7 @@ export class Director extends EventEmitter {
         this.isPaused = false;
         this.timerId = null;
         this.lastEmittedEvent = null;
+        this.lastState = null;
     }
 
     /**
@@ -26,13 +27,16 @@ export class Director extends EventEmitter {
     }
 
     /**
-     * Load a scenario by key.
-     * @param {string} key - Scenario registry key
+     * Load a scenario by key or object.
+     * @param {string|object} keyOrScenario - Scenario registry key or scenario configuration object
      */
-    loadScenario(key) {
-        const scenario = this.scenarios[key];
+    loadScenario(keyOrScenario) {
+        const scenario = (typeof keyOrScenario === 'string')
+            ? this.scenarios[keyOrScenario]
+            : keyOrScenario;
+
         if (!scenario) {
-            console.warn(`[Director] Scenario not found: ${key}`);
+            console.warn(`[Director] Scenario not found: ${keyOrScenario}`);
             return;
         }
 
@@ -41,10 +45,11 @@ export class Director extends EventEmitter {
         this.timelineIndex = 0;
         this.isPaused = false;
 
-        console.log(`[Director] Loaded scenario: ${key} (${this.timeline.length} events)`);
+        console.log(`[Director] Loaded scenario: ${scenario.name || keyOrScenario} (${this.timeline.length} events)`);
 
         // Emit initial state if scenario provides one
         if (scenario.initialState) {
+            this.lastState = scenario.initialState;
             this.emit('state', scenario.initialState);
         }
     }
@@ -109,6 +114,9 @@ export class Director extends EventEmitter {
      */
     injectEvent(eventName, data) {
         console.log(`[Director] Injecting: ${eventName}`, data);
+        if (eventName === 'state' || eventName === 'GAME_STATE') {
+            this.lastState = data;
+        }
         this.emit(eventName, data);
     }
 
@@ -150,6 +158,10 @@ export class Director extends EventEmitter {
     _emitEvent(event) {
         const { type, data } = event;
         console.log(`[Director] Emitting: ${type}`, data);
+
+        if (type === 'state' || type === 'GAME_STATE') {
+            this.lastState = data;
+        }
 
         this.lastEmittedEvent = { event: type, data };
         this.emit(type, data);

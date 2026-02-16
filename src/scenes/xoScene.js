@@ -4,35 +4,27 @@
  * Uses Panel, SubsystemRow, and OOP-based layout.
  */
 
-import { Container, Sprite, Text } from 'pixi.js';
+import { Container, Text } from 'pixi.js';
 import Panel from '../render/panel';
 import ButtonBlock from '../render/buttonBlock';
 import { createButtonFromDef } from '../render/button';
-import { SystemColors, Font, Colors } from '../core/uiStyle';
-import { visuals } from '../render/effects/visuals';
+import { SystemColors, Font, Alphas } from '../core/uiStyle';
+import { wireButton } from '../behavior/buttonBehavior.js';
 
 /**
- * @param {import('pixi.js').Application} app
- * @param {object} assets
- * @param {import('../core/socketManager').socketManager} socketManager
- * @returns {Container}
+ * @param {Object} controller - The active SceneController instance.
+ * @param {import('pixi.js').Ticker} ticker - The application ticker.
+ * @returns {Container} The constructed scene container.
  */
-export async function createXOScene(app, assets, socketManager) {
-    const scene = new Container();
-    scene.label = 'xoScene';
+export async function createXOScene(controller, ticker) {
+    const sceneContent = new Container();
+    sceneContent.label = 'xoScene';
 
-    scene.layout = {
-        width: app.screen.width,
-        height: app.screen.height,
+    sceneContent.layout = {
         flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: 'space-between',
         gap: 20,
-        padding: 20
     };
-
-    const panelWidth = 320;
-    const panelHeight = 450;
 
     // --- Data Definitions ---
     const columnConfigs = [
@@ -40,35 +32,35 @@ export async function createXOScene(app, assets, socketManager) {
             name: "Detection",
             color: SystemColors.detection,
             rows: [
-                { key: 'sonar', label: "Active Sonar", icon: assets.ping_sys, gauge: assets.four_gauge, fills: [assets.four_gauge_fill1, assets.four_gauge_fill2, assets.four_gauge_fill3, assets.four_gauge_fill4] },
-                { key: 'drone', label: "Drone", icon: assets.drone_sys, gauge: assets.three_gauge, fills: [assets.three_gauge_fill1, assets.three_gauge_fill2, assets.three_gauge_fill3] }
+                { key: 'sonar', label: "Active Sonar", icon: 'ping_sys', frames: ['gauge_04.png', 'gauge_25.png', 'gauge_50.png', 'gauge_75.png', 'gauge_100.png'] },
+                { key: 'drone', label: "Drone", icon: 'drone_sys', frames: ['gauge_03.png', 'gauge_33.png', 'gauge_66.png', 'gauge_100.png'] }
             ]
         },
         {
             name: "Weapons",
             color: SystemColors.weapons,
             rows: [
-                { key: 'mine', label: "Mine", icon: assets.mine_sys, gauge: assets.three_gauge, fills: [assets.three_gauge_fill1, assets.three_gauge_fill2, assets.three_gauge_fill3] },
-                { key: 'torpedo', label: "Torpedo", icon: assets.torpedo_sys, gauge: assets.three_gauge, fills: [assets.three_gauge_fill1, assets.three_gauge_fill2, assets.three_gauge_fill3] }
+                { key: 'mine', label: "Mine", icon: 'mine_sys', frames: ['gauge_03.png', 'gauge_33.png', 'gauge_66.png', 'gauge_100.png'] },
+                { key: 'torpedo', label: "Torpedo", icon: 'torpedo_sys', frames: ['gauge_03.png', 'gauge_33.png', 'gauge_66.png', 'gauge_100.png'] }
             ]
         },
         {
             name: "Vessel",
             color: SystemColors.stealth,
             rows: [
-                { key: 'silence', label: "Silent Running", icon: assets.stealth_sys, gauge: assets.six_gauge, fills: [assets.six_gauge_fill1, assets.six_gauge_fill2, assets.six_gauge_fill3, assets.six_gauge_fill4, assets.six_gauge_fill5, assets.six_gauge_fill6] },
-                { key: 'scenario', label: "Scenario", icon: assets.scenario_sys, gauge: assets.four_gauge, fills: [assets.four_gauge_fill1, assets.four_gauge_fill2, assets.four_gauge_fill3, assets.four_gauge_fill4] }
+                { key: 'silence', label: "Silent Running", icon: 'stealth_sys', frames: ['gauge_06.png', 'gauge_16.png', 'gauge_06_33.png', 'gauge_06_50.png', 'gauge_06_66.png', 'gauge_82.png', 'gauge_100.png'] },
+                { key: 'scenario', label: "Scenario", icon: 'scenario_sys', frames: ['gauge_05.png', 'guage_20.png', 'guage_40.png', 'guage_60.png', 'guage_80.png', 'guage_100'] }
             ]
         }
     ];
 
-    scene._rows = new Map();
+    sceneContent._rows = new Map();
 
     // --- Build Panels ---
     columnConfigs.forEach(col => {
         const panel = new Panel('control', {
             label: `panel_${col.name.toLowerCase()}`,
-            backgroundColor: null,
+            backgroundColor: col.color,
             borderColor: col.color,
             borderWidth: 4,
             padding: 15
@@ -81,9 +73,11 @@ export async function createXOScene(app, assets, socketManager) {
             gap: 20
         };
 
+        panel.setAlpha(Alphas.faint);
+
         col.rows.forEach(rowData => {
             // 1. Create Subsystem Button (Icon)
-            const iconBtn = createButtonFromDef({
+            const systemBtn = createButtonFromDef({
                 asset: rowData.icon,
                 profile: 'basic',
                 color: col.color
@@ -91,21 +85,9 @@ export async function createXOScene(app, assets, socketManager) {
 
             // 2. Create Gauge Button
             const gaugeBtn = createButtonFromDef({
-                id: `${rowData.key}_gauge`,
-                asset: rowData.gauge,
+                asset: rowData.frames[0] || 'four_gauge',
                 profile: 'basic',
                 color: col.color
-            });
-
-            // 3. Add Fills to Gauge Button
-            const fillSprites = rowData.fills.map((texture, index) => {
-                const fill = new Sprite(texture);
-                fill.anchor.set(0.5);
-                fill.scale.set(0.9); // Slight scale to fit inside button
-                fill.visible = false;
-                fill.eventMode = 'none';
-                gaugeBtn.addChild(fill);
-                return fill;
             });
 
             // 4. Status Text
@@ -127,8 +109,8 @@ export async function createXOScene(app, assets, socketManager) {
                 alignSelf: 'center'
             };
 
-            // 5. Create ButtonBlock
-            const row = new ButtonBlock([iconBtn, gaugeBtn, statusText], 'horizontal', {
+            // 4. Create ButtonBlock
+            const row = new ButtonBlock([systemBtn, gaugeBtn, statusText], 'horizontal', {
                 label: `row_${rowData.key}`,
                 heading: rowData.label,
                 header: true,
@@ -136,45 +118,62 @@ export async function createXOScene(app, assets, socketManager) {
                 color: col.color
             });
 
-            // Add lifecycle methods to row for controller compatibility
-            row.setLevel = (level) => {
-                fillSprites.forEach((sprite, index) => {
-                    sprite.visible = index < level;
-                    if (sprite.visible) visuals.setTint(sprite, col.color);
-                });
-                const isFull = level >= rowData.fills.length;
-                statusText.visible = isFull;
+            // 5. Standardized Wiring (ACTION Preset)
+            const wiredAPI = wireButton(
+                systemBtn, {
+                id: `${rowData.key}_icon`,
+                event: 'CHARGE_SUBSYSTEM',
+                preset: 'ACTION'
+            },
+                (e, d) => controller.handleEvent(e, d),
+                ticker
+            );
+            controller.registerButton(systemBtn.id, wiredAPI);
 
-                // Interaction state (managed by controller but we can handle visual state here if needed)
-                // Actually, the controller handles alpha and cursor on the row.
+            const gaugeBehavior = wireButton(
+                gaugeBtn, {
+                id: `${rowData.key}_gauge`,
+                event: 'CHARGE_SUBSYSTEM',
+                preset: 'ACTION'
+            },
+                (e, d) => controller.handleEvent(e, d),
+                ticker
+            );
+            controller.registerButton(gaugeBtn.id, wiredAPI);
+
+            // Add lifecycle methods to row for controller compatibility
+            row.setGaugeLevel = (level) => {
+                const texture = rowData.frames[level];
+                if (texture) gaugeBtn.setAsset(texture);
+
+                const isFull = level >= (rowData.frames.length - 1) && level > 0;
+                statusText.visible = isFull;
             };
 
-            // Custom setTint for cascading to new elements
+            row.setInteractiveState = (canInteract) => {
+                iconBehavior.setEnabled(canInteract);
+                gaugeBehavior.setEnabled(canInteract);
+                row.alpha = canInteract ? 1.0 : 0.6;
+            };
+
+            // Custom setTint for cascading
             const originalSetTint = row.setTint.bind(row);
             row.setTint = (newColor) => {
                 originalSetTint(newColor);
-                visuals.setTint(statusText, newColor);
-                fillSprites.forEach(s => visuals.setTint(s, newColor));
+                if (statusText.style) statusText.style.fill = newColor;
             };
 
-            // Interaction wiring
-            iconBtn.on('pointerdown', () => {
-                if (scene._controller) {
-                    scene._controller.handleEvent('CHARGE_SUBSYSTEM', { key: rowData.key });
-                }
-            });
-
             panel.addChild(row);
-            scene._rows.set(rowData.key, row);
+            sceneContent._rows.set(rowData.key, row);
 
             // Register with controller if bound
-            if (scene._controller) {
-                scene._controller.registerVisual(`row_${rowData.key}`, row);
+            if (sceneContent._controller) {
+                sceneContent._controller.registerVisual(`row_${rowData.key}`, row);
             }
         });
 
-        scene.addChild(panel);
+        sceneContent.addChild(panel);
     });
 
-    return scene;
+    return sceneContent;
 }

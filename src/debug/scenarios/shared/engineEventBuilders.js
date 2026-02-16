@@ -5,7 +5,7 @@ export function buildStateUpdate(submarineOverrides = {}) {
   
   return {
     type: 'server_event',
-    event: 'GAME_STATE',
+    event: 'state',
     data: {
       version: Date.now(),
       phase: 'LIVE',
@@ -26,7 +26,7 @@ export function buildMoveCycle(direction = 'N', options = {}) {
   return [
     {
       type: 'server_event',
-      event: 'GAME_STATE',
+      event: 'state',
       data: {
         version: Date.now(),
         phase: 'LIVE',
@@ -56,7 +56,7 @@ export function buildMoveCycle(direction = 'N', options = {}) {
     { type: 'delay', ms: 2000 },
     {
       type: 'server_event',
-      event: 'GAME_STATE',
+      event: 'state',
       data: {
         version: Date.now() + 1,
         phase: 'LIVE',
@@ -84,7 +84,7 @@ export function buildMoveCycle(direction = 'N', options = {}) {
       { type: 'delay', ms: 500 },
       {
         type: 'server_event',
-        event: 'GAME_STATE',
+        event: 'state',
         data: {
           version: Date.now() + 2,
           phase: 'LIVE',
@@ -142,7 +142,7 @@ export function buildCircuitCompletion(circuitId = 'circuit_1', finalSlot, previ
     { type: 'delay', ms: 1000 },
     {
       type: 'server_event',
-      event: 'GAME_STATE',
+      event: 'state',
       data: {
         version: Date.now(),
         phase: 'LIVE',
@@ -166,7 +166,7 @@ export function buildCircuitCompletion(circuitId = 'circuit_1', finalSlot, previ
     { type: 'delay', ms: 1000 },
     {
       type: 'server_event',
-      event: 'GAME_STATE',
+      event: 'state',
       data: {
         version: Date.now() + 1,
         phase: 'LIVE',
@@ -208,7 +208,7 @@ export function buildBreakdownEvent(type = 'direction', direction = 'N', finalSl
     { type: 'delay', ms: 1000 },
     {
       type: 'server_event',
-      event: 'GAME_STATE',
+      event: 'state',
       data: {
         version: Date.now(),
         phase: 'LIVE',
@@ -232,7 +232,7 @@ export function buildBreakdownEvent(type = 'direction', direction = 'N', finalSl
     { type: 'delay', ms: 1000 },
     {
       type: 'server_event',
-      event: 'GAME_STATE',
+      event: 'state',
       data: {
         version: Date.now() + 1,
         phase: 'LIVE',

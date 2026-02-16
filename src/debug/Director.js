@@ -114,7 +114,7 @@ export class Director extends EventEmitter {
      */
     injectEvent(eventName, data) {
         console.log(`[Director] Injecting: ${eventName}`, data);
-        if (eventName === 'state' || eventName === 'GAME_STATE') {
+        if (eventName === 'state') {
             this.lastState = data;
         }
         this.emit(eventName, data);
@@ -159,7 +159,7 @@ export class Director extends EventEmitter {
         const { type, data } = event;
         console.log(`[Director] Emitting: ${type}`, data);
 
-        if (type === 'state' || type === 'GAME_STATE') {
+        if (type === 'state') {
             this.lastState = data;
         }
 

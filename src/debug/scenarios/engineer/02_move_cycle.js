@@ -61,7 +61,7 @@ export default {
 
             // B. Server: Move Sub
             log(`⚠️ STATE: MOVED (${direction}). Waiting for Engineer...`);
-            director.emit('GAME_STATE', createMockSubmarineState({
+            director.emit('state', createMockSubmarineState({
                 submarineState: SUBMARINE_STATES.MOVED,
                 submarineStateData: {
                     MOVED: { 
@@ -95,7 +95,7 @@ export default {
             crossedOutSlots.push({ direction: userAction.direction, slotId: userAction.slotId });
             
             // E. Server: Confirm Cross-off
-            director.emit('GAME_STATE', createMockSubmarineState({
+            director.emit('state', createMockSubmarineState({
                 submarineState: SUBMARINE_STATES.MOVED,
                 submarineStateData: {
                     MOVED: { 
@@ -111,7 +111,7 @@ export default {
 
             // F. Server: Submerge
             log('🌊 Diving... Cycle Complete.');
-            director.emit('GAME_STATE', createMockSubmarineState({
+            director.emit('state', createMockSubmarineState({
                 submarineState: SUBMARINE_STATES.SUBMERGED,
                 engineLayout: { crossedOutSlots: [...crossedOutSlots] }
             }));

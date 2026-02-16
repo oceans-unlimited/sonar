@@ -25,7 +25,6 @@ class SocketManager extends EventEmitter {
         // Clean up old bindings if any
         if (this.socket) {
             this.socket.off('state');
-            this.socket.off('GAME_STATE');
             this.socket.off('player_id');
             this.socket.off('disconnect');
         }
@@ -34,7 +33,6 @@ class SocketManager extends EventEmitter {
 
         // --- Inbound Event Proxying ---
         this.socket.on('state', (state) => this.updateLastState(state));
-        this.socket.on('GAME_STATE', (state) => this.updateLastState(state));
 
         // Server assigns player ID
         this.socket.on('player_id', (id) => {

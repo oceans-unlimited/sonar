@@ -126,7 +126,7 @@ export class DebugOverlay {
         <label style="display: block; margin-bottom: 8px; font-weight: bold;">Manual Event Injection:</label>
         <div style="display: flex; gap: 8px; margin-bottom: 8px;">
           <select id="event-type-select" style="flex: 1; padding: 8px; background: #000; color: #00ff00; border: 1px solid #00ff00; border-radius: 4px; font-size: 14px;">
-            <option value="GAME_STATE">GAME_STATE</option>
+            <option value="state">state</option>
             <option value="cross_off_system">cross_off_system</option>
           </select>
           <button id="inject-event-btn" style="padding: 8px 15px; background: #440044; color: #ff00ff; border: 1px solid #ff00ff; border-radius: 4px; cursor: pointer; font-size: 14px;">

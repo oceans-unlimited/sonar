@@ -7,17 +7,17 @@ import { BaseController } from './baseController';
 import { cascadeColor } from '../render/util/colorOps';
 
 export class ColorTestController extends BaseController {
-    constructor(socketManager, sceneManager) {
-        super(socketManager, sceneManager);
+    constructor() {
+        super();
 
         this.colorIndex = 0;
         this.testColors = [0x3498db, 0xe74c3c, 0x2ecc71, 0xf1c40f, 0x9b59b6, 0xe67e22];
 
         // --- Handler Map ---
         this.handlers = {
-            'TOGGLE_HEADER': this.handleToggleHeader,
-            'CYCLE_BORDER': this.handleCycleBorder,
-            'DIRECTOR_CMD': this.handleDirectorCmd,
+            'TOGGLE_HEADER': (d) => this.handleToggleHeader(d),
+            'CYCLE_BORDER': (d) => this.handleCycleBorder(d),
+            'DIRECTOR_CMD': (d) => this.handleDirectorCmd(d),
         };
     }
 

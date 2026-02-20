@@ -1,20 +1,20 @@
 import { SCENARIO_REGISTRY, SCENARIO_CATEGORIES } from './scenarios/index.js';
 
 export class DebugOverlay {
-    constructor(director, sceneManager) {
-        this.director = director;
-        this.sceneManager = sceneManager;
-        this.panel = null;
-        this.toggleButton = null;
-        this.isCollapsed = false;
-        this.currentSceneKey = 'xo'; // Initialize with the default selected scene
-    }
+  constructor(director, sceneManager) {
+    this.director = director;
+    this.sceneManager = sceneManager;
+    this.panel = null;
+    this.toggleButton = null;
+    this.isCollapsed = false;
+    this.currentSceneKey = 'test'; // Initialize with the default selected scene
+  }
 
-    mount() {
-        this.toggleButton = document.createElement('button');
-        this.toggleButton.id = 'debug-toggle';
-        this.toggleButton.innerHTML = '🎬';
-        this.toggleButton.style.cssText = `
+  mount() {
+    this.toggleButton = document.createElement('button');
+    this.toggleButton.id = 'debug-toggle';
+    this.toggleButton.innerHTML = '🎬';
+    this.toggleButton.style.cssText = `
       position: fixed;
       top: 10px;
       right: 10px;
@@ -33,12 +33,12 @@ export class DebugOverlay {
       transition: all 0.3s ease;
     `;
 
-        this.toggleButton.addEventListener('click', () => this.toggle());
-        document.body.appendChild(this.toggleButton);
+    this.toggleButton.addEventListener('click', () => this.toggle());
+    document.body.appendChild(this.toggleButton);
 
-        this.panel = document.createElement('div');
-        this.panel.id = 'debug-panel';
-        this.panel.style.cssText = `
+    this.panel = document.createElement('div');
+    this.panel.id = 'debug-panel';
+    this.panel.style.cssText = `
       position: fixed;
       top: 60px;
       right: 10px;
@@ -57,38 +57,38 @@ export class DebugOverlay {
       box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
     `;
 
-        document.body.appendChild(this.panel);
-        this.render();
+    document.body.appendChild(this.panel);
+    this.render();
 
-        window.addEventListener('director:ui_trigger', (e) => {
-            this.handleUITrigger(e.detail);
-        });
+    window.addEventListener('director:ui_trigger', (e) => {
+      this.handleUITrigger(e.detail);
+    });
 
-        // Update last event display periodically
-        setInterval(() => this.updateLastEvent(), 500);
+    // Update last event display periodically
+    setInterval(() => this.updateLastEvent(), 500);
+  }
+
+  toggle() {
+    this.isCollapsed = !this.isCollapsed;
+    if (this.isCollapsed) {
+      this.panel.style.opacity = '0';
+      this.panel.style.transform = 'translateX(20px)';
+      this.panel.style.pointerEvents = 'none';
+      this.toggleButton.innerHTML = '🎬';
+    } else {
+      this.panel.style.opacity = '1';
+      this.panel.style.transform = 'translateX(0)';
+      this.panel.style.pointerEvents = 'auto';
+      this.toggleButton.innerHTML = '✕';
     }
+  }
 
-    toggle() {
-        this.isCollapsed = !this.isCollapsed;
-        if (this.isCollapsed) {
-            this.panel.style.opacity = '0';
-            this.panel.style.transform = 'translateX(20px)';
-            this.panel.style.pointerEvents = 'none';
-            this.toggleButton.innerHTML = '🎬';
-        } else {
-            this.panel.style.opacity = '1';
-            this.panel.style.transform = 'translateX(0)';
-            this.panel.style.pointerEvents = 'auto';
-            this.toggleButton.innerHTML = '✕';
-        }
-    }
+  render() {
+    // Get the initial scene key to render scenario options correctly
+    const initialSceneKey = this.sceneManager.getAvailableScenes().find(scene => scene === 'test') || this.sceneManager.getAvailableScenes()[0];
+    this.currentSceneKey = initialSceneKey;
 
-    render() {
-        // Get the initial scene key to render scenario options correctly
-        const initialSceneKey = this.sceneManager.getAvailableScenes().find(scene => scene === 'xo') || this.sceneManager.getAvailableScenes()[0];
-        this.currentSceneKey = initialSceneKey;
-
-        this.panel.innerHTML = `
+    this.panel.innerHTML = `
       <h3 style="margin: 0 0 15px 0; color: #00ff00; border-bottom: 2px solid #00ff00; padding-bottom: 8px; font-size: 18px;">🎬 DIRECTOR MODE</h3>
       
       <div style="margin-bottom: 20px;">
@@ -157,130 +157,130 @@ export class DebugOverlay {
       </button>
     `;
 
-        this.attachEventListeners();
-    }
+    this.attachEventListeners();
+  }
 
-    renderScenarioOptions(selectedSceneKey = null) {
-        let html = '';
-        for (const [category, scenarios] of Object.entries(SCENARIO_CATEGORIES)) {
-            const filteredScenarios = scenarios.filter(scenarioKey => {
-                const scenario = SCENARIO_REGISTRY[scenarioKey];
-                return !selectedSceneKey || scenario.scene === selectedSceneKey;
-            });
+  renderScenarioOptions(selectedSceneKey = null) {
+    let html = '';
+    for (const [category, scenarios] of Object.entries(SCENARIO_CATEGORIES)) {
+      const filteredScenarios = scenarios.filter(scenarioKey => {
+        const scenario = SCENARIO_REGISTRY[scenarioKey];
+        return !selectedSceneKey || scenario.scene === selectedSceneKey;
+      });
 
-            if (filteredScenarios.length > 0) {
-                html += `<optgroup label="${category}">`;
-                for (const scenarioKey of filteredScenarios) {
-                    const scenario = SCENARIO_REGISTRY[scenarioKey];
-                    html += `<option value="${scenarioKey}">${scenario.name}</option>`;
-                }
-                html += `</optgroup>`;
-            }
+      if (filteredScenarios.length > 0) {
+        html += `<optgroup label="${category}">`;
+        for (const scenarioKey of filteredScenarios) {
+          const scenario = SCENARIO_REGISTRY[scenarioKey];
+          html += `<option value="${scenarioKey}">${scenario.name}</option>`;
         }
-        return html;
+        html += `</optgroup>`;
+      }
     }
+    return html;
+  }
 
-    renderSceneOptions() {
-        const scenes = this.sceneManager.getAvailableScenes();
-        return scenes.map(scene => `
+  renderSceneOptions() {
+    const scenes = this.sceneManager.getAvailableScenes();
+    return scenes.map(scene => `
       <option value="${scene}" ${scene === this.currentSceneKey ? 'selected' : ''}>${scene.toUpperCase()}</option>
     `).join('');
+  }
+
+  attachEventListeners() {
+    const sceneSelect = document.getElementById('scene-select');
+    const scenarioSelect = document.getElementById('scenario-select');
+
+    sceneSelect.addEventListener('change', (e) => {
+      const sceneKey = e.target.value;
+      this.currentSceneKey = sceneKey; // Update currentSceneKey
+      this.sceneManager.loadScene(sceneKey);
+      this.logEvent(`Scene changed to: ${sceneKey.toUpperCase()}`, '#00ffff');
+
+      // Re-render scenario options for the newly selected scene
+      scenarioSelect.innerHTML = `<option value="">-- Choose Scenario --</option>${this.renderScenarioOptions(sceneKey)}`;
+    });
+
+    document.getElementById('load-scenario-btn').addEventListener('click', () => {
+      const select = document.getElementById('scenario-select');
+      const scenarioKey = select.value;
+      if (scenarioKey) {
+        this.loadScenario(scenarioKey);
+      }
+    });
+
+    document.getElementById('pause-timeline-btn').addEventListener('click', () => {
+      this.director.pauseTimeline();
+      this.logEvent('Timeline PAUSED', '#ffff00');
+    });
+
+    document.getElementById('resume-timeline-btn').addEventListener('click', () => {
+      this.director.resumeTimeline();
+      this.logEvent('Timeline RESUMED', '#00ff00');
+    });
+
+    document.getElementById('inject-event-btn').addEventListener('click', () => {
+      const type = document.getElementById('event-type-select').value;
+      const dataStr = document.getElementById('event-data-input').value;
+      try {
+        const data = dataStr ? JSON.parse(dataStr) : {};
+        this.director.injectEvent(type, data);
+        this.logEvent(`Manually Injected: ${type}`, '#ff00ff');
+      } catch (e) {
+        this.logEvent(`Injection Error: ${e.message}`, '#ff0000');
+      }
+    });
+
+    document.getElementById('clear-log-btn').addEventListener('click', () => {
+      document.getElementById('event-log').innerHTML = '<div style="color: #666;">Log cleared</div>';
+    });
+  }
+
+  async loadScenario(scenarioKey) {
+    const scenario = SCENARIO_REGISTRY[scenarioKey];
+    if (!scenario) return;
+
+    this.logEvent(`Loading: ${scenario.name}`, '#ffffff');
+    document.getElementById('scenario-name').textContent = scenario.name;
+
+    // Load scene module
+    if (scenario.scene && scenario.scene !== this.currentSceneKey) {
+      await this.sceneManager.loadScene(scenario.scene);
+      this.currentSceneKey = scenario.scene; // Update if scenario changes scene
+      // Also update the scene-select dropdown to reflect the change
+      const sceneSelect = document.getElementById('scene-select');
+      if (sceneSelect) sceneSelect.value = scenario.scene;
+      // And re-render scenario options for the new scene
+      const scenarioSelect = document.getElementById('scenario-select');
+      if (scenarioSelect) scenarioSelect.innerHTML = `<option value="">-- Choose Scenario --</option>${this.renderScenarioOptions(scenario.scene)}`;
     }
 
-    attachEventListeners() {
-        const sceneSelect = document.getElementById('scene-select');
-        const scenarioSelect = document.getElementById('scenario-select');
+    await this.director.loadScenario(scenario);
+    this.logEvent(`✓ Scenario loaded`, '#00ff00');
+  }
 
-        sceneSelect.addEventListener('change', (e) => {
-            const sceneKey = e.target.value;
-            this.currentSceneKey = sceneKey; // Update currentSceneKey
-            this.sceneManager.loadScene(sceneKey);
-            this.logEvent(`Scene changed to: ${sceneKey.toUpperCase()}`, '#00ffff');
+  logEvent(message, color = '#00ff00') {
+    const log = document.getElementById('event-log');
+    const entry = document.createElement('div');
+    entry.style.cssText = `margin-bottom: 3px; color: ${color};`;
+    entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+    log.insertBefore(entry, log.firstChild);
+  }
 
-            // Re-render scenario options for the newly selected scene
-            scenarioSelect.innerHTML = `<option value="">-- Choose Scenario --</option>${this.renderScenarioOptions(sceneKey)}`;
-        });
-
-        document.getElementById('load-scenario-btn').addEventListener('click', () => {
-            const select = document.getElementById('scenario-select');
-            const scenarioKey = select.value;
-            if (scenarioKey) {
-                this.loadScenario(scenarioKey);
-            }
-        });
-
-        document.getElementById('pause-timeline-btn').addEventListener('click', () => {
-            this.director.pauseTimeline();
-            this.logEvent('Timeline PAUSED', '#ffff00');
-        });
-
-        document.getElementById('resume-timeline-btn').addEventListener('click', () => {
-            this.director.resumeTimeline();
-            this.logEvent('Timeline RESUMED', '#00ff00');
-        });
-
-        document.getElementById('inject-event-btn').addEventListener('click', () => {
-            const type = document.getElementById('event-type-select').value;
-            const dataStr = document.getElementById('event-data-input').value;
-            try {
-                const data = dataStr ? JSON.parse(dataStr) : {};
-                this.director.injectEvent(type, data);
-                this.logEvent(`Manually Injected: ${type}`, '#ff00ff');
-            } catch (e) {
-                this.logEvent(`Injection Error: ${e.message}`, '#ff0000');
-            }
-        });
-
-        document.getElementById('clear-log-btn').addEventListener('click', () => {
-            document.getElementById('event-log').innerHTML = '<div style="color: #666;">Log cleared</div>';
-        });
+  updateLastEvent() {
+    const lastEvent = this.director.getLastEmittedEvent();
+    const display = document.getElementById('last-event-display');
+    if (lastEvent && display) {
+      display.textContent = `${lastEvent.event}: ${JSON.stringify(lastEvent.data, null, 2)}`;
     }
+  }
 
-    async loadScenario(scenarioKey) {
-        const scenario = SCENARIO_REGISTRY[scenarioKey];
-        if (!scenario) return;
+  handleUITrigger(trigger) {
+    this.logEvent(`UI Trigger: ${trigger.action} on ${trigger.target}`, '#00ffff');
+  }
 
-        this.logEvent(`Loading: ${scenario.name}`, '#ffffff');
-        document.getElementById('scenario-name').textContent = scenario.name;
-
-        // Load scene module
-        if (scenario.scene && scenario.scene !== this.currentSceneKey) {
-            await this.sceneManager.loadScene(scenario.scene);
-            this.currentSceneKey = scenario.scene; // Update if scenario changes scene
-            // Also update the scene-select dropdown to reflect the change
-            const sceneSelect = document.getElementById('scene-select');
-            if (sceneSelect) sceneSelect.value = scenario.scene;
-            // And re-render scenario options for the new scene
-            const scenarioSelect = document.getElementById('scenario-select');
-            if (scenarioSelect) scenarioSelect.innerHTML = `<option value="">-- Choose Scenario --</option>${this.renderScenarioOptions(scenario.scene)}`;
-        }
-
-        await this.director.loadScenario(scenario);
-        this.logEvent(`✓ Scenario loaded`, '#00ff00');
-    }
-
-    logEvent(message, color = '#00ff00') {
-        const log = document.getElementById('event-log');
-        const entry = document.createElement('div');
-        entry.style.cssText = `margin-bottom: 3px; color: ${color};`;
-        entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-        log.insertBefore(entry, log.firstChild);
-    }
-
-    updateLastEvent() {
-        const lastEvent = this.director.getLastEmittedEvent();
-        const display = document.getElementById('last-event-display');
-        if (lastEvent && display) {
-            display.textContent = `${lastEvent.event}: ${JSON.stringify(lastEvent.data, null, 2)}`;
-        }
-    }
-
-    handleUITrigger(trigger) {
-        this.logEvent(`UI Trigger: ${trigger.action} on ${trigger.target}`, '#00ffff');
-    }
-
-    destroy() {
-        if (this.panel) this.panel.remove();
-        if (this.toggleButton) this.toggleButton.remove();
-    }
+  destroy() {
+    if (this.panel) this.panel.remove();
+    if (this.toggleButton) this.toggleButton.remove();
+  }
 }

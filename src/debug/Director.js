@@ -52,6 +52,11 @@ export class Director extends EventEmitter {
             this.lastState = scenario.initialState;
             this.emit('state', scenario.initialState);
         }
+
+        // Execute dynamic run logic if provided
+        if (typeof scenario.run === 'function') {
+            scenario.run(this);
+        }
     }
 
     /**

@@ -6,7 +6,10 @@ export function scaleToWidth(sprite, targetWidth) {
 
 export function scaleToHeight(sprite, targetHeight) {
     // Scale to height while maintaining aspect ratio
-    const scale = targetHeight / sprite.height;
+    // Use texture height if available to be independent of current sprite scale
+    const baseHeight = sprite.texture ? sprite.texture.height : sprite.height;
+    if (baseHeight === 0) return;
+    const scale = targetHeight / baseHeight;
     sprite.scale.set(scale);
 }
 

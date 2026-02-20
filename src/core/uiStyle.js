@@ -44,7 +44,7 @@ export const Alphas = {
 // Thin line, great for body text
 export const Font = {
     family: "Orbitron",
-    size: 22,
+    size: 18,
     lineHeight: 30,
     letterSpacing: 3,
     uppercase: true,
@@ -52,7 +52,7 @@ export const Font = {
 
 // Bolder weight, good for titles, headings
 export const headerFont = {
-    family: "Goldman",
+    family: "Goldman-Bold",
     fontWeight: "bold",
     size: 30,
     lineHeight: 30,

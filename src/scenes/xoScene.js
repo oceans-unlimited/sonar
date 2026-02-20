@@ -49,7 +49,7 @@ export async function createXOScene(controller, ticker) {
             color: SystemColors.stealth,
             rows: [
                 { key: 'silence', label: "Silent Running", icon: 'stealth_sys', frames: ['gauge_06.png', 'gauge_16.png', 'gauge_06_33.png', 'gauge_06_50.png', 'gauge_06_66.png', 'gauge_82.png', 'gauge_100.png'] },
-                { key: 'scenario', label: "Scenario", icon: 'scenario_sys', frames: ['gauge_05.png', 'guage_20.png', 'guage_40.png', 'guage_60.png', 'guage_80.png', 'guage_100'] }
+                { key: 'scenario', label: "Scenario", icon: 'scenario_sys', frames: ['gauge_05.png', 'gauge_20.png', 'gauge_40.png', 'gauge_60.png', 'gauge_80.png', 'gauge_100.png'] }
             ]
         }
     ];
@@ -119,31 +119,26 @@ export async function createXOScene(controller, ticker) {
             });
 
             // 5. Standardized Wiring (ACTION Preset)
-            const wiredAPI = wireButton(
+            const iconBehavior = wireButton(
                 systemBtn, {
-                id: `${rowData.key}_icon`,
-                event: 'CHARGE_SUBSYSTEM',
-                preset: 'ACTION'
-            },
-                (e, d) => controller.handleEvent(e, d),
-                ticker
-            );
-            controller.registerButton(systemBtn.id, wiredAPI);
+                id: `${rowData.key}_system`,
+                profile: 'basic',
+                onPress: () => controller.handleEvent('CHARGE_SUBSYSTEM', { id: `${rowData.key}_system`, key: rowData.key })
+            });
+            controller.registerButton(iconBehavior.id, iconBehavior);
 
             const gaugeBehavior = wireButton(
                 gaugeBtn, {
                 id: `${rowData.key}_gauge`,
-                event: 'CHARGE_SUBSYSTEM',
-                preset: 'ACTION'
-            },
-                (e, d) => controller.handleEvent(e, d),
-                ticker
-            );
-            controller.registerButton(gaugeBtn.id, wiredAPI);
+                profile: 'basic',
+                onPress: () => controller.handleEvent('CHARGE_SUBSYSTEM', { id: `${rowData.key}_gauge`, key: rowData.key })
+            });
+            controller.registerButton(gaugeBehavior.id, gaugeBehavior);
 
             // Add lifecycle methods to row for controller compatibility
             row.setGaugeLevel = (level) => {
                 const texture = rowData.frames[level];
+                console.log(`[xoScene] Setting gauge level for ${rowData.key}: ${level} (texture: ${texture})`);
                 if (texture) gaugeBtn.setAsset(texture);
 
                 const isFull = level >= (rowData.frames.length - 1) && level > 0;
@@ -167,8 +162,8 @@ export async function createXOScene(controller, ticker) {
             sceneContent._rows.set(rowData.key, row);
 
             // Register with controller if bound
-            if (sceneContent._controller) {
-                sceneContent._controller.registerVisual(`row_${rowData.key}`, row);
+            if (controller) {
+                controller.registerVisual(`row_${rowData.key}`, row);
             }
         });
 

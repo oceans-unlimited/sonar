@@ -5,6 +5,7 @@ import engineerDirectionCritical from './engineer/04_direction_critical.js';
 import engineerReactorCritical from './engineer/05_reactor_critical.js';
 import xoPristine from './xo/01_pristine.js';
 import testColorOps from './test/color_ops.js';
+import testMapPristine from './test/map_pristine.js';
 
 export const SCENARIO_REGISTRY = {
   'engineer_pristine': engineerPristine,
@@ -13,7 +14,8 @@ export const SCENARIO_REGISTRY = {
   'engineer_direction_critical': engineerDirectionCritical,
   'engineer_reactor_critical': engineerReactorCritical,
   'xo_pristine': xoPristine,
-  'test_color_ops': testColorOps
+  'test_color_ops': testColorOps,
+  'test_map_pristine': testMapPristine
 };
 
 export const SCENARIO_CATEGORIES = {
@@ -30,6 +32,7 @@ export const SCENARIO_CATEGORIES = {
     'xo_pristine'
   ],
   'Test Bed': [
-    'test_color_ops'
+    'test_color_ops',
+    'test_map_pristine'
   ]
 };

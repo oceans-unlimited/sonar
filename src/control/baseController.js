@@ -89,7 +89,7 @@ export class BaseController {
         if (window.logEvent) window.logEvent(logMsg);
 
         if (handler) {
-            handler(payload);
+            handler.call(this, payload);
         } else {
             console.warn(`[${this.constructor.name}] Unhandled event: ${eventType}`, payload);
         }
@@ -146,6 +146,7 @@ export class BaseController {
     }
 
     handleGameState(state) {
+        if (!this.socket) return;
         this.lastState = state;
         // Pass state to current scene controller's hook
         this.onGameStateUpdate(state);

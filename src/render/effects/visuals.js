@@ -6,8 +6,20 @@ export const visuals = {
     setScale: (target, scale) => target.scale.set(scale),
 
     // Target background specifically so frames/tags stay opaque
-    setAlpha: (target, alpha) => {
+    setBackgroundAlpha: (target, alpha) => {
         if (target.background) target.background.alpha = alpha;
+    },
+
+    setFrameAlpha: (target, alpha) => {
+        if (target.frame) target.frame.alpha = alpha;
+    },
+
+    setTagAlpha: (target, alpha) => {
+        if (target.tag) target.tag.alpha = alpha;
+    },
+
+    setOverlayAlpha: (target, alpha) => {
+        if (target.overlay) target.overlay.alpha = alpha;
     },
 
     // Structural (assuming target has these properties)
@@ -22,7 +34,4 @@ export const visuals = {
         if (target.background) target.background.tint = color
     },
 
-    setOverlayAlpha: (target, alpha) => {
-        if (target.overlay) target.overlay.alpha = alpha;
-    }
 };

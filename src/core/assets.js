@@ -89,7 +89,8 @@ export class AssetManager {
         // This registers them with @font-face and makes them available to Text objects
         console.log("[AssetManager] Loading fonts...");
         for (const [name, src] of Object.entries(FONT_LIST)) {
-            Assets.add({ alias: name, src });
+            // Supply data: { family: name } so PixiJS generates the correct @font-face CSS
+            Assets.add({ alias: name, src, data: { family: name } });
         }
         await Assets.load(Object.keys(FONT_LIST));
         console.log("[AssetManager] Fonts loaded.");

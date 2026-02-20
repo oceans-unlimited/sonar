@@ -7,8 +7,8 @@
 import { BaseController } from './baseController';
 
 export class EngineerController extends BaseController {
-    constructor(socketManager, sceneManager) {
-        super(socketManager, sceneManager);
+    constructor() {
+        super();
 
         // Engineer-specific state
         this.engineState = null;
@@ -16,9 +16,9 @@ export class EngineerController extends BaseController {
 
         // --- Handler Map ---
         this.handlers = {
-            'CROSS_OFF': this.handleCrossOff,
-            'TOGGLE_REACTOR': this.handleReactor,
-            'DIRECTOR_CMD': this.handleDirectorCmd,
+            'CROSS_OFF': (d) => this.handleCrossOff(d),
+            'TOGGLE_REACTOR': (d) => this.handleReactor(d),
+            'DIRECTOR_CMD': (d) => this.handleDirectorCmd(d),
         };
     }
 
@@ -31,7 +31,8 @@ export class EngineerController extends BaseController {
 
     onGameStateUpdate(state) {
         // Find our submarine's engine data
-        const playerId = this.socketManager.playerId;
+        if (!this.socket) return;
+        const playerId = this.socket.playerId;
         if (!playerId || !state?.submarines) return;
 
         const sub = state.submarines.find(s =>
@@ -63,7 +64,7 @@ export class EngineerController extends BaseController {
 
             for (const [slotId, slotData] of Object.entries(dirData.slots)) {
                 const buttonId = `${direction}_${slotId}`;
-                const ctrl = this.buttons.get(buttonId);
+                const ctrl = this.buttons[buttonId];
                 if (!ctrl) continue;
 
                 if (slotData.crossedOff) {
@@ -82,7 +83,7 @@ export class EngineerController extends BaseController {
         // Update reactor buttons
         for (const [reactorId, reactorData] of Object.entries(this.engineState)) {
             if (!reactorId.startsWith('reactor')) continue;
-            const ctrl = this.buttons.get(reactorId);
+            const ctrl = this.buttons[reactorId];
             if (!ctrl) continue;
 
             if (reactorData.crossedOff) {
@@ -100,7 +101,7 @@ export class EngineerController extends BaseController {
         }
 
         console.log(`[EngineerController] Cross off: ${direction}/${slotId}`);
-        this.socketManager.crossOffSystem(direction, slotId);
+        this.socket.crossOffSystem(direction, slotId);
     }
 
     handleReactor({ reactorId }) {

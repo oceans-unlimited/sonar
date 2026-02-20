@@ -7,6 +7,7 @@
 import { createEngineScene } from '../scenes/engineerScene';
 import { createTestScene } from '../scenes/testScene';
 import { createXOScene } from '../scenes/xoScene';
+import { createMapTestScene } from '../scenes/mapTestScene';
 
 // --- Controllers ---
 import { BaseController } from '../control/baseController';
@@ -30,6 +31,7 @@ export const SCENE_MAP = {
     'engineer': createEngineScene,
     'test': createTestScene,
     'xo': createXOScene,
+    'mapTest': createMapTestScene,
 };
 
 // ─────────── Scene Manager Class ───────────

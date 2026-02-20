@@ -27,7 +27,6 @@ export function attachMapBehaviors(app, controller) {
     let dragStart = { x: 0, y: 0 };
     let mapStart = { x: 0, y: 0 };
     let lastPinchDist = 0;
-    let longPressTimer = null;
 
     hitSurface.cursor = 'grab';
 
@@ -40,22 +39,11 @@ export function attachMapBehaviors(app, controller) {
         }
     };
 
-    const fireContextPress = (e) => {
-        const coords = controller.getGridFromPointer(e.global);
-        if (coords) controller.contextSelectSquare(coords);
-    };
-
     const onPointerDown = (e) => {
         const touches = e.getNativeEvent ? e.getNativeEvent().touches : null;
         if (touches && touches.length >= 2) {
             isDragging = false;
             lastPinchDist = getPinchDist(touches);
-            return;
-        }
-
-        // Handle Right Click (Context Menu)
-        if (e.button === 2) {
-            fireContextPress(e);
             return;
         }
 
@@ -65,15 +53,6 @@ export function attachMapBehaviors(app, controller) {
         dragStart = { x: e.global.x, y: e.global.y };
         mapStart = { x: renderer.mapContent.x, y: renderer.mapContent.y };
         reportActivity();
-
-        // Start Long Press Timer
-        clearTimeout(longPressTimer);
-        longPressTimer = setTimeout(() => {
-            if (isPotentialClick && !isDragging) {
-                fireContextPress(e);
-                isPotentialClick = false; // Prevent selection click on release
-            }
-        }, MapConstants.LONG_PRESS_MS);
     };
 
     const getPinchDist = (touches) => {
@@ -171,11 +150,6 @@ export function attachMapBehaviors(app, controller) {
     hitSurface.on('pointerupoutside', onPointerUp);
     hitSurface.on('pointerout', onPointerOut);
 
-    // Prevent default context menu for right-click handling
-    const preventContextMenu = (e) => e.preventDefault();
-    window.addEventListener('contextmenu', preventContextMenu);
-
-
     // Keyboard Handling
     const onKeyDown = (e) => {
         if (keys.hasOwnProperty(e.code)) {
@@ -237,10 +211,8 @@ export function attachMapBehaviors(app, controller) {
         window.removeEventListener('keydown', onKeyDown);
         window.removeEventListener('keyup', onKeyUp);
         window.removeEventListener('wheel', onWheel);
-        window.removeEventListener('contextmenu', preventContextMenu);
         app.ticker.remove(panTicker);
         // stopInactivityTimer not needed, handled by controller
-        clearTimeout(longPressTimer);
 
         hitSurface.off('pointerdown', onPointerDown);
         hitSurface.off('globalpointermove', onPointerMove);

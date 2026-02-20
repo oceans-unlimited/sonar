@@ -39,7 +39,7 @@ export default class ButtonBlock extends Container {
         }
 
         // 3. Render Button Content
-        this.createContentRow(chosenPattern);
+        this.buttonRow = this.createContentRow(chosenPattern);
     }
 
     createHeader(headingText, color, showLine) {
@@ -106,11 +106,12 @@ export default class ButtonBlock extends Container {
         buttonRow.layout = {
             ...pattern,
             width: '100%', // Ensure it takes full width of the block
-            flexGrow: 1
+            flexGrow: 0
         };
 
         this.buttons.forEach(btn => buttonRow.addChild(btn));
         this.addChild(buttonRow);
+        return buttonRow;
     }
 
     /**

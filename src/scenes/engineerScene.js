@@ -106,18 +106,11 @@ export function createEngineScene(controller, ticker) {
                 // Wire Metadata
                 const logicDef = {
                     id: btnDef.id,
-                    address: `engineer.${dirKey}.${isFrame ? 'frame' : 'reactor'}`,
-                    event: 'CROSS_OFF',
-                    preset: 'ACTION', // Engine systems are disable only actions (one-way cross-off)
-                    profile: btnDef.profile
+                    profile: btnDef.profile,
+                    onPress: () => controller.handleEvent('CROSS_OFF', { direction: dirKey, slotId: slotId })
                 };
 
-                const wiredAPI = wireButton(
-                    button,
-                    logicDef,
-                    (e, d) => controller.handleEvent(e, d),
-                    ticker
-                );
+                const wiredAPI = wireButton(button, logicDef);
 
                 controller.registerButton(btnDef.id, wiredAPI);
                 blockButtons.push(button);

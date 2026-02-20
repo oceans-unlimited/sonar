@@ -1,14 +1,14 @@
-import { Container, Sprite, Graphics } from 'pixi.js';
-import { Assets } from 'pixi.js';
+import { Container, Sprite, Graphics, Text, Assets } from 'pixi.js';
 import { scaleToHeight } from './util/scaling'
+import { Font, Colors } from '../core/uiStyle';
 
 export default class Button extends Container {
     constructor(bgIcon, color) {
         super();
 
         this.layout = {
-            // height: 'intrinsic',
-            // width: 'intrinsic',
+            height: 'intrinsic',
+            width: 'intrinsic',
             isLeaf: true,
             justifyContent: 'center',
             alignItems: 'center'
@@ -18,6 +18,7 @@ export default class Button extends Container {
         this.overlay = null;
         this.frame = null;
         this.tag = null;
+        this.textLabel = null;
         this.filters = [];
 
         // 1. Background Sizing (Manual)
@@ -33,20 +34,28 @@ export default class Button extends Container {
     }
 
     updateSizeToFitChildren() {
-        this.getLocalBounds();
+        // We want the bounds of content only, excluding the overlay itself
+        const wasOverlayVisible = this.overlay?.visible;
+        if (this.overlay) this.overlay.visible = false;
+
         const b = this.getLocalBounds();
         this.setSize(b.width, b.height);
+
         if (this.overlay) {
-            this.overlay.width = b.width;
-            this.overlay.height = b.height;
+            this.overlay.clear()
+                .roundRect(b.x, b.y, b.width, b.height, 10)
+                .fill({ color: this.overlayColor || this.background.tint, alpha: 0.5 });
+            this.overlay.visible = wasOverlayVisible;
         }
     }
 
     addOverlay(color = this.background.tint) {
-        this.getLocalBounds();
+        this.overlayColor = color;
+        const b = this.getLocalBounds();
+
         // Draw the overlay to match the container size exactly
         this.overlay = new Graphics()
-            .roundRect(-this.width / 2, -this.height / 2, this.width, this.height, 10)
+            .roundRect(b.x, b.y, b.width, b.height, 10)
             .fill({
                 color: color,
                 alpha: 0.5,
@@ -100,6 +109,73 @@ export default class Button extends Container {
         return this;
     }
 
+    /**
+     * Sets or updates the text label on the button.
+     * @param {string} text - The text to display.
+     * @param {object} style - Optional PixiJS text style overrides.
+     */
+    setTextLabel(text, style = {}) {
+        if (!this.textLabel) {
+            // Default style from uiStyle.js
+            const textStyle = {
+                fontFamily: Font.family,
+                fontSize: Font.size,
+                fill: Colors.text,
+                align: 'center',
+                ...style
+            };
+
+            this.textLabel = new Text({ text: text.toUpperCase(), style: textStyle });
+            this.textLabel.anchor.set(0.5);
+            // Ensure it's above the background
+            this.addChild(this.textLabel);
+        } else {
+            this.textLabel.text = text.toUpperCase();
+            if (Object.keys(style).length > 0) {
+                this.textLabel.style = { ...this.textLabel.style, ...style };
+            }
+        }
+
+        this.applyTextScaling();
+        this.updateSizeToFitChildren();
+        return this;
+    }
+
+    /**
+     * Scales the text to fit within the button's background bounds, 
+     * considering padding.
+     */
+    applyTextScaling() {
+        if (!this.textLabel) return;
+
+        // Use the background's width/height or the container's designated width
+        const pad = (this.layout.padding || 10) * 2;
+        const maxWidth = (this.background.width || 65) - pad;
+        const maxHeight = (this.background.height || 65) - pad;
+
+        if (this.textLabel.width > maxWidth) {
+            this.textLabel.width = maxWidth;
+            this.textLabel.scale.y = this.textLabel.scale.x;
+        }
+
+        if (this.textLabel.height > maxHeight) {
+            this.textLabel.height = maxHeight;
+            this.textLabel.scale.x = this.textLabel.scale.y;
+        }
+    }
+
+    /**
+     * Toggles visibility of the background graphic.
+     * Useful for 'text-only' buttons that still need a background for hit-area.
+     */
+    setBackgroundVisible(visible) {
+        if (this.background) {
+            this.background.visible = visible;
+        }
+        this.updateSizeToFitChildren();
+        return this;
+    }
+
     setScale(scale) {
         this.scale.set(scale);
         return this;
@@ -121,6 +197,8 @@ export default class Button extends Container {
             this.background.texture = texture;
             // Ensure scaling is consistent with constructor
             scaleToHeight(this.background, 65);
+            // Update container size to match new sprite bounds
+            this.updateSizeToFitChildren();
         } else {
             console.warn(`[Button] Texture not found for asset: ${asset}`);
         }
@@ -148,12 +226,13 @@ export default class Button extends Container {
         this.overlay = null;
         this.frame = null;
         this.tag = null;
+        this.textLabel = null;
         super.destroy(options);
     }
 }
 
 const PROFILE_CONFIG = {
-    basic: {},
+    basic: { overlay: true },
     frame: { frameTexture: 'buttonFrame', overlay: true },
     circuit: {
         frameTexture: 'circuitFrame',
@@ -167,7 +246,7 @@ const PROFILE_CONFIG = {
 };
 
 export function createButtonFromDef(btnDef) {
-    const { asset, color, profile = 'basic' } = btnDef;
+    const { asset, color, profile = 'basic', label, textOnly = false } = btnDef;
 
     // Resolve texture: check asset in cache
     let bgIcon = null;
@@ -176,6 +255,11 @@ export function createButtonFromDef(btnDef) {
         bgIcon = Assets.cache.get(asset);
     } else if (asset) {
         bgIcon = asset;
+    }
+
+    // Fallback for text-only buttons if no asset provided
+    if (textOnly && !bgIcon) {
+        bgIcon = Assets.cache.get('filled_box');
     }
 
     const button = new Button(bgIcon, color);
@@ -210,6 +294,16 @@ export function createButtonFromDef(btnDef) {
             tColor = config.tagColor;
         }
         if (tTexture) button.addTag(tTexture, tColor);
+    }
+
+    // Handle text-only mode (hide background hitarea)
+    if (textOnly) {
+        button.setBackgroundVisible(false);
+    }
+
+    // Add Label Text if provided
+    if (label) {
+        button.setTextLabel(label);
     }
 
     // Assign Canonical Label based on Profile/Role

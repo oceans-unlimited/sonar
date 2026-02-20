@@ -9,8 +9,8 @@ import { SystemColors } from '../core/uiStyle';
 import { simulationClock } from '../core/clock/simulationClock';
 
 export class XOController extends BaseController {
-    constructor(socketManager, sceneManager) {
-        super(socketManager, sceneManager);
+    constructor() {
+        super();
 
         this.subsystemLevels = {
             sonar: 0,
@@ -30,13 +30,13 @@ export class XOController extends BaseController {
             scenario: 5
         };
 
-        this.isInteractionLocked = true;
+        this.isInteractionLocked = false;
 
         // --- Handler Map ---
         this.handlers = {
-            'CHARGE_SUBSYSTEM': this.handleCharge,
-            'DISCHARGE_SUBSYSTEM': this.handleDischarge,
-            'DIRECTOR_CMD': this.handleDirectorCmd,
+            'CHARGE_SUBSYSTEM': (d) => this.handleCharge(d),
+            'DISCHARGE_SUBSYSTEM': (d) => this.handleDischarge(d),
+            'DIRECTOR_CMD': (d) => this.handleDirectorCmd(d),
         };
     }
 
@@ -55,7 +55,8 @@ export class XOController extends BaseController {
     }
 
     onGameStateUpdate(state) {
-        const playerId = this.socketManager.playerId;
+        if (!this.socket) return;
+        const playerId = this.socket.playerId;
         if (!playerId || !state?.submarines) return;
 
         const sub = state.submarines.find(s =>
@@ -67,7 +68,7 @@ export class XOController extends BaseController {
         Object.keys(this.subsystemLevels).forEach(key => {
             if (sub.actionGauges && sub.actionGauges[key] !== undefined) {
                 this.subsystemLevels[key] = sub.actionGauges[key];
-                const row = this.visuals.get(`row_${key}`);
+                const row = this.visuals[`row_${key}`];
                 if (row && row.setGaugeLevel) row.setGaugeLevel(this.subsystemLevels[key]);
             }
         });
@@ -81,7 +82,7 @@ export class XOController extends BaseController {
         this.isInteractionLocked = !isLive || !isClockRunning || (isPostMove && hasCharged) || (!isPostMove);
 
         // Update all rows (interactive state)
-        this.visuals.forEach((row, id) => {
+        Object.entries(this.visuals).forEach(([id, row]) => {
             if (!id.startsWith('row_')) return;
             const key = id.replace('row_', '');
 
@@ -109,7 +110,7 @@ export class XOController extends BaseController {
         }
 
         console.log(`[XOController] Charging: ${key}`);
-        this.socketManager.chargeGauge(key);
+        this.socket.chargeGauge(key);
     }
 
     handleDischarge({ key }) {
@@ -117,6 +118,6 @@ export class XOController extends BaseController {
 
         console.log(`[XOController] Discharging: ${key}`);
         // TODO: Emit discharge to server
-        this.socketManager.socket?.emit('discharge_gauge', key);
+        this.socket.emit('discharge_gauge', key);
     }
 }

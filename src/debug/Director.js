@@ -14,8 +14,9 @@ export class Director extends EventEmitter {
         this.timelineIndex = 0;
         this.isPaused = false;
         this.timerId = null;
-        this.lastEmittedEvent = null;
         this.lastState = null;
+        this.isRunning = false;
+        this.playerId = 'player_eng';
     }
 
     /**
@@ -40,6 +41,10 @@ export class Director extends EventEmitter {
             return;
         }
 
+        // Canonical server behavior: assign player ID upon connection/load
+        this.emit('player_id', this.playerId);
+
+        this.reset(); // Clear any previous running state/timers
         this.currentScenario = scenario;
         this.timeline = scenario.timeline || [];
         this.timelineIndex = 0;
@@ -64,6 +69,7 @@ export class Director extends EventEmitter {
      */
     play() {
         if (!this.timeline.length) return;
+        this.isRunning = true;
         this.isPaused = false;
         this._executeNext();
     }
@@ -103,6 +109,7 @@ export class Director extends EventEmitter {
     reset() {
         this.timelineIndex = 0;
         this.isPaused = false;
+        this.isRunning = false;
         if (this.timerId) {
             clearTimeout(this.timerId);
             this.timerId = null;
@@ -149,27 +156,67 @@ export class Director extends EventEmitter {
     // ─────────── Private ───────────
 
     _executeNext() {
-        if (this.isPaused || this.timelineIndex >= this.timeline.length) return;
+        if (this.isPaused) return;
 
-        const event = this.timeline[this.timelineIndex++];
-        const delay = event.delay || 0;
-
-        this.timerId = setTimeout(() => {
-            this._emitEvent(event);
-            this._executeNext();
-        }, delay);
-    }
-
-    _emitEvent(event) {
-        const { type, data } = event;
-        console.log(`[Director] Emitting: ${type}`, data);
-
-        if (type === 'state') {
-            this.lastState = data;
+        if (this.timelineIndex >= this.timeline.length) {
+            this.isRunning = false;
+            console.log(`[Director] Timeline complete.`);
+            return;
         }
 
-        this.lastEmittedEvent = { event: type, data };
-        this.emit(type, data);
+        const step = this.timeline[this.timelineIndex++];
+
+        // Handle standalone delay steps in the timeline
+        if (step.type === 'delay') {
+            const ms = step.ms || step.delay || 0;
+            this.timerId = setTimeout(() => {
+                this._executeNext();
+            }, ms);
+            return;
+        }
+
+        // For other steps, handle custom 'delay' property (pause BEFORE event) if any
+        const eventDelay = step.delay || 0;
+
+        this.timerId = setTimeout(() => {
+            this._emitEvent(step);
+            this._executeNext();
+        }, eventDelay);
+    }
+
+    _emitEvent(step) {
+        const { type, data } = step;
+
+        if (type === 'server_event') {
+            const eventName = step.event;
+            console.log(`[Director] Emitting server_event: ${eventName}`, data);
+
+            if (eventName === 'state') {
+                this.lastState = data;
+            }
+
+            this.lastEmittedEvent = { event: eventName, data };
+            this.emit(eventName, data);
+        } else if (type === 'ui_trigger') {
+            console.log(`[Director] UI Trigger:`, step);
+            // Re-emit on window for DebugOverlay and other UI components
+            window.dispatchEvent(new CustomEvent('director:ui_trigger', {
+                detail: step
+            }));
+        } else {
+            // Support direct events (e.g. { type: 'state', data: ... })
+            const eventName = type || step.event;
+            if (!eventName) return;
+
+            console.log(`[Director] Emitting: ${eventName}`, data);
+
+            if (eventName === 'state') {
+                this.lastState = data;
+            }
+
+            this.lastEmittedEvent = { event: eventName, data };
+            this.emit(eventName, data);
+        }
     }
 
     destroy() {

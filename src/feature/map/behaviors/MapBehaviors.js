@@ -1,4 +1,3 @@
-import * as PIXI from 'pixi.js';
 import { MapStates, MapConstants } from '../mapConstants.js';
 
 /**
@@ -58,7 +57,7 @@ export class MapBehaviors {
 
         // Pan ticker for keyboard
         this.panTicker = () => this.handleKeyboardPan();
-        this.mapViewArea.app.ticker.add(this.panTicker);
+        this.mapViewArea.ticker.add(this.panTicker);
     }
 
     onPointerDown(e) {
@@ -99,7 +98,7 @@ export class MapBehaviors {
             const delta = dist - this.lastPinchDist;
             if (Math.abs(delta) > 5) {
                 // Emit zoom event
-                this.mapViewArea.container.emit('map:zoomRequested', { direction: delta > 0 ? 1 : -1 });
+                this.mapViewArea.viewBox.emit('map:zoomRequested', { direction: delta > 0 ? 1 : -1 });
                 this.lastPinchDist = dist;
             }
             return;
@@ -109,9 +108,9 @@ export class MapBehaviors {
             // Hover logic when not dragging
             const coords = this.getGridCoords(e.global);
             if (coords) {
-                this.mapViewArea.container.emit('map:hovered', coords);
+                this.mapViewArea.viewBox.emit('map:hovered', coords);
             } else {
-                this.mapViewArea.container.emit('map:hoveredOut');
+                this.mapViewArea.viewBox.emit('map:hoveredOut');
             }
             return;
         }
@@ -123,13 +122,13 @@ export class MapBehaviors {
             if (Math.hypot(dx, dy) > this.config.dragThresholdPx) {
                 this.isDragging = true;
                 this.isPotentialClick = false;
-                
+
                 if (this.mapViewArea.mapGrid.container) {
                     this.mapViewArea.mapGrid.container.cursor = 'grabbing';
                 }
 
                 this.mapViewArea.setState(MapStates.PAN);
-                this.mapViewArea.container.emit('map:hoveredOut');
+                this.mapViewArea.viewBox.emit('map:hoveredOut');
             }
         }
 
@@ -137,11 +136,13 @@ export class MapBehaviors {
             this.mapViewArea.mapContent.x = this.mapStart.x + dx;
             this.mapViewArea.mapContent.y = this.mapStart.y + dy;
             this.mapViewArea.clampPosition();
-            
+
             if (this.mapViewArea.mapLabels) {
+                const { width } = this.mapViewArea.getLayoutDimensions();
                 this.mapViewArea.mapLabels.syncPosition(
                     this.mapViewArea.mapContent.x,
-                    this.mapViewArea.mapContent.y
+                    this.mapViewArea.mapContent.y,
+                    width
                 );
             }
         } else {
@@ -155,7 +156,7 @@ export class MapBehaviors {
             if (duration <= 250) { // 250ms click threshold
                 const coords = this.getGridCoords(e.global);
                 if (coords) {
-                    this.mapViewArea.container.emit('map:clicked', coords);
+                    this.mapViewArea.viewBox.emit('map:clicked', coords);
                 }
             }
         }
@@ -163,7 +164,7 @@ export class MapBehaviors {
         this.isDragging = false;
         this.isPotentialClick = false;
         this.dragStart = null;
-        
+
         if (this.mapViewArea.mapGrid.container) {
             this.mapViewArea.mapGrid.container.cursor = 'grab';
         }
@@ -177,7 +178,7 @@ export class MapBehaviors {
 
     onPointerOut() {
         if (!this.isDragging) {
-            this.mapViewArea.container.emit('map:hoveredOut');
+            this.mapViewArea.viewBox.emit('map:hoveredOut');
         }
     }
 
@@ -199,7 +200,7 @@ export class MapBehaviors {
             e.preventDefault();
             this.reportActivity();
         } else if (e.code === 'Escape') {
-            this.mapViewArea.container.emit('map:clearSelection');
+            this.mapViewArea.viewBox.emit('map:clearSelection');
         }
     }
 
@@ -212,11 +213,11 @@ export class MapBehaviors {
     onWheel(e) {
         e.preventDefault();
         const direction = e.deltaY > 0 ? -1 : 1;
-        this.mapViewArea.container.emit('map:zoomRequested', { direction });
+        this.mapViewArea.viewBox.emit('map:zoomRequested', { direction });
     }
 
     handleKeyboardPan() {
-        if (!this.mapViewArea.container || this.mapViewArea.container.destroyed) return;
+        if (!this.mapViewArea.viewBox || this.mapViewArea.viewBox.destroyed) return;
 
         let dx = 0;
         let dy = 0;
@@ -231,18 +232,20 @@ export class MapBehaviors {
             this.mapViewArea.mapContent.x += dx;
             this.mapViewArea.mapContent.y += dy;
             this.mapViewArea.clampPosition();
-            
+
             if (this.mapViewArea.mapLabels) {
+                const { width } = this.mapViewArea.getLayoutDimensions();
                 this.mapViewArea.mapLabels.syncPosition(
                     this.mapViewArea.mapContent.x,
-                    this.mapViewArea.mapContent.y
+                    this.mapViewArea.mapContent.y,
+                    width
                 );
             }
         }
     }
 
     reportActivity() {
-        this.mapViewArea.container.emit('map:activity');
+        this.mapViewArea.viewBox.emit('map:activity');
     }
 
     destroy() {
@@ -257,9 +260,9 @@ export class MapBehaviors {
         window.removeEventListener('keydown', this.onKeyDown);
         window.removeEventListener('keyup', this.onKeyUp);
         window.removeEventListener('wheel', this.onWheel);
-        
+
         if (this.panTicker) {
-            this.mapViewArea.app.ticker.remove(this.panTicker);
+            this.mapViewArea.ticker.remove(this.panTicker);
         }
     }
 }

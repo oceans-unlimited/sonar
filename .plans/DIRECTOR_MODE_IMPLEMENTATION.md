@@ -1,6 +1,27 @@
 ## Status Summary: COMPLETED
 Director Mode is fully implemented and integrated into the application lifecycle.
 
+---
+
+# 🚨 CRITICAL: Canonical Conformance 🚨
+
+**All controllers, data models, and director scenarios MUST conform 1-to-1 with the canonical server-side formats, objects, and naming conventions.** 
+
+The server-side implementation is the **source of truth**. We do not allow "elaborate" controller code that bridges different naming conventions. If the server uses a name, the client must use that exact name.
+
+### Canonical Reference Files:
+- **Game Logic & State Schema**: `src/logical-server.lib.js`
+- **Engine/Submarine Layouts**: `src/engineLayout.lib.js`
+- **Phases & Constants**: `src/constants.js`
+- **Socket Event Handlers**: `src/server.lib.js`
+
+### Strict Rules:
+1. **Naming**: Use `stealth` instead of `vessel`, `eng` instead of `engineer`, etc., if that is what the server uses.
+2. **Structure**: If the server provides a flat list of roles (`s.co`, `s.xo`), do not wrap them in a `crew` object on the client.
+3. **Scenarios**: Director scenarios must spoof the server state **exactly**. Duplicate the nested structures (`submarineStateData`, `engineLayout`, etc.) faithfully.
+
+---
+
 ### Activation Pathway
 Activation is controlled via the `?mode=test` URL parameter. When detected in `main.jsx`, the standard Socket.io connection is bypassed in favor of a local `Director` instance.
 

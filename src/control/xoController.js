@@ -22,11 +22,11 @@ export class XOController extends BaseController {
         };
 
         this.maxLevels = {
-            sonar: 4,
+            sonar: 3,
             drone: 3,
             mine: 3,
             torpedo: 3,
-            silence: 6,
+            silence: 5,
             scenario: 5
         };
 
@@ -59,8 +59,9 @@ export class XOController extends BaseController {
         const playerId = this.socket.playerId;
         if (!playerId || !state?.submarines) return;
 
+        // Canonical server-side logic for finding the player's submarine
         const sub = state.submarines.find(s =>
-            s.crew && Object.values(s.crew).includes(playerId)
+            s.co === playerId || s.xo === playerId || s.sonar === playerId || s.eng === playerId
         );
         if (!sub) return;
 
@@ -75,11 +76,12 @@ export class XOController extends BaseController {
 
         // 2. Interaction State
         const isLive = state.phase === 'LIVE';
-        const isPostMove = sub.submarineState === 'POST_MOVEMENT';
-        const hasCharged = isPostMove && sub.submarineStateData?.POST_MOVEMENT?.xoChargedGauge;
+        const isMoved = sub.submarineState === 'MOVED';
+        const hasCharged = isMoved && sub.submarineStateData?.MOVED?.xoChargedGauge;
         const isClockRunning = simulationClock.isRunning();
 
-        this.isInteractionLocked = !isLive || !isClockRunning || (isPostMove && hasCharged) || (!isPostMove);
+        // Lock interaction if not in live phase, clock not running, already charged after move, or not in MOVED state during turn
+        this.isInteractionLocked = !isLive || !isClockRunning || (isMoved && hasCharged) || (!isMoved);
 
         // Update all rows (interactive state)
         Object.entries(this.visuals).forEach(([id, row]) => {

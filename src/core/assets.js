@@ -69,11 +69,7 @@ const ASSET_LIST = {
     gauges: 'assets/sprites/gauges-sprite.json'
 };
 
-const FONT_LIST = {
-    'Goldman': 'assets/fonts/Goldman-Regular.ttf',
-    'Goldman-Bold': 'assets/fonts/Goldman-Bold.ttf',
-    'Orbitron': 'assets/fonts/Orbitron-VariableFont_wght.ttf'
-};
+
 
 export class AssetManager {
     constructor() {
@@ -86,13 +82,10 @@ export class AssetManager {
      */
     async init() {
         // 1. Load Fonts via PixiJS Assets
-        // This registers them with @font-face and makes them available to Text objects
         console.log("[AssetManager] Loading fonts...");
-        for (const [name, src] of Object.entries(FONT_LIST)) {
-            // Supply data: { family: name } so PixiJS generates the correct @font-face CSS
-            Assets.add({ alias: name, src, data: { family: name } });
-        }
-        await Assets.load(Object.keys(FONT_LIST));
+        await Assets.load({ alias: 'textFont', src: 'assets/fonts/Orbitron-VariableFont_wght.ttf', data: { family: 'Orbitron', weights: ['normal', 'bold', 'extraBold', 'italic', 'extraBoldItalic'] } });
+        await Assets.load({ alias: 'headerFont', src: 'assets/fonts/Goldman-Regular.ttf', data: { family: 'Goldman-Regular' } });
+        await Assets.load({ alias: 'headerFontBold', src: 'assets/fonts/Goldman-Bold.ttf', data: { family: 'Goldman-Bold' } });
         console.log("[AssetManager] Fonts loaded.");
 
         // 2. Load Textures

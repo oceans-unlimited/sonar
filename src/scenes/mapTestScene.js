@@ -1,13 +1,13 @@
-import * as PIXI from 'pixi.js';
-import { Colors, Font, Layout } from '../core/uiStyle.js';
-import { MapViewArea } from '../feature/map/components/MapViewArea.js';
-import { MiniMap } from '../feature/map/components/MiniMap.js';
+import { Container } from 'pixi.js';
+import { Colors, Layout } from '../core/uiStyle.js';
+import { createMapPanel } from '../feature/map/mapRenderer.js';
+import { createButtonFromDef } from '../render/button.js';
 
 export const sceneKey = 'mapTestScene';
-export const controllerKey = 'default';
+export const controllerKey = 'mapTest';
 
 export async function createMapTestScene(controller, ticker) {
-    const scene = new PIXI.Container();
+    const scene = new Container();
     scene.label = 'mapTestScene';
 
     scene.layout = {
@@ -20,36 +20,35 @@ export async function createMapTestScene(controller, ticker) {
         padding: Layout.margin
     };
 
-    // Main map area simulating a mobile landscape view
-    const mainMapPanel = new PIXI.Container({
-        label: 'MainMapPanel',
-        layout: {
-            width: 800,
-            height: 450,
-            backgroundColor: 0x0a1f0a,
-            borderRadius: 8
-        }
+    // Create the entire map component using the new renderer.
+    // We pass it the ticker, dimensions, and the layout configuration for the outer panel.
+    const mapPanel = createMapPanel(ticker, '100%', '100%', {
+        backgroundColor: 0x0a1f0a,
+        borderRadius: 8
     });
 
-    const panelMask = new PIXI.Graphics()
-        .rect(0, 0, 800, 450)
-        .fill(0xffffff);
+    // Expose for controller
+    scene.mapView = mapPanel.mapView;
 
-    mainMapPanel.addChild(panelMask);
-    mainMapPanel.mask = panelMask;
+    scene.addChild(mapPanel);
 
-    const mockApp = { ticker };
-    const mainMap = new MapViewArea(mockApp, {
-        layout: { width: '100%', height: '100%' }
+    // Add a toggle button for labels
+    const toggleBtn = createButtonFromDef({
+        label: 'TOGGLE LABELS',
+        color: Colors.primary,
+        textOnly: true,
+        profile: 'basic'
     });
-    mainMap.container.label = 'MainMapRoot';
 
-    mainMapPanel.addChild(mainMap.container);
-    // Initialize manual pan for presentation
-    mainMap.mapContent.x = 30;
-    mainMap.mapContent.y = 30;
+    toggleBtn.layout = {
+        scale: 3,
+    };
 
-    scene.addChild(mainMapPanel);
+    toggleBtn.on('pointertap', () => {
+        controller.handleEvent('TOGGLE_ROW_LABELS');
+    });
+
+    scene.addChild(toggleBtn);
 
     return scene;
 }

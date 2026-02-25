@@ -8,7 +8,7 @@ import { Container, Text } from 'pixi.js';
 import Panel from '../render/panel';
 import ButtonBlock from '../render/buttonBlock';
 import { createButtonFromDef } from '../render/button';
-import { SystemColors, Font, Alphas } from '../core/uiStyle';
+import { SystemColors, Fonts, Alphas } from '../core/uiStyle';
 import { wireButton } from '../behavior/buttonBehavior.js';
 
 /**
@@ -46,7 +46,7 @@ export async function createXOScene(controller, ticker) {
         },
         {
             name: "Vessel",
-            color: SystemColors.stealth,
+            color: SystemColors.vessel,
             rows: [
                 { key: 'silence', label: "Silent Running", icon: 'stealth_sys', frames: ['gauge_06.png', 'gauge_16.png', 'gauge_06_33.png', 'gauge_06_50.png', 'gauge_06_66.png', 'gauge_82.png', 'gauge_100.png'] },
                 { key: 'scenario', label: "Scenario", icon: 'scenario_sys', frames: ['gauge_05.png', 'gauge_20.png', 'gauge_40.png', 'gauge_60.png', 'gauge_80.png', 'gauge_100.png'] }
@@ -94,7 +94,7 @@ export async function createXOScene(controller, ticker) {
             const statusText = new Text({
                 text: "READY",
                 style: {
-                    fontFamily: Font.family,
+                    fontFamily: Fonts.primary,
                     fontSize: 13,
                     fontWeight: 'bold',
                     fill: col.color

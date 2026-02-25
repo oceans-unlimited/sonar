@@ -2,7 +2,7 @@ import { createMockSubmarineState, createMockEngineLayout, SUBMARINE_STATES } fr
 
 export function buildStateUpdate(submarineOverrides = {}) {
   const submarine = createMockSubmarineState(submarineOverrides);
-  
+
   return {
     type: 'server_event',
     event: 'state',
@@ -10,7 +10,13 @@ export function buildStateUpdate(submarineOverrides = {}) {
       version: Date.now(),
       phase: 'LIVE',
       submarines: [submarine],
-      ready: []
+      ready: [],
+      players: [
+        { id: 'player_co', name: 'Captain' },
+        { id: 'player_xo', name: 'First Officer' },
+        { id: 'player_eng', name: 'Engineer' },
+        { id: 'player_sonar', name: 'Sonar Operator' }
+      ]
     }
   };
 }
@@ -22,7 +28,7 @@ export function buildMoveCycle(direction = 'N', options = {}) {
     slotToCross = 'slot01',
     xoCharges = true
   } = options;
-  
+
   return [
     {
       type: 'server_event',
@@ -93,7 +99,7 @@ export function buildMoveCycle(direction = 'N', options = {}) {
               submarineState: SUBMARINE_STATES.SUBMERGED,
               submarineStateData: {
                 MOVED: {
-                  directionMoved: '',
+                  directionMoved: ' ',
                   engineerCrossedOutSystem: false,
                   xoChargedGauge: false
                 }
@@ -113,24 +119,6 @@ export function buildMoveCycle(direction = 'N', options = {}) {
 }
 
 export function buildCircuitCompletion(circuitId = 'circuit_1', finalSlot, previousCrossedOut = []) {
-  const circuits = {
-    circuit_1: ['N/slot01', 'E/slot01', 'S/slot02', 'W/slot03'],
-    circuit_2: ['N/slot02', 'E/slot03', 'S/slot01', 'W/slot01'],
-    circuit_3: ['N/slot03', 'E/slot02', 'S/slot03', 'W/slot02']
-  };
-  
-  const circuitSlots = circuits[circuitId];
-  const circuitCrossedOut = circuitSlots.map(slot => {
-    const [direction, slotId] = slot.split('/');
-    return { direction, slotId };
-  });
-  
-  const remainingCrossedOut = previousCrossedOut.filter(slot => {
-    return !circuitCrossedOut.some(cs => 
-      cs.direction === slot.direction && cs.slotId === slot.slotId
-    );
-  });
-  
   return [
     buildStateUpdate({
       submarineState: SUBMARINE_STATES.SUBMERGED,
@@ -181,7 +169,7 @@ export function buildCircuitCompletion(circuitId = 'circuit_1', finalSlot, previ
               }
             },
             health: 3,
-            engineLayout: createMockEngineLayout(remainingCrossedOut)
+            engineLayout: createMockEngineLayout([]) // Circuit completion clears slots in server
           })
         }],
         ready: []
@@ -246,8 +234,8 @@ export function buildBreakdownEvent(type = 'direction', direction = 'N', finalSl
                 xoChargedGauge: true
               }
             },
-            health: currentHealth - 1,
-            engineLayout: createMockEngineLayout([])
+            health: Math.max(0, currentHealth - 1),
+            engineLayout: createMockEngineLayout([]) // Direction/Reactor breakdown clears slots in server
           })
         }],
         ready: []

@@ -1,10 +1,10 @@
-import * as PIXI from 'pixi.js';
+import { Container, Graphics, Rectangle } from 'pixi.js';
 import { MapConstants } from '../mapConstants.js';
-import { MapUtils } from '../../../../public/js/utils/mapUtils.js';
+import { MapUtils } from '../mapUtils.js';
 
 export class MapGrid {
     constructor(config = {}) {
-        this.container = new PIXI.Container();
+        this.container = new Container();
         this.container.label = 'MapGrid';
         this.container.eventMode = 'static';
 
@@ -17,10 +17,10 @@ export class MapGrid {
         };
 
         const mapSize = this.config.gridSize * this.config.tileSize;
-        this.container.hitArea = new PIXI.Rectangle(0, 0, mapSize, mapSize);
+        this.container.hitArea = new Rectangle(0, 0, mapSize, mapSize);
 
-        this.gridGraphics = new PIXI.Graphics();
-        this.sectorGraphics = new PIXI.Graphics();
+        this.gridGraphics = new Graphics();
+        this.sectorGraphics = new Graphics();
 
         this.container.addChild(this.gridGraphics);
         this.container.addChild(this.sectorGraphics);
@@ -30,6 +30,11 @@ export class MapGrid {
 
     updateConfig(newConfig) {
         this.config = { ...this.config, ...newConfig };
+
+        // Refresh hitArea dimensions based on updated gridSize/tileSize
+        const mapSize = this.config.gridSize * this.config.tileSize;
+        this.container.hitArea = new Rectangle(0, 0, mapSize, mapSize);
+
         this.renderGrid();
     }
 

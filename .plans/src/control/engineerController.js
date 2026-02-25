@@ -3,27 +3,20 @@ import { BaseController } from './baseController';
 export class EngineerController extends BaseController {
     constructor() {
         super();
-        
+
         console.log('[EngineerController] Initializing handlers...');
         this.isPopulated = false;
 
         // Action Mapping: Map 'Event Name' -> 'Method'
         this.handlers = {
-            ...this.handlers, 
-            
+            ...this.handlers,
+
             /** 
              * TRIGGER: User clicks a system slot.
              * DATA: { direction: string, slotId: string } 
              * LOGIC: Emits the cross-off action to the server.
              */
             'CROSS_OFF': (d) => this.handleCrossOff(d),
-
-            /**
-             * TRIGGER: User wants to test scene swap.
-             */
-            'SWAP_SCENE': () => {
-                if (this.onSceneChange) this.onSceneChange('secondary');
-            }
         };
     }
 
@@ -52,11 +45,11 @@ export class EngineerController extends BaseController {
         if (this.isPopulated || !this.view || !this.lastState) return;
 
         console.log('[EngineerController] Initial state received. Populating view...');
-        
+
         // Support both single sub and multiple submarines state formats
         const submarine = this.lastState.submarines ? this.lastState.submarines[0] : this.lastState;
         const layout = submarine?.engineLayout;
-        
+
         if (layout && this.view.populate) {
             this.view.populate(layout);
             this.isPopulated = true;
@@ -89,12 +82,12 @@ export class EngineerController extends BaseController {
         // Iterate through all registered buttons to sync state and interactivity
         Object.entries(this.buttons).forEach(([id, api]) => {
             const [direction, slotId] = id.split(':');
-            
+
             // 1. Sync Crossed-Out Visual State
             const isCrossedOut = crossedOutSlots.some(
                 slot => slot.direction === direction && slot.slotId === slotId
             );
-            
+
             if (isCrossedOut) {
                 // STATE: DONE / DISABLED
                 // Visually crossed out, non-interactive
@@ -103,11 +96,11 @@ export class EngineerController extends BaseController {
                 api.setActive(false);
             } else {
                 // If not crossed out, it is either READY or LOCKED
-                
+
                 // 2. Interaction Lock Logic
                 const isMyTurn = isMovedState && !hasCrossedOutThisTurn;
                 const isCorrectDirection = direction === directionMoved;
-                
+
                 const isReady = isMyTurn && isCorrectDirection;
 
                 if (isReady) {
@@ -139,7 +132,7 @@ export class EngineerController extends BaseController {
         }
         console.log('[EngineerController] Socket bound.');
     }
-    
+
     onSocketUnbound() {
         const rawSocket = this.socket?.socket;
         if (rawSocket) {
@@ -160,12 +153,12 @@ export class EngineerController extends BaseController {
         const [direction, slotId] = id.split(':');
 
         console.log(`[EngineerController] Crossing off: ${direction} ${slotId}`);
-        
+
         // Emit to server via injected socket (SocketManager)
         if (this.socket) {
             this.socket.crossOffSystem(direction, slotId);
         }
-        
+
         // Note: We don't update local UI state immediately. 
         // We wait for the server's 'state' broadcast to confirm the action (Phase 6).
     }

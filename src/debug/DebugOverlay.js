@@ -256,6 +256,7 @@ export class DebugOverlay {
     }
 
     await this.director.loadScenario(scenario);
+    this.director.play();
     this.logEvent(`✓ Scenario loaded`, '#00ff00');
   }
 
@@ -276,7 +277,8 @@ export class DebugOverlay {
   }
 
   handleUITrigger(trigger) {
-    this.logEvent(`UI Trigger: ${trigger.action} on ${trigger.target}`, '#00ffff');
+    const message = trigger.message || `UI Trigger: ${trigger.action} on ${trigger.target}`;
+    this.logEvent(message, '#00ffff');
   }
 
   destroy() {

@@ -1,7 +1,7 @@
 class EngineLayoutGenerator {
   constructor() {
-    this.systems = ['stealth', 'detection', 'weapons', 'reactor'];
-    this.nonReactorSystems = ['stealth', 'detection', 'weapons'];
+    this.systems = ['vessel', 'detection', 'weapons', 'reactor'];
+    this.nonReactorSystems = ['vessel', 'detection', 'weapons'];
     this.directions = ['N', 'E', 'W', 'S'];
     this.frameSlots = ['slot01', 'slot02', 'slot03'];
     this.reactorSlots = ['reactor01', 'reactor02', 'reactor03'];
@@ -36,7 +36,7 @@ class EngineLayoutGenerator {
     this.directions.forEach(dir => {
       const shuffledSystems = [...this.systems];
       this.shuffleArray(shuffledSystems);
-      
+
       // Assign one of each system to frame slots
       this.frameSlots.forEach((slot, index) => {
         layout.directions[dir].frameSlots[slot] = shuffledSystems[index];
@@ -53,17 +53,17 @@ class EngineLayoutGenerator {
   assignReactorSlots(directionLayout) {
     const reactorAssignment = {};
     const usedNonReactor = new Set();
-    
+
     // Count current systems in this direction
     const systemCounts = this.countSystemsInDirection(directionLayout);
-    
+
     // Fill reactor slots
     this.reactorSlots.forEach(slot => {
       const availableSystems = [];
-      
+
       // Always include reactor
       availableSystems.push('reactor');
-      
+
       // Include non-reactor systems that:
       // - Haven't been used in reactor slots yet (Rule #2)
       // - Don't exceed max of 2 per system (Rule #1)
@@ -72,36 +72,36 @@ class EngineLayoutGenerator {
           availableSystems.push(system);
         }
       });
-      
+
       // Randomly choose from available systems
       const chosenSystem = availableSystems[Math.floor(Math.random() * availableSystems.length)];
       reactorAssignment[slot] = chosenSystem;
-      
+
       // Track usage
       if (chosenSystem !== 'reactor') {
         usedNonReactor.add(chosenSystem);
       }
       systemCounts[chosenSystem]++;
     });
-    
+
     return reactorAssignment;
   }
 
   countSystemsInDirection(directionLayout) {
-    const counts = { stealth: 0, detection: 0, weapons: 0, reactor: 0 };
-    
+    const counts = { vessel: 0, detection: 0, weapons: 0, reactor: 0 };
+
     // Count frame slots
     Object.values(directionLayout.frameSlots).forEach(system => {
       counts[system]++;
     });
-    
+
     return counts;
   }
 
   generateCircuits(layout) {
     const circuitColors = ['#3498db', '#2ecc71', '#e74c3c'];
     const allFrameSlots = [];
-    
+
     // Collect all frame slots with their systems
     this.directions.forEach(dir => {
       this.frameSlots.forEach(slot => {
@@ -116,25 +116,25 @@ class EngineLayoutGenerator {
     // Create circuits that satisfy Rule #3
     const circuits = [];
     const usedSlots = new Set();
-    
+
     for (let i = 0; i < 3; i++) {
       const circuit = {
         id: `circuit_${i + 1}`,
         color: circuitColors[i],
         connections: []
       };
-      
+
       // Required systems for this circuit
       const requiredSystems = [...this.nonReactorSystems];
       this.shuffleArray(requiredSystems);
-      
+
       // Add one of each required system
       requiredSystems.forEach(requiredSystem => {
-        const availableSlots = allFrameSlots.filter(slot => 
-          !usedSlots.has(`${slot.direction}-${slot.slotId}`) && 
+        const availableSlots = allFrameSlots.filter(slot =>
+          !usedSlots.has(`${slot.direction}-${slot.slotId}`) &&
           slot.system === requiredSystem
         );
-        
+
         if (availableSlots.length > 0) {
           const chosenSlot = availableSlots[Math.floor(Math.random() * availableSlots.length)];
           circuit.connections.push({
@@ -146,12 +146,12 @@ class EngineLayoutGenerator {
           usedSlots.add(`${chosenSlot.direction}-${chosenSlot.slotId}`);
         }
       });
-      
+
       // Fill remaining slot with any available system
-      const remainingSlots = allFrameSlots.filter(slot => 
+      const remainingSlots = allFrameSlots.filter(slot =>
         !usedSlots.has(`${slot.direction}-${slot.slotId}`) && slot.system !== 'reactor'
       );
-      
+
       if (remainingSlots.length > 0 && circuit.connections.length < 4) {
         const chosenSlot = remainingSlots[Math.floor(Math.random() * remainingSlots.length)];
         circuit.connections.push({
@@ -162,10 +162,10 @@ class EngineLayoutGenerator {
         });
         usedSlots.add(`${chosenSlot.direction}-${chosenSlot.slotId}`);
       }
-      
+
       circuits.push(circuit);
     }
-    
+
     layout.circuits = circuits;
   }
 

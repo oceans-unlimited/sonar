@@ -30,17 +30,24 @@ export class EngineerController extends BaseController {
     }
 
     onGameStateUpdate(state) {
-        // Find our submarine's engine data
         if (!this.socket) return;
         const playerId = this.socket.playerId;
         if (!playerId || !state?.submarines) return;
 
+        // Canonical server-side logic for finding the player's submarine
         const sub = state.submarines.find(s =>
-            s.crew && Object.values(s.crew).includes(playerId)
+            s.co === playerId || s.xo === playerId || s.sonar === playerId || s.eng === playerId
         );
         if (!sub) return;
 
-        this.engineState = sub.systems;
+        // If view hasn't been populated yet, do it now
+        if (this.view && !this.view._populated && sub.engineLayout) {
+            console.log('[EngineerController] Populating view with layout');
+            this.view.populate(sub.engineLayout);
+            this.view._populated = true;
+        }
+
+        this.engineState = sub.engineLayout;
         this.updateEngineView(state, sub);
     }
 
@@ -54,23 +61,26 @@ export class EngineerController extends BaseController {
     updateEngineView(state, sub) {
         if (!this.engineState) return;
 
-        // Determine if engineer can interact (based on submarine state)
-        const canInteract = sub.submarineState === 'POST_MOVEMENT';
+        // Canonical submarine state checks (referencing SubmarineStates in constants.js)
+        const canInteract = sub.submarineState === 'MOVED';
         this.isInteractionLocked = !canInteract;
 
-        // Update all registered buttons based on crossed-off state
-        for (const [direction, dirData] of Object.entries(this.engineState)) {
-            if (!dirData?.slots) continue;
-
-            for (const [slotId, slotData] of Object.entries(dirData.slots)) {
-                const buttonId = `${direction}_${slotId}`;
+        // 1. Process Frame Slots (Circuits)
+        for (const [direction, dirData] of Object.entries(this.engineState.directions || {})) {
+            for (const [slotId, _] of Object.entries(dirData.frameSlots || {})) {
+                const buttonId = `${direction}:${slotId}`;
                 const ctrl = this.buttons[buttonId];
                 if (!ctrl) continue;
 
-                if (slotData.crossedOff) {
+                // Check if this specific slot is in the crossed out list
+                const isCrossed = (this.engineState.crossedOutSlots || []).some(
+                    xo => xo.direction === direction && xo.slotId === slotId
+                );
+
+                if (isCrossed) {
                     ctrl.setEnabled(false);
                     ctrl.setActive(false);
-                } else if (canInteract && dirData.active) {
+                } else if (canInteract) {
                     ctrl.setEnabled(true);
                     ctrl.setActive(true);
                 } else {
@@ -78,16 +88,27 @@ export class EngineerController extends BaseController {
                     ctrl.setActive(false);
                 }
             }
-        }
 
-        // Update reactor buttons
-        for (const [reactorId, reactorData] of Object.entries(this.engineState)) {
-            if (!reactorId.startsWith('reactor')) continue;
-            const ctrl = this.buttons[reactorId];
-            if (!ctrl) continue;
+            // 2. Process Reactor Slots
+            for (const [slotId, _] of Object.entries(dirData.reactorSlots || {})) {
+                const buttonId = `${direction}:${slotId}`;
+                const ctrl = this.buttons[buttonId];
+                if (!ctrl) continue;
 
-            if (reactorData.crossedOff) {
-                ctrl.setEnabled(false);
+                const isCrossed = (this.engineState.crossedOutSlots || []).some(
+                    xo => xo.direction === direction && xo.slotId === slotId
+                );
+
+                if (isCrossed) {
+                    ctrl.setEnabled(false);
+                    ctrl.setActive(false);
+                } else if (canInteract) {
+                    ctrl.setEnabled(true);
+                    ctrl.setActive(true);
+                } else {
+                    ctrl.setEnabled(false);
+                    ctrl.setActive(false);
+                }
             }
         }
     }

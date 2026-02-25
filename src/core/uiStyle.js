@@ -1,7 +1,9 @@
+
 /**
  * UI Style — Merged from existing uiStyle.js and planned additions.
  * Central hub for consistent styling across the application.
  */
+import { TextStyle, FillGradient } from "pixi.js";
 
 // ──────────────────────── Color Palette ────────────────────────
 export const Colors = {
@@ -41,23 +43,10 @@ export const Alphas = {
 };
 
 // ──────────────────────── Fonts ────────────────────────
-// Thin line, great for body text
-export const Font = {
-    family: "Orbitron",
-    size: 18,
-    lineHeight: 30,
-    letterSpacing: 3,
-    uppercase: true,
-};
-
-// Bolder weight, good for titles, headings
-export const headerFont = {
-    family: "Goldman-Bold",
-    fontWeight: "bold",
-    size: 30,
-    lineHeight: 30,
-    letterSpacing: 2,
-    uppercase: true,
+export const Fonts = {
+    primary: 'Orbitron',
+    header: 'Goldman-Regular',
+    headerBold: 'Goldman-Bold'
 };
 
 // ──────────────────────── Layout ────────────────────────
@@ -71,11 +60,19 @@ export const Layout = {
 // ──────────────────────── System Colors ────────────────────────
 // Mapping of system asset names (used in engine UI) to a canonical color value.
 export const SystemColors = {
-    stealth: 0xffcc00,   // yellow
-    detection: 0x00ff00, // green
+    vessel: 0xffcc00,    // yellow
     weapons: 0xe74c3c,   // red
+    detection: 0x2ecc71, // green
     reactor: 0xb3b3b3,   // grey
-    vessel: 0x00aaff,    // cyan/blue
+    empty: 0xcccccc      // grey
+};
+
+export const SYSTEM_ASSETS = {
+    'vessel': { asset: 'vessel', color: SystemColors.vessel },
+    'weapons': { asset: 'weapons', color: SystemColors.weapons },
+    'detection': { asset: 'detection', color: SystemColors.detection },
+    'reactor': { asset: 'reactor', color: SystemColors.reactor },
+    'empty': { asset: null, color: SystemColors.empty }
 };
 
 // Colors for the circuit button frames (distinct from system colors)
@@ -84,6 +81,22 @@ export const CircuitColors = {
     B: 0x9b59b6, // Purple
     C: 0xe67e22  // Orange
 };
+
+// ──────────────────────── Teletype Styles ────────────────────────
+// Teletype Style
+export const TeletypeStyle = new TextStyle({
+    fill: new FillGradient({
+        colorStops: [
+            { offset: 0, color: Colors.text },
+            { offset: 1, color: Colors.dim }
+        ]
+    }),
+    fontFamily: Fonts.primary,
+    fontVariant: "small-caps",
+    fontSize: 16,
+    lineHeight: 30,
+    wordWrap: false,
+});
 
 // ──────────────────────── Message Gradients ────────────────────────
 export const MessageGradients = {

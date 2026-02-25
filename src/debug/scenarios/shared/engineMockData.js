@@ -3,6 +3,7 @@ export const SUBMARINE_STATES = {
   MOVED: 'MOVED',
   SURFACING: 'SURFACING',
   SURFACED: 'SURFACED',
+  POST_MOVEMENT: 'POST_MOVEMENT',
   DESTROYED: 'DESTROYED'
 };
 
@@ -97,7 +98,7 @@ export function createMockEngineLayout(crossedOutPattern = []) {
     circuits: [
       {
         id: 'circuit_1',
-        color: '#0088FF',
+        color: '#3498db',
         connections: [
           { direction: 'N', slotType: 'frame', slotId: 'slot01', system: 'vessel' },
           { direction: 'E', slotType: 'frame', slotId: 'slot01', system: 'detection' },
@@ -107,7 +108,7 @@ export function createMockEngineLayout(crossedOutPattern = []) {
       },
       {
         id: 'circuit_2',
-        color: '#00FF88',
+        color: '#2ecc71',
         connections: [
           { direction: 'N', slotType: 'frame', slotId: 'slot02', system: 'weapons' },
           { direction: 'E', slotType: 'frame', slotId: 'slot03', system: 'vessel' },
@@ -117,7 +118,7 @@ export function createMockEngineLayout(crossedOutPattern = []) {
       },
       {
         id: 'circuit_3',
-        color: '#FF0088',
+        color: '#e74c3c',
         connections: [
           { direction: 'N', slotType: 'frame', slotId: 'slot03', system: 'detection' },
           { direction: 'E', slotType: 'frame', slotId: 'slot02', system: 'weapons' },
@@ -132,28 +133,36 @@ export function createMockEngineLayout(crossedOutPattern = []) {
 
 export function createMockSubmarineState(overrides = {}) {
   const defaultState = {
+    id: 'A',
+    name: 'Sub A',
+    co: 'player_co',
+    xo: 'player_xo',
+    eng: 'player_eng',
+    sonar: 'player_sonar',
+    engineLayout: createMockEngineLayout(),
+    actionGauges: { mine: 0, torpedo: 0, drone: 0, sonar: 0, silence: 0 },
+    row: 0,
+    col: 0,
+    health: 4,
     submarineState: SUBMARINE_STATES.SUBMERGED,
+    pastTrack: [],
     submarineStateData: {
       MOVED: {
         engineerCrossedOutSystem: false,
         xoChargedGauge: false,
-        directionMoved: ''
+        directionMoved: ' ',
       },
       SURFACING: {
         roleTaskCompletion: [
           { role: 'co', completed: false },
           { role: 'xo', completed: false },
           { role: 'eng', completed: false },
-          { role: 'sonar', completed: false }
-        ]
-      }
+          { role: 'sonar', completed: false },
+        ],
+      },
     },
-    health: 4,
-    engineLayout: createMockEngineLayout(),
-    co: 'player_co',
-    xo: 'player_xo',
-    eng: 'player_eng',
-    sonar: 'player_sonar'
+    past_track: [],
+    mines: [],
   };
 
   if (overrides.submarineStateData) {

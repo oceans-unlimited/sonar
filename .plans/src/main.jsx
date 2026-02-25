@@ -11,7 +11,7 @@ import '@pixi/layout';
 
   await app.init({
     width: window.innerWidth,
-    height: window.innerHeight, 
+    height: window.innerHeight,
     backgroundColor: '#001100',
     resizeTo: window,
   });
@@ -38,20 +38,20 @@ import '@pixi/layout';
   await Assets.load({ alias: 'subA', src: 'sub_profileA.svg' })
 
   const sceneManager = new SceneManager(app);
-  
+
   // Director Mode Integration
   const urlParams = new URLSearchParams(window.location.search);
   const isTestMode = urlParams.get('mode') === 'test';
-  
+
   if (isTestMode) {
     console.log('🎬 DIRECTOR MODE ACTIVATED');
     const { Director } = await import('./debug/Director');
     const { DebugOverlay } = await import('./debug/DebugOverlay');
-    
+
     app.director = new Director();
     app.socket = app.director; // Inject as mock socket
     socketManager.bindSocket(app.socket);
-    
+
     const overlay = new DebugOverlay(app.director, sceneManager);
     overlay.mount();
   }

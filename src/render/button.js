@@ -1,6 +1,6 @@
 import { Container, Sprite, Graphics, Text, Assets } from 'pixi.js';
 import { scaleToHeight } from './util/scaling'
-import { Font, Colors } from '../core/uiStyle';
+import { Fonts, Colors } from '../core/uiStyle';
 
 export default class Button extends Container {
     constructor(bgIcon, color) {
@@ -118,8 +118,8 @@ export default class Button extends Container {
         if (!this.textLabel) {
             // Default style from uiStyle.js
             const textStyle = {
-                fontFamily: Font.family,
-                fontSize: Font.size,
+                fontFamily: Fonts.primary,
+                fontSize: 16,
                 fill: Colors.text,
                 align: 'center',
                 ...style

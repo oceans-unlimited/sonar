@@ -29,7 +29,7 @@ import { assetManager } from './core/assets';
         justifyContent: 'center',
         alignItems: 'center',
     };
-
+    app.stage.label = 'stage';
     document.body.appendChild(app.canvas);
 
     // 2. Load Assets & Fonts

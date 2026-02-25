@@ -1,4 +1,4 @@
-import { SYSTEM_ASSETS } from '../render/constants/systemAssets.js';
+import { SYSTEM_ASSETS } from '../core/uiStyle.js';
 import { Container, Text } from 'pixi.js';
 import { createButtonFromDef } from '../render/button.js';
 import ButtonBlock from '../render/buttonBlock.js';

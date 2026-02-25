@@ -1,6 +1,6 @@
 import { Container, Text, Graphics } from 'pixi.js';
 import { buttonBlockPatterns } from './layouts';
-import { Font } from '../core/uiStyle';
+import { Fonts } from '../core/uiStyle';
 import { cascadeColor } from './util/colorOps.js';
 
 /**
@@ -58,10 +58,10 @@ export default class ButtonBlock extends Container {
         const text = new Text({
             text: headingText.toUpperCase(),
             style: {
-                fontFamily: Font.family, // Using standard app font via uiStyle.js
-                fontSize: Font.size, // Increased size
+                fontFamily: Fonts.primary, // Using standard app font via uiStyle.js
+                fontSize: 16, // Increased size
                 fill: 0xFFFFFF,
-                letterSpacing: Font.letterSpacing
+                letterSpacing: 2
             }
         });
         text.label = 'blockLabel'; // Selector

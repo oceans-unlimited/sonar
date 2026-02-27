@@ -5,7 +5,7 @@ import { Fonts, Colors } from '../core/uiStyle';
 import { buttonPatterns } from './layouts';
 
 const PROFILES = {
-    basic: { overlay: true },
+    basic: { overlay: false },
     frame: { frameTexture: 'buttonFrame', overlay: true, slice: 20 },
     circuit: {
         frameTexture: 'circuitFrame',
@@ -100,7 +100,7 @@ export default class Button extends Container {
     _setupBackground(asset, color, isHidden) {
         if (isHidden) return;
 
-        let texture = asset ? Assets.cache.get(asset) : Assets.cache.get('filled_box');
+        let texture = Assets.cache.get(asset);
 
         const background = new Sprite(texture);
         background.label = 'btnBackground';
@@ -118,7 +118,7 @@ export default class Button extends Container {
     addOverlay(color) {
         // Overlay fits the button fits 100% via absolute positioning
         const overlay = new Graphics({ label: 'btnOverlay' })
-            .roundRect(-32, -32, 64, 64, 12) // Base size, layout will stretch
+            .roundRect(-32, -32, 64, 64, 14) // Base size, layout will stretch
             .fill({
                 color: color,
                 alpha: 0.3,

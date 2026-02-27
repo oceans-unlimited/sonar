@@ -8,7 +8,11 @@ export class MapController extends BaseController {
 
         this.handlers = {
             ...this.handlers,
-            'TOGGLE_ROW_LABELS': () => this.handleToggleRowLabels()
+            'TOGGLE_ROW_LABELS': () => this.handleToggleRowLabels(),
+            'TOGGLE_MINI_MAP': () => {
+                // Easiest way to let scenarios know about this action
+                window.dispatchEvent(new CustomEvent('map:toggle_minimap'));
+            }
         };
     }
 

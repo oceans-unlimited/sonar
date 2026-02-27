@@ -210,9 +210,10 @@ export class MapViewArea {
             height: computed.height
         };
 
-        // Enforce 90x90 and redraw components to ensure squares aren't scaled or stretched.
+        // Enforce the configured tile size (either DEFAULT_SCALE or MINI_MAP_SCALE)
+        // and redraw components to ensure squares aren't scaled or stretched.
         // Future scaling/zoom logic will hook into this configuration.
-        this.updateConfig({ tileSize: MapConstants.DEFAULT_SCALE });
+        this.updateConfig({ tileSize: this.config.tileSize });
 
         // CRITICAL: Reset scale to 1 to maintain 1:1 pixel grid squares.
         // This prevents the Pixi Layout engine from applying non-square stretching.

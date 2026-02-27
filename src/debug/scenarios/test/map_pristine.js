@@ -31,30 +31,36 @@ export default {
                 return;
             }
 
-            const mv = scene.mapView;
-            const viewBox = mv.viewBox;
-            const grid = mv.mapGrid.container;
+            let isMiniMap = false;
 
-            // Listen for high-level map events
-            viewBox.on('map:clicked', (data) => {
-                log(`[MAP CLICK] Row: ${data.row}, Col: ${data.col}`);
-            });
+            const bindMapEvents = (container) => {
+                const mv = scene.mapView;
+                const viewBox = mv.viewBox;
 
-            viewBox.on('map:zoomRequested', (data) => {
-                const zDir = data.direction > 0 ? 'IN' : 'OUT';
-                log(`[MAP ZOOM] ${zDir}`);
-            });
-
-            // Listen for raw pointer events on the grid
-            if (grid) {
-                grid.on('pointerdown', (e) => {
-                    const local = grid.toLocal(e.global);
-                    log(`[POINTER DOWN] x: ${Math.round(local.x)}, y: ${Math.round(local.y)}`);
+                // Listen for high-level map events
+                viewBox.on('map:clicked', (data) => {
+                    log(`[MAP CLICK] Row: ${data.row}, Col: ${data.col}`);
                 });
-                grid.on('pointerup', () => {
-                    log(`[POINTER UP]`);
+
+                viewBox.on('map:zoomRequested', (data) => {
+                    const zDir = data.direction > 0 ? 'IN' : 'OUT';
+                    log(`[MAP ZOOM] ${zDir}`);
                 });
-            }
+
+                // Listen for raw pointer events on the grid
+                if (container) {
+                    container.on('pointerdown', (e) => {
+                        const local = container.toLocal(e.global);
+                        log(`[POINTER DOWN] x: ${Math.round(local.x)}, y: ${Math.round(local.y)}`);
+                    });
+                    container.on('pointerup', () => {
+                        log(`[POINTER UP]`);
+                    });
+                }
+            };
+
+            // Initial bind
+            bindMapEvents(scene.mapView.mapGrid.container);
 
             log('✅ Map Event Logging: ACTIVE');
         }, 500);

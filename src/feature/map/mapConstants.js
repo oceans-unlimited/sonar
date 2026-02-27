@@ -1,5 +1,6 @@
 export const MapConstants = {
     DEFAULT_SCALE: 90,
+    MINI_MAP_SCALE: 20,
     GRID_SIZE: 15,
     LABEL_GUTTER: 30,
     MIN_ZOOM_THRESHOLD: 50,

@@ -10,6 +10,9 @@ import { createXOScene } from '../scenes/xoScene';
 import { createMapTestScene } from '../scenes/mapTestScene';
 import { createTeletypeScene } from '../feature/teletype/teletypeScene.js';
 import { createConnScene } from '../scenes/connScene';
+import { createSubmarineTestScene } from '../scenes/submarineTestScene';
+import { createDamageTestScene } from '../scenes/damageTestScene';
+import { createSurfaceTestScene } from '../scenes/surfaceTestScene';
 
 // --- Controllers ---
 import { BaseController } from '../control/baseController';
@@ -19,6 +22,9 @@ import { XOController } from '../control/xoController';
 import { MapController } from '../control/mapController';
 import { TeletypeController } from '../feature/teletype/teletypeController.js';
 import { ConnController } from '../control/connController';
+import { SubmarineController } from '../feature/submarine/SubmarineController';
+import { DamageController } from '../feature/damage/DamageController';
+import { SurfaceController } from '../feature/surface/SurfaceController';
 
 // Services
 import { socketManager } from './socketManager.js';
@@ -33,6 +39,9 @@ export const CONTROLLER_MAP = {
     'mapTest': MapController,
     'teletype': TeletypeController,
     'conn': ConnController,
+    'submarineTest': SubmarineController,
+    'damageTest': DamageController,
+    'surfaceTest': SurfaceController,
 };
 
 export const SCENE_MAP = {
@@ -42,6 +51,9 @@ export const SCENE_MAP = {
     'mapTest': createMapTestScene,
     'teletype': createTeletypeScene,
     'conn': createConnScene,
+    'submarineTest': createSubmarineTestScene,
+    'damageTest': createDamageTestScene,
+    'surfaceTest': createSurfaceTestScene,
 };
 
 // ─────────── Scene Manager Class ───────────

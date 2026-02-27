@@ -57,7 +57,7 @@ export const buttonPatterns = {
     frame: {
         width: 'auto',
         height: '100%',
-        minHeight: 70,
+        maxHeight: 70,
         aspectRatio: 1.7,
         // flexGrow: 1,
     },
@@ -70,6 +70,7 @@ export const buttonPatterns = {
     reactor: {
         width: 'auto',
         height: '100%',
+        minHeight: 70,
         aspectRatio: 1
     },
     text: {

@@ -61,8 +61,7 @@ export function wireButton(buttonView, { id, profile = 'basic', onPress } = {}) 
         },
 
         setInteractive(flag) {
-            buttonView.eventMode = flag ? 'static' : 'none';
-            buttonView.cursor = flag ? 'pointer' : 'default';
+            interactable.setInteractive(flag);
         },
 
         destroy() {

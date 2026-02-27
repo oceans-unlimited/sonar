@@ -21,14 +21,13 @@ export default class Panel extends LayoutContainer {
         this.label = label;
 
         this.layout = {
-            ...(panelPatterns[pattern] || panelPatterns.generic),
+            ...(panelPatterns[pattern]),
             backgroundColor,
             borderColor,
             borderWidth,
             borderRadius
         };
         this.interactive = false;
-        this.cursor = 'pointer';
     }
 
     /**

@@ -1,111 +1,185 @@
-import { Container, Sprite, Graphics, Text, Assets } from 'pixi.js';
-import { scaleToHeight } from './util/scaling'
+import { Container, Sprite, Graphics, Text, Assets, NineSliceSprite } from 'pixi.js';
+import { LayoutContainer } from '@pixi/layout/components';
+import { scaleToHeight, scaleByMinDimension } from './util/scaling'
 import { Fonts, Colors } from '../core/uiStyle';
+import { buttonPatterns } from './layouts';
+
+const PROFILES = {
+    basic: { overlay: true },
+    frame: { frameTexture: 'buttonFrame', overlay: true, slice: 20 },
+    circuit: {
+        frameTexture: 'circuitFrame',
+        overlay: true,
+        tagTexture: 'gridTag',
+        frameColor: 0xcccccc,
+        tagColor: 0xcccccc,
+        slice: 25
+    },
+    reactor: { tagTexture: 'reactorTag' },
+    info: { overlay: true },
+    text: { textOnly: true }
+};
 
 export default class Button extends Container {
-    constructor(bgIcon, color) {
+    /**
+     * @param {Object} config - The button definition
+     * @param {string} config.asset - The background texture alias
+     * @param {number} config.color - Hex color value
+     * @param {string} [config.profile='basic'] - Visual style profile
+     * @param {string} [config.textLabel] - Text label
+     * @param {boolean} [config.textOnly=false] - If true, background is hidden
+     * @param {string} [config.canonicalLabel='system'] - Canonical label for the button
+     */
+    constructor(config = {}) {
         super();
 
-        this.layout = {
-            height: 'intrinsic',
-            width: 'intrinsic',
-            isLeaf: true,
-            justifyContent: 'center',
-            alignItems: 'center'
-        }
-        this.eventMode = 'static';
+        const {
+            asset,
+            color = 0xFFFFFF,
+            profile = 'basic',
+            textLabel,
+            textOnly = false,
+            canonicalLabel = 'system'
+        } = config;
+
+        this.profile = profile.toLowerCase();
+        const profileConfig = PROFILES[this.profile];
+        const layoutPattern = buttonPatterns[this.profile];
+        this.interactive = true;
+        this.interactiveChildren = true;
         this.cursor = 'pointer';
-        this.overlay = null;
-        this.frame = null;
-        this.tag = null;
-        this.textLabel = null;
-        this.filters = [];
 
-        // 1. Background Sizing (Manual)
-        this.background = new Sprite(bgIcon);
-        this.background.anchor.set(0.5);
-        this.position.set(0.5, 0.5);
-        scaleToHeight(this.background, 65);
-
-        this.background.tint = color;
+        this.layout = layoutPattern ? {
+            minWidth: 44,
+            minHeight: 44,
+            ...layoutPattern,
+            alignItems: 'center',
+            justifyContent: 'center'
+        } : { width: 'auto', height: 'auto', minWidth: 44, minHeight: 44 };
+        this.label = canonicalLabel;
         this.initialColor = color;
 
-        this.addChild(this.background);
-    }
+        // 1. Content Container - This will host icons/background and respect parent padding
+        this.content = new Container();
+        this.content.label = 'buttonContent';
+        this.content.layout = {
+            width: this.profile === 'text' ? 'auto' : '100%',
+            height: this.profile === 'text' ? 'auto' : '100%',
+            justifyContent: 'center',
+            alignItems: 'center'
+        };
+        this.addChild(this.content);
 
-    updateSizeToFitChildren() {
-        // We want the bounds of content only, excluding the overlay itself
-        const wasOverlayVisible = this.overlay?.visible;
-        if (this.overlay) this.overlay.visible = false;
-
-        const b = this.getLocalBounds();
-        this.setSize(b.width, b.height);
-
-        if (this.overlay) {
-            this.overlay.clear()
-                .roundRect(b.x, b.y, b.width, b.height, 10)
-                .fill({ color: this.overlayColor || this.background.tint, alpha: 0.5 });
-            this.overlay.visible = wasOverlayVisible;
+        // 2. Chrome - Overlays and Frames that ignore internal padding
+        if (profileConfig && profileConfig.overlay) {
+            this.addOverlay(color);
         }
+
+        if (profileConfig && profileConfig.frameTexture) {
+            const fColor = config.frameColor ?? profileConfig.frameColor ?? color;
+            this.addNineSliceFrame(profileConfig.frameTexture, fColor, profileConfig.slice);
+        }
+
+        if (profileConfig && profileConfig.tagTexture) {
+            const tColor = config.tagColor ?? profileConfig.tagColor ?? color;
+            this.addTag(profileConfig.tagTexture, tColor);
+        }
+
+        // 3. Components
+        this._setupBackground(asset, color, textOnly || (profileConfig && profileConfig.textOnly));
+
+        if (textLabel) {
+            this.setTextLabel(textLabel);
+        }
+
+        // 4. Interaction — Set to true so internal children (background/frame) provide the hit area
+        this.eventMode = 'static';
+        this.interactiveChildren = true;
     }
 
-    addOverlay(color = this.background.tint) {
-        this.overlayColor = color;
-        const b = this.getLocalBounds();
+    _setupBackground(asset, color, isHidden) {
+        if (isHidden) return;
 
-        // Draw the overlay to match the container size exactly
-        this.overlay = new Graphics()
-            .roundRect(b.x, b.y, b.width, b.height, 10)
+        let texture = asset ? Assets.cache.get(asset) : Assets.cache.get('filled_box');
+
+        const background = new Sprite(texture);
+        background.label = 'btnBackground';
+        background.tint = color;
+
+        background.layout = {
+            isLeaf: true,
+            height: '100%',
+            objectFit: 'contain'
+        };
+
+        this.content.addChild(background);
+    }
+
+    addOverlay(color) {
+        // Overlay fits the button fits 100% via absolute positioning
+        const overlay = new Graphics({ label: 'btnOverlay' })
+            .roundRect(-32, -32, 64, 64, 12) // Base size, layout will stretch
             .fill({
                 color: color,
-                alpha: 0.5,
+                alpha: 0.3,
             });
 
-        this.overlay.visible = false;
-        this.addChild(this.overlay);
-        this.updateSizeToFitChildren();
+        overlay.layout = {
+            isLeaf: true,
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+        };
 
+        overlay.visible = false;
+        this.addChild(overlay);
         return this;
     }
 
-    addTextureFrame(frameTexture, frameColor = this.background.tint) {
-        if (!this.frame) {
-            this.frame = new Sprite(frameTexture);
-            this.frame.anchor.set(0.5);
-            scaleToHeight(this.frame, 70);
-
-            this.addChild(this.frame);
-            this.background.scale.set(0.95);
-            this.updateSizeToFitChildren();
+    addNineSliceFrame(assetAlias, color, sliceSize = 20) {
+        const texture = Assets.cache.get(assetAlias);
+        if (!texture) {
+            console.warn(`[Button] Frame texture not found: ${assetAlias}`);
+            return this;
         }
 
-        this.frame.tint = frameColor;
+        const frame = new NineSliceSprite({
+            texture,
+            leftWidth: sliceSize,
+            topHeight: sliceSize,
+            rightWidth: sliceSize,
+            bottomHeight: sliceSize
+        });
+        frame.label = 'btnFrame';
+        frame.tint = color;
+
+        // Frame slightly overlaps the edges
+        frame.layout = {
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+        };
+
+        this.addChild(frame);
         return this;
     }
 
-    addTag(
-        tagTexture,
-        tagColor = this.frame?.tint || this.background.tint
-    ) {
-        if (!this.tag) {
-            this.tag = new Sprite(tagTexture);
+    addTag(assetAlias, color) {
+        const texture = Assets.cache.get(assetAlias);
+        if (!texture) return this;
 
-            // Position manually at bottom-right
-            // Small offset to tuck it in
-            this.tag.anchor.set(1, 1);
-            this.tag.x = this.width / 2;
-            this.tag.y = this.height / 2;
+        const tag = new Sprite(texture);
+        tag.label = 'btnTag';
+        tag.tint = color;
+        tag.visible = false;
 
-            this.tag.tint = tagColor;
-            this.tag.visible = false;
-            this.addChild(this.tag);
-            this.updateSizeToFitChildren();
-        }
-        return this;
-    }
+        tag.layout = {
+            position: 'absolute',
+            right: 5,
+            bottom: 5
+        };
 
-    setPosition(x, y) {
-        this.position.set(x, y);
+        this.addChild(tag);
         return this;
     }
 
@@ -115,53 +189,41 @@ export default class Button extends Container {
      * @param {object} style - Optional PixiJS text style overrides.
      */
     setTextLabel(text, style = {}) {
-        if (!this.textLabel) {
-            // Default style from uiStyle.js
+        let textLabel = this.content.getChildByLabel('btnLabel');
+
+        if (!textLabel) {
             const textStyle = {
                 fontFamily: Fonts.primary,
-                fontSize: 16,
+                fontSize: 20,
                 fill: Colors.text,
+                fontVariant: "small-caps",
                 align: 'center',
                 ...style
             };
 
-            this.textLabel = new Text({ text: text.toUpperCase(), style: textStyle });
-            this.textLabel.anchor.set(0.5);
-            // Ensure it's above the background
-            this.addChild(this.textLabel);
+            textLabel = new Text({
+                text: text,
+                style: textStyle,
+                label: 'btnLabel'
+            });
+            textLabel.anchor.set(0.5);
+
+            // Baseline layout for text labels
+            textLabel.layout = {
+                isLeaf: true,
+                objectFit: 'contain',
+                position: 'absolute',
+            };
+
+            this.content.addChild(textLabel);
         } else {
-            this.textLabel.text = text.toUpperCase();
+            textLabel.text = text;
             if (Object.keys(style).length > 0) {
-                this.textLabel.style = { ...this.textLabel.style, ...style };
+                textLabel.style = { ...textLabel.style, ...style };
             }
         }
 
-        this.applyTextScaling();
-        this.updateSizeToFitChildren();
         return this;
-    }
-
-    /**
-     * Scales the text to fit within the button's background bounds, 
-     * considering padding.
-     */
-    applyTextScaling() {
-        if (!this.textLabel) return;
-
-        // Use the background's width/height or the container's designated width
-        const pad = (this.layout.padding || 10) * 2;
-        const maxWidth = (this.background.width || 65) - pad;
-        const maxHeight = (this.background.height || 65) - pad;
-
-        if (this.textLabel.width > maxWidth) {
-            this.textLabel.width = maxWidth;
-            this.textLabel.scale.y = this.textLabel.scale.x;
-        }
-
-        if (this.textLabel.height > maxHeight) {
-            this.textLabel.height = maxHeight;
-            this.textLabel.scale.x = this.textLabel.scale.y;
-        }
     }
 
     /**
@@ -169,10 +231,8 @@ export default class Button extends Container {
      * Useful for 'text-only' buttons that still need a background for hit-area.
      */
     setBackgroundVisible(visible) {
-        if (this.background) {
-            this.background.visible = visible;
-        }
-        this.updateSizeToFitChildren();
+        const bg = this.content.getChildByLabel('btnBackground');
+        if (bg) bg.visible = visible;
         return this;
     }
 
@@ -194,11 +254,10 @@ export default class Button extends Container {
         }
 
         if (texture) {
-            this.background.texture = texture;
-            // Ensure scaling is consistent with constructor
-            scaleToHeight(this.background, 65);
-            // Update container size to match new sprite bounds
-            this.updateSizeToFitChildren();
+            const bg = this.content.getChildByLabel('btnBackground');
+            if (bg) {
+                bg.texture = texture;
+            }
         } else {
             console.warn(`[Button] Texture not found for asset: ${asset}`);
         }
@@ -206,114 +265,37 @@ export default class Button extends Container {
     }
 
     showTag() {
-        if (this.tag) this.tag.visible = true;
+        const tag = this.getChildByLabel('btnTag');
+        if (tag) tag.visible = true;
         return this;
     }
 
     hideTag() {
-        if (this.tag) this.tag.visible = false;
+        const tag = this.getChildByLabel('btnTag');
+        if (tag) tag.visible = false;
         return this;
     }
 
     setTint(color) {
-        this.background.tint = color;
-        if (this.frame) this.frame.tint = color;
-        // Note: Overlay and Tag usually have distinct colors or alphas, 
-        // so we don't automatically override them unless needed.
+        const bg = this.content.getChildByLabel('btnBackground');
+        if (bg) bg.tint = color;
+
+        const frame = this.getChildByLabel('btnFrame');
+        if (frame) frame.tint = color;
+
+        const tag = this.getChildByLabel('btnTag');
+        if (tag) tag.tint = color;
     }
 
     destroy(options) {
-        this.overlay = null;
-        this.frame = null;
-        this.tag = null;
-        this.textLabel = null;
         super.destroy(options);
     }
 }
 
-const PROFILE_CONFIG = {
-    basic: { overlay: true },
-    frame: { frameTexture: 'buttonFrame', overlay: true },
-    circuit: {
-        frameTexture: 'circuitFrame',
-        overlay: true,
-        tagTexture: 'gridTag',
-        frameColor: 0xcccccc,
-        tagColor: 0xcccccc
-    },
-    reactor: { tagTexture: 'reactorTag' },
-    info: { overlay: true }
-};
-
-export function createButtonFromDef(btnDef) {
-    const { asset, color, profile = 'basic', label, textOnly = false } = btnDef;
-
-    // Resolve texture: check asset in cache
-    let bgIcon = null;
-
-    if (typeof asset === 'string') {
-        bgIcon = Assets.cache.get(asset);
-    } else if (asset) {
-        bgIcon = asset;
-    }
-
-    // Fallback for text-only buttons if no asset provided
-    if (textOnly && !bgIcon) {
-        bgIcon = Assets.cache.get('filled_box');
-    }
-
-    const button = new Button(bgIcon, color);
-
-    if (!bgIcon) {
-        console.error(`[Button] CRITICAL: background texture not found for asset: ${asset}.`);
-    }
-
-    const config = PROFILE_CONFIG[profile.toLowerCase()] || PROFILE_CONFIG.basic;
-
-    if (config.overlay) {
-        button.addOverlay(color);
-    }
-
-    if (config.frameTexture) {
-        let fTexture = btnDef.frameTexture || Assets.cache.get(config.frameTexture);
-        let fColor = color;
-        if (btnDef.frameColor !== undefined) {
-            fColor = btnDef.frameColor;
-        } else if (config.frameColor !== undefined) {
-            fColor = config.frameColor;
-        }
-        if (fTexture) button.addTextureFrame(fTexture, fColor);
-    }
-
-    if (config.tagTexture) {
-        let tTexture = btnDef.tagTexture || Assets.cache.get(config.tagTexture);
-        let tColor = color;
-        if (btnDef.tagColor !== undefined) {
-            tColor = btnDef.tagColor;
-        } else if (config.tagColor !== undefined) {
-            tColor = config.tagColor;
-        }
-        if (tTexture) button.addTag(tTexture, tColor);
-    }
-
-    // Handle text-only mode (hide background hitarea)
-    if (textOnly) {
-        button.setBackgroundVisible(false);
-    }
-
-    // Add Label Text if provided
-    if (label) {
-        button.setTextLabel(label);
-    }
-
-    // Assign Canonical Label based on Profile/Role
-    if (profile === 'reactor') {
-        button.label = 'reactor_btn'; // Canonical
-    } else if (profile === 'circuit' || profile === 'frame') {
-        button.label = 'system'; // Canonical for general systems
-    } else {
-        button.label = 'system'; // Default fallback
-    }
-
-    return button;
+/**
+ * Factory wrapper for Button class.
+ * Ensures consistent object creation using the profile-driven architecture.
+ */
+export function createButtonFromDef(config) {
+    return new Button(config);
 }

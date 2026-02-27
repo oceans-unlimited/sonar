@@ -2,6 +2,7 @@ import { Container } from 'pixi.js';
 import { Colors, Layout } from '../core/uiStyle.js';
 import { createMapPanel } from '../feature/map/mapRenderer.js';
 import { createButtonFromDef } from '../render/button.js';
+import Panel from '../render/panel.js';
 
 export const sceneKey = 'mapTestScene';
 export const controllerKey = 'mapTest';
@@ -11,8 +12,8 @@ export async function createMapTestScene(controller, ticker) {
     scene.label = 'mapTestScene';
 
     scene.layout = {
-        width: '100%',
-        height: '100%',
+        width: '80%',
+        height: '90%',
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
@@ -34,21 +35,25 @@ export async function createMapTestScene(controller, ticker) {
 
     // Add a toggle button for labels
     const toggleBtn = createButtonFromDef({
-        label: 'TOGGLE LABELS',
-        color: Colors.primary,
+        textLabel: 'Switch Row Labels',
         textOnly: true,
-        profile: 'basic'
+        color: 0xee2828,
+        profile: 'text'
     });
-
-    toggleBtn.layout = {
-        scale: 3,
-    };
 
     toggleBtn.on('pointertap', () => {
         controller.handleEvent('TOGGLE_ROW_LABELS');
     });
 
-    scene.addChild(toggleBtn);
+    const buttonPanel = new Panel('control', {
+        label: 'panel_button',
+        backgroundColor: 0x112211,
+        borderColor: 0x28ee28,
+        borderWidth: 2,
+        borderRadius: 8
+    });
+    buttonPanel.addChild(toggleBtn);
+    scene.addChild(buttonPanel);
 
     return scene;
 }

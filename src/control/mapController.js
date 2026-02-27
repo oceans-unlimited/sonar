@@ -65,4 +65,14 @@ export class MapController extends BaseController {
             console.warn('[MapController] Could not find mapView on bound view.');
         }
     }
+
+    /**
+     * Sends a movement command to the server.
+     * @param {string} direction - 'N', 'S', 'E', or 'W'
+     */
+    sendMove(direction) {
+        if (!this.socket) return;
+        console.log(`[MapController] Emitting move: ${direction}`);
+        this.socket.emit('move', direction);
+    }
 }

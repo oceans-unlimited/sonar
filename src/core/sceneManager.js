@@ -9,6 +9,7 @@ import { createTestScene } from '../scenes/testScene';
 import { createXOScene } from '../scenes/xoScene';
 import { createMapTestScene } from '../scenes/mapTestScene';
 import { createTeletypeScene } from '../feature/teletype/teletypeScene.js';
+import { createConnScene } from '../scenes/connScene';
 
 // --- Controllers ---
 import { BaseController } from '../control/baseController';
@@ -17,6 +18,7 @@ import { ColorTestController } from '../control/colorTestController';
 import { XOController } from '../control/xoController';
 import { MapController } from '../control/mapController';
 import { TeletypeController } from '../feature/teletype/teletypeController.js';
+import { ConnController } from '../control/connController';
 
 // Services
 import { socketManager } from './socketManager.js';
@@ -30,6 +32,7 @@ export const CONTROLLER_MAP = {
     'xo': XOController,
     'mapTest': MapController,
     'teletype': TeletypeController,
+    'conn': ConnController,
 };
 
 export const SCENE_MAP = {
@@ -38,6 +41,7 @@ export const SCENE_MAP = {
     'xo': createXOScene,
     'mapTest': createMapTestScene,
     'teletype': createTeletypeScene,
+    'conn': createConnScene,
 };
 
 // ─────────── Scene Manager Class ───────────

@@ -149,5 +149,29 @@ export const PROFILES = {
         [INTERACTIVE_STATES.ACTIVE]: (t) => {
             visuals.setScale(t, 1.02);
         }
+    },
+
+    text: {
+        [INTERACTIVE_STATES.IDLE]: (t) => {
+            visuals.toggleOverlay(t, false);
+            visuals.setScale(t, 1);
+        },
+        [INTERACTIVE_STATES.HOVER]: (t) => {
+            visuals.setOverlayAlpha(t, 0.3);
+            visuals.toggleOverlay(t, true);
+            visuals.setScale(t, 1.05);
+        },
+        [INTERACTIVE_STATES.PRESSED]: (t) => {
+            visuals.setOverlayAlpha(t, 0.5);
+            visuals.setScale(t, 0.95);
+        },
+        [INTERACTIVE_STATES.DISABLED]: (t) => {
+            visuals.toggleOverlay(t, false);
+            visuals.setScale(t, 1);
+        },
+        [INTERACTIVE_STATES.ACTIVE]: (t) => {
+            visuals.setOverlayAlpha(t, 0.2);
+            visuals.toggleOverlay(t, true);
+        }
     }
 };

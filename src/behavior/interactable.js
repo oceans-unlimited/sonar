@@ -6,7 +6,7 @@ import { INTERACTIVE_STATES } from './constants';
  *
  * @param {import('pixi.js').Container} target - A PixiJS display object
  * @param {function} onStateChange - Callback with signature (state: string)
- * @returns {{ destroy: function, setEnabled: function }} Control API
+ * @returns {{ destroy: function, setEnabled: function, setInteractive: function }} Control API
  */
 export function createInteractable(target, onStateChange) {
     let enabled = true;
@@ -53,8 +53,9 @@ export function createInteractable(target, onStateChange) {
     };
 
     // --- Wire Up ---
-    target.eventMode = 'static';
-    target.cursor = 'pointer';
+    // target.eventMode = 'static';
+    // target.cursor = 'pointer';
+    // target.interactive = true;
 
     target.on('pointerover', onPointerOver);
     target.on('pointerout', onPointerOut);
@@ -63,6 +64,13 @@ export function createInteractable(target, onStateChange) {
     target.on('pointerupoutside', onPointerUpOutside);
 
     // --- Control API ---
+    const setInteractive = (isInteractive) => {
+        target.eventMode = isInteractive ? 'static' : 'none';
+        target.interactive = isInteractive;
+        target.cursor = isInteractive ? 'pointer' : 'default';
+        if (!isInteractive) setState(INTERACTIVE_STATES.IDLE);
+    };
+
     const setEnabled = (isEnabled) => {
         enabled = isEnabled;
         target.cursor = enabled ? 'pointer' : 'default';
@@ -81,5 +89,5 @@ export function createInteractable(target, onStateChange) {
         target.off('pointerupoutside', onPointerUpOutside);
     };
 
-    return { destroy, setEnabled };
+    return { destroy, setEnabled, setInteractive };
 }

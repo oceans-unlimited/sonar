@@ -10,9 +10,9 @@ export default class Panel extends LayoutContainer {
     constructor(pattern, config = {}) {
         super();
 
-        const { 
+        const {
             label,          // Selector ID (canonical)
-            backgroundColor = 0xFFFFFF, 
+            backgroundColor = 0xFFFFFF,
             borderColor = 0xFFFFFF,
             borderWidth = 4,
             borderRadius = 12
@@ -28,7 +28,6 @@ export default class Panel extends LayoutContainer {
             borderRadius
         };
         this.interactive = false;
-        this.cursor = 'pointer';
     }
 
     /**

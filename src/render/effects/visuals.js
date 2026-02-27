@@ -3,35 +3,32 @@
  * Pure property setters for "one-shot" changes.
  */
 export const visuals = {
-    setScale: (target, scale) => target.scale.set(scale),
-
-    // Target background specifically so frames/tags stay opaque
-    setBackgroundAlpha: (target, alpha) => {
-        if (target.background) target.background.alpha = alpha;
+    setTint: (target, color) => {
+        const bg = target.content?.getChildByLabel('btnBackground');
+        if (bg) bg.tint = color;
     },
 
-    setFrameAlpha: (target, alpha) => {
-        if (target.frame) target.frame.alpha = alpha;
-    },
-
-    setTagAlpha: (target, alpha) => {
-        if (target.tag) target.tag.alpha = alpha;
+    toggleOverlay: (target, visible) => {
+        const overlay = target.getChildByLabel('btnOverlay');
+        if (overlay) overlay.visible = visible;
     },
 
     setOverlayAlpha: (target, alpha) => {
-        if (target.overlay) target.overlay.alpha = alpha;
+        const overlay = target.getChildByLabel('btnOverlay');
+        if (overlay) overlay.alpha = alpha;
     },
 
-    // Structural (assuming target has these properties)
-    toggleOverlay: (target, visible) => {
-        if (target.overlay) target.overlay.visible = visible
+    setBackgroundAlpha: (target, alpha) => {
+        const bg = target.content?.getChildByLabel('btnBackground');
+        if (bg) bg.alpha = alpha;
     },
+
     toggleTag: (target, visible) => {
-        if (target.tag) target.tag.visible = visible
+        const tag = target.getChildByLabel('btnTag');
+        if (tag) tag.visible = visible;
     },
 
-    setTint: (target, color) => {
-        if (target.background) target.background.tint = color
-    },
-
+    setScale: (target, scale) => {
+        if (target.scale) target.scale.set(scale);
+    }
 };

@@ -1,4 +1,5 @@
 import { Container, Text, Graphics } from 'pixi.js';
+import { LayoutContainer } from '@pixi/layout/components';
 import { buttonBlockPatterns } from './layouts';
 import { Fonts } from '../core/uiStyle';
 import { cascadeColor } from './util/colorOps.js';
@@ -23,14 +24,11 @@ export default class ButtonBlock extends Container {
         this.label = label; // PixiJS Selector Property
 
         // 1. Container Layout Config
-        const chosenPattern = buttonBlockPatterns[layoutPattern] || buttonBlockPatterns.horizontal;
+        const chosenPattern = buttonBlockPatterns[layoutPattern];
 
         this.layout = {
-            ...chosenPattern,
-            flexDirection: 'column', // Force column to stack Header above ButtonRow
-            justifyContent: 'flex-start',
-            alignItems: 'stretch', // Full width
-            gap: 5
+            flexDirection: 'column',
+            gap: 8
         };
 
         // 2. Render Header (Optional)
@@ -98,15 +96,12 @@ export default class ButtonBlock extends Container {
     }
 
     createContentRow(pattern) {
-        const buttonRow = new Container({
-            label: 'buttonRow'
-        });
+        const buttonRow = new LayoutContainer();
+        buttonRow.label = 'buttonRow';
 
         // Inherit the requested pattern (horizontal/vertical) for the buttons themselves
         buttonRow.layout = {
             ...pattern,
-            width: '100%', // Ensure it takes full width of the block
-            flexGrow: 0
         };
 
         this.buttons.forEach(btn => buttonRow.addChild(btn));

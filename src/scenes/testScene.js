@@ -20,11 +20,11 @@ export async function createTestScene(controller, ticker) {
     scene.label = 'testScene';
 
     scene.layout = {
-        width: 'auto',
+        width: '80%',
         height: 'auto',
         flexDirection: 'row',
         flexWrap: 'wrap',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         alignItems: 'flex-start',
         padding: 30,
         gap: 30
@@ -141,7 +141,7 @@ export async function createTestScene(controller, ticker) {
         text: "PLAYER ONE",
         style: {
             fontFamily: 'Orbitron',
-            fontSize: 16,
+            fontSize: 26,
             fontWeight: 'bold',
             fill: '#00ff00'
         }
@@ -156,10 +156,11 @@ export async function createTestScene(controller, ticker) {
     toggleBtn.setScale(0.65);
 
     const vacateBtn = createButtonFromDef({
-        label: '❌',
+        color: 0xFFFFFF,
+        profile: 'text',
+        textLabel: '❌',
         textOnly: true,
-        color: 0x00ff00,
-        profile: 'basic'
+        canonicalLabel: 'vacate'
     });
     vacateBtn.layout = { marginLeft: 10 };
 
@@ -178,22 +179,21 @@ export async function createTestScene(controller, ticker) {
 
     const textButtons = [
         createButtonFromDef({
-            label: 'TEXT ONLY',
+            textLabel: 'Text Only',
             textOnly: true,
             color: 0xee2828,
-            profile: 'basic'
+            profile: 'text'
         }),
         createButtonFromDef({
-            asset: 'weapons',
-            label: 'HYBRID',
+            textLabel: 'Hybrid',
             color: 0xee2828,
             profile: 'frame'
         }),
         createButtonFromDef({
-            label: 'CLICK TO CHANGE',
+            textLabel: 'Click To Change',
             textOnly: true,
             color: 0xee2828,
-            profile: 'basic'
+            profile: 'text'
         })
     ];
 

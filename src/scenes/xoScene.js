@@ -21,6 +21,8 @@ export async function createXOScene(controller, ticker) {
     sceneContent.label = 'xoScene';
 
     sceneContent.layout = {
+        width: '80%',
+        height: 'auto',
         flexDirection: 'row',
         justifyContent: 'space-between',
         gap: 20,

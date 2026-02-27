@@ -8,6 +8,7 @@ import testColorOps from './test/color_ops.js';
 import testMapPristine from './test/map_pristine.js';
 import testMapMovement from './test/map_movement.js';
 import teletypePristine from './teletype/01_pristine.js';
+import connPristine from './conn/01_pristine.js';
 
 export const SCENARIO_REGISTRY = {
   'engineer_pristine': engineerPristine,
@@ -19,7 +20,8 @@ export const SCENARIO_REGISTRY = {
   'test_color_ops': testColorOps,
   'test_map_pristine': testMapPristine,
   'test_map_movement': testMapMovement,
-  'teletype_pristine': teletypePristine
+  'teletype_pristine': teletypePristine,
+  'conn_pristine': connPristine
 };
 
 export const SCENARIO_CATEGORIES = {
@@ -34,6 +36,9 @@ export const SCENARIO_CATEGORIES = {
   ],
   'First Officer (XO)': [
     'xo_pristine'
+  ],
+  'Captain (Conn)': [
+    'conn_pristine'
   ],
   'Test Bed': [
     'test_color_ops',

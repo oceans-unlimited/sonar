@@ -13,13 +13,13 @@ export function scaleToHeight(sprite, targetHeight) {
     sprite.scale.set(scale);
 }
 
-export function scaleByMaxDimension(displayObject, targetSize) {
+export function scaleByMinDimension(displayObject, targetSize) {
     // Scale to the maximum dimension while maintaining aspect ratio
     const bounds = displayObject.getLocalBounds();
-    const largest = Math.max(bounds.width, bounds.height);
+    const smallest = Math.min(bounds.width, bounds.height);
 
-    if (largest === 0) return;
+    if (smallest === 0) return;
 
-    const scale = targetSize / largest;
+    const scale = targetSize / smallest;
     displayObject.scale.set(scale);
 }

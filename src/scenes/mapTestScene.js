@@ -70,8 +70,8 @@ export async function createMapTestScene(controller, ticker) {
             currentMapPanel.destroy({ children: true });
         }
 
-        const width = isMiniMap ? '40%' : '100%';
-        const height = isMiniMap ? '40%' : '100%';
+        const width = isMiniMap ? 315 : '100%';
+        const height = isMiniMap ? 315 : '100%';
         const layoutConfig = isMiniMap
             ? { width, height, backgroundColor: 0x0a1f0a, borderRadius: 8 }
             : { backgroundColor: 0x0a1f0a, borderRadius: 8 };
@@ -96,7 +96,25 @@ export async function createMapTestScene(controller, ticker) {
 
         // Force layout engine to recalculate
         window.dispatchEvent(new Event('resize'));
+
+        // Rebind selection test
+        bindSelectionTest(scene.mapView);
     });
+
+    const bindSelectionTest = (mapView) => {
+        // Clear previous listeners just in case
+        mapView.viewBox.off('map:clicked');
+        mapView.viewBox.on('map:clicked', (data) => {
+            // Un-highlight previous squares for a singular selection effect
+            mapView.clearAllOverlays();
+
+            // Highlight the clicked square
+            mapView.setGridOverlay(data.row, data.col, 0x00FF00, 0.4);
+        });
+    };
+
+    // Bind initially
+    bindSelectionTest(scene.mapView);
 
     const buttonPanel = new Panel('control', {
         label: 'panel_button',

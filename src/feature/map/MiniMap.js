@@ -28,6 +28,8 @@ export class MiniMap {
         });
 
         const vb = this.mapView.viewBox;
+        console.log('MapView: ', this.mapView);
+        console.log('Gutter: ', vb.labelGutter);
 
         // Create the mask graphics
         const mapMask = new Graphics();

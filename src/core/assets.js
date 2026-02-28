@@ -65,6 +65,7 @@ const ASSET_LIST = {
     circuitFrame: 'assets/ui/circuit_frame.svg',
     gridTag: 'assets/ui/grid_tag.svg',
     reactorTag: 'assets/ui/reactor_tag.svg',
+    panelTab: 'assets/ui/panel_tab.svg',
     // Sprite Sheets
     gauges: 'assets/sprites/gauges-sprite.json'
 };

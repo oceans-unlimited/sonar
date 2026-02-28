@@ -33,10 +33,12 @@ export async function createTestScene(controller, ticker) {
     // ─────────── Panel 1: Action Buttons ───────────
     const panel1 = new Panel('control', {
         label: 'panel_actions',
+        headerText: 'Unassigned',
         backgroundColor: 0x112211,
         borderColor: 0x28ee28,
         borderWidth: 2,
-        borderRadius: 8
+        borderRadius: 8,
+        showTab: true
     });
 
     // Create some test buttons
@@ -93,7 +95,7 @@ export async function createTestScene(controller, ticker) {
     });
 
     const infoButtons = [];
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 2; i++) {
         let subProfile = null;
         if (i % 2 === 0) {
             subProfile = 'sub_profileA';

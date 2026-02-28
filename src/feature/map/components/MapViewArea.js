@@ -1,4 +1,4 @@
-import { Container, RenderLayer, Sprite } from 'pixi.js';
+import { Container, RenderLayer, Graphics, Sprite } from 'pixi.js';
 import { MapConstants, MapStates, MapIntents } from '../mapConstants.js';
 import { MapGrid } from './MapGrid.js';
 import { MapLabels } from './MapLabels.js';
@@ -25,8 +25,8 @@ export class MapViewArea {
             gridSize: MapConstants.GRID_SIZE,
             tileSize: MapConstants.DEFAULT_SCALE,
             rowLabelsRight: false,
-            ...config,
             labelGutter: MapConstants.LABEL_GUTTER,
+            ...config
         };
 
         // Area where main map visual content will pan/zoom
@@ -63,6 +63,13 @@ export class MapViewArea {
         this.mapGrid = new MapGrid(this.config);
         this.mapContent.addChild(this.mapGrid.container);
         this.layers.grid.attach(this.mapGrid.container);
+
+        // Selection Overlay Engine
+        this.activeOverlays = new Map(); // Key: 'row-col', Value: { row, col, color, alpha }
+        this.overlayGraphics = new Graphics();
+        this.overlayGraphics.label = 'GridOverlays';
+        this.mapContent.addChild(this.overlayGraphics);
+        this.layers.overlay.attach(this.overlayGraphics);
 
         this.mapLabels = new MapLabels(this.config);
 
@@ -228,6 +235,9 @@ export class MapViewArea {
             this.dimensions.width,
             this.dimensions.height
         );
+
+        // Redraw overlays on layout change to ensure correct tileSize
+        this.renderOverlays();
     }
 
     clampPosition() {
@@ -285,6 +295,65 @@ export class MapViewArea {
 
     getLayoutDimensions() {
         return this.dimensions || MapUtils.getLayout(this.viewBox, 'computedPixi') || { width: 0, height: 0, x: 0, y: 0 };
+    }
+
+    // --- Overlay Render Engine ---
+
+    /**
+     * Toggles on an overlay for a specific grid coordinate.
+     * @param {number} row 
+     * @param {number} col 
+     * @param {number} color Hex color (e.g. 0xFFFFFF)
+     * @param {number} alpha Opacity
+     */
+    setGridOverlay(row, col, color = 0xFFFFFF, alpha = 0.3) {
+        const key = `${row}-${col}`;
+        this.activeOverlays.set(key, { row, col, color, alpha });
+        this.renderOverlays();
+
+        // Auto-sync the labels if they are active
+        this.mapLabels.setOverlay('row', row, color, alpha);
+        this.mapLabels.setOverlay('col', col, color, alpha);
+    }
+
+    /**
+     * Removes the overlay for a specific grid coordinate.
+     */
+    hideGridOverlay(row, col) {
+        const key = `${row}-${col}`;
+        if (this.activeOverlays.delete(key)) {
+            this.renderOverlays();
+            this.mapLabels.hideOverlay('row', row);
+            this.mapLabels.hideOverlay('col', col);
+        }
+    }
+
+    /**
+     * Clears all active grid overlays.
+     */
+    clearAllOverlays() {
+        this.activeOverlays.clear();
+        this.renderOverlays();
+        this.mapLabels.clearAllOverlays();
+    }
+
+    /**
+     * Redraws all active overlays onto the Graphics layer.
+     * Called automatically when setting overlays or during map resize/config updates.
+     */
+    renderOverlays() {
+        this.overlayGraphics.clear();
+        if (this.activeOverlays.size === 0) return;
+
+        const { tileSize } = this.config;
+
+        for (const [key, overlay] of this.activeOverlays) {
+            const x = overlay.col * tileSize;
+            const y = overlay.row * tileSize;
+
+            this.overlayGraphics.rect(x, y, tileSize, tileSize);
+            this.overlayGraphics.fill({ color: overlay.color, alpha: overlay.alpha });
+        }
     }
 
     destroy() {

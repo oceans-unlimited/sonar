@@ -98,7 +98,7 @@ export default class Button extends Container {
     }
 
     _setupBackground(asset, color, isHidden) {
-        if (isHidden) return;
+        if (!asset || isHidden) return;
 
         let texture = Assets.cache.get(asset);
 

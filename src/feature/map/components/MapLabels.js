@@ -32,9 +32,24 @@ export class MapLabels {
         this.horizontalLabels.addChild(this.hBackground);
         this.verticalLabels.addChild(this.vBackground);
 
+        // Overlays go ABOVE background but BELOW text
+        this.hOverlay = new Graphics();
+        this.hOverlay.label = 'HorizontalLabelOverlay';
+        this.vOverlay = new Graphics();
+        this.vOverlay.label = 'VerticalLabelOverlay';
+
+        this.horizontalLabels.addChild(this.hOverlay);
+        this.verticalLabels.addChild(this.vOverlay);
+
         this.container.addChild(this.horizontalLabels, this.verticalLabels, this.sectorLabels);
 
         this.axisLabels = { h: [], v: [] };
+
+        // Track which rows/cols are highlighted
+        this.activeOverlays = {
+            row: new Map(), // Key: row index, Value: { color, alpha }
+            col: new Map()  // Key: col index, Value: { color, alpha }
+        };
 
         this._initLabels();
         this._drawBackgrounds();
@@ -110,6 +125,63 @@ export class MapLabels {
         }
 
         this._drawBackgrounds();
+        this.renderOverlays();
+    }
+
+    // --- Overlay Rendering ---
+
+    setOverlay(type, index, color = 0xFFFFFF, alpha = 0.3) {
+        if (this.activeOverlays[type]) {
+            this.activeOverlays[type].set(index, { color, alpha });
+            this.renderOverlays();
+        }
+    }
+
+    hideOverlay(type, index) {
+        if (this.activeOverlays[type] && this.activeOverlays[type].delete(index)) {
+            this.renderOverlays();
+        }
+    }
+
+    clearAllOverlays() {
+        this.activeOverlays.row.clear();
+        this.activeOverlays.col.clear();
+        this.renderOverlays();
+    }
+
+    renderOverlays() {
+        this.hOverlay.clear();
+        this.vOverlay.clear();
+
+        const { tileSize, labelGutter, labelMode } = this.config;
+        if (labelMode !== 'COORDINATE') return;
+
+        // Reset all text colors
+        const defaultStyle = this._labelStyle();
+        this.axisLabels.h.forEach(t => t.style.fill = defaultStyle.fill);
+        this.axisLabels.v.forEach(t => t.style.fill = defaultStyle.fill);
+
+        // Draw Row highlights (vertical labels)
+        for (const [rowIdx, overlay] of this.activeOverlays.row) {
+            const y = rowIdx * tileSize;
+            this.vOverlay.rect(-labelGutter / 2, y, labelGutter, tileSize);
+            this.vOverlay.fill({ color: overlay.color, alpha: overlay.alpha });
+
+            if (this.axisLabels.v[rowIdx]) {
+                this.axisLabels.v[rowIdx].style.fill = 0x000000; // Invert to black
+            }
+        }
+
+        // Draw Col highlights (horizontal labels)
+        for (const [colIdx, overlay] of this.activeOverlays.col) {
+            const x = colIdx * tileSize;
+            this.hOverlay.rect(x, -labelGutter / 2, tileSize, labelGutter);
+            this.hOverlay.fill({ color: overlay.color, alpha: overlay.alpha });
+
+            if (this.axisLabels.h[colIdx]) {
+                this.axisLabels.h[colIdx].style.fill = 0x000000; // Invert to black
+            }
+        }
     }
 
     /**

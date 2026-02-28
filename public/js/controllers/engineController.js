@@ -2,6 +2,7 @@ import { simulationClock } from "../core/clock/simulationClock.js";
 import { interruptManager } from "../features/interrupts/InterruptManager.js";
 import { getInterruptUIOptions } from "../renderers/interrupts/interruptUIConfigs.js";
 import { socketManager } from "../core/socketManager.js";
+import { mockLayout } from "../mockEngineLayout.js";
 
 /**
  * Engine Controller
@@ -12,12 +13,13 @@ export class EngineController {
         this.app = app;
         this.renderer = renderer;
         this.pushedButtons = new Set(); // Set of "direction_slotId"
+        this.currentLayout = mockLayout; // Default to mock
     }
 
     init() {
         console.log("[EngineController] Initialized.");
 
-        // Interrupt Handling
+        // 1. Interrupt Handling
         interruptManager.subscribe((event, interrupt) => {
             if (event === 'interruptStarted' || event === 'interruptUpdated') {
                 this.showInterruptOverlay(interrupt);
@@ -26,9 +28,21 @@ export class EngineController {
             }
         });
 
+        // 2. Renderer Local Events
+        if (this.renderer.scene) {
+            this.renderer.scene.on('engineer_circuit_press', (data) => {
+                this.handleButtonPress(data.direction, data.slotId);
+            });
+        }
+
         // 3. Socket Handling
         socketManager.on('stateUpdate', (state) => this.handleStateUpdate(state));
-        if (socketManager.lastState) this.handleStateUpdate(socketManager.lastState);
+        if (socketManager.lastState) {
+            this.handleStateUpdate(socketManager.lastState);
+        } else {
+            // Initial render with mock if no state
+            this.updateRenderer(this.currentLayout, 0, null);
+        }
     }
 
     showInterruptOverlay(interrupt) {
@@ -71,21 +85,30 @@ export class EngineController {
 
         if (!mySub) return;
 
+        if (mySub.engineLayout) {
+            this.currentLayout = mySub.engineLayout;
+        }
+
         // Sync pushed buttons
         this.pushedButtons.clear();
-        if (mySub.engineLayout && mySub.engineLayout.crossedOutSlots) {
-            mySub.engineLayout.crossedOutSlots.forEach(slot => {
+        if (this.currentLayout && this.currentLayout.crossedOutSlots) {
+            this.currentLayout.crossedOutSlots.forEach(slot => {
                 this.pushedButtons.add(`${slot.direction}_${slot.slotId}`);
             });
         }
 
-        // Visual update (Renderer handles the actual visual state of buttons)
+        const movingDirection = mySub.submarineState === 'POST_MOVEMENT' ?
+            mySub.submarineStateData.POST_MOVEMENT?.directionMoved : null;
+
+        this.updateRenderer(this.currentLayout, mySub.hullDamage, movingDirection);
+    }
+
+    updateRenderer(layout, hullDamage, movingDirection) {
         this.renderer.scene.emit('update_engine_view', {
             pushedButtons: this.pushedButtons,
-            movingDirection: mySub.submarineState === 'POST_MOVEMENT' ?
-                mySub.submarineStateData.POST_MOVEMENT?.directionMoved : null,
-            hasCrossedOut: mySub.submarineState === 'POST_MOVEMENT' ?
-                mySub.submarineStateData.POST_MOVEMENT?.engineerCrossedOutSystem : false
+            engineLayout: layout,
+            hullDamage: hullDamage,
+            movingDirection: movingDirection
         });
     }
 
@@ -99,7 +122,7 @@ export class EngineController {
     }
 
 
-    handleButtonPress(direction, slotId, system) {
+    handleButtonPress(direction, slotId) {
         if (!simulationClock.isRunning()) return;
 
         const state = socketManager.lastState;

@@ -88,7 +88,23 @@ This project explores real-time, networked submarine combat with asymmetric team
 
 ## 🚀 Getting Started
 
-_Coming soon – project setup instructions will go here once implementation begins._  
+### 1. Start the Game Server
+```bash
+npm install
+npm run dev
+```
+
+### 2. Start the Vite Client
+```bash
+# In a separate terminal
+npm install -g vite (if not installed)
+npm run vite:dev
+```
+
+### 3. Open in Browser
+- **Direct Play**: `http://localhost:5173`
+- **Director (Test) Mode**: `http://localhost:5173?mode=test`
+
 
 ---
 

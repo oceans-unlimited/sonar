@@ -3,12 +3,44 @@ import { SceneManager } from './core/sceneManager.js';
 import { socketManager } from './core/socketManager.js';
 import { AudioManager } from './core/audioManager.js';
 import { interruptController } from './features/interrupts/InterruptController.js';
+import '@pixi/layout';
 
 window.interruptController = interruptController;
 
+// Function to wait for web fonts
+const waitForFonts = () => {
+  return new Promise((resolve) => {
+    const loader = window.WebFont;
+    if (!loader) {
+      console.warn("WebFont loader not found (check script source). Continuing without font sync.");
+      return resolve();
+    }
+
+    loader.load({
+      custom: {
+        families: ['Goldman', 'Orbitron'],
+        urls: ['css/style.css']
+      },
+      active: () => {
+        console.log("Fonts loaded.");
+        resolve();
+      },
+      inactive: () => {
+        console.warn("Fonts failed to load (timeout or missing files).");
+        resolve(); // Continue anyway 
+      }
+    });
+  });
+};
+
 (async () => {
+  // Wait for fonts before doing anything else
+  await waitForFonts();
+
   // Create a new application
   const app = new Application();
+  globalThis.__PIXI_APP__ = app;
+
   // The background color is set by the scene, so we don't need it here.
   await app.init({
     resizeTo: window,
@@ -22,9 +54,7 @@ window.interruptController = interruptController;
 
   // Pre-load any assets needed for the scenes
   const assets = {
-    orbitron: await Assets.load('assets/fonts/Orbitron-VariableFont_wght.ttf'),
-    goldman_bold: await Assets.load('assets/fonts/Goldman-Bold.ttf'),
-    goldman_regular: await Assets.load('assets/fonts/Goldman-Regular.ttf'),
+    // Fonts are now pre-loaded via WebFontLoader in index.html and client.js
     // placeholder for assets. In a real app, you'd load them here.
     noise: await Assets.load('assets/textures/noise.png'),
     scanlines: await Assets.load('assets/textures/scanlines.png'),
@@ -40,16 +70,18 @@ window.interruptController = interruptController;
     role_firstofficer: await Assets.load('assets/ui/role_firstofficer.svg'),
     role_sonar: await Assets.load('assets/ui/role_sonar.svg'),
     thumb: await Assets.load('assets/ui/thumb.svg'),
-    // Engine assets
-    label: await Assets.load('assets/ui/directionLabel.svg'),
-    border: await Assets.load('assets/ui/directionBorder.svg'),
-    corners: await Assets.load('assets/ui/directionCorners.svg'),
+    // Engine assets (New High-Fidelity)
+    directionFrame: await Assets.load('assets/ui/directionFrame.svg'),
+    reactorGrid: await Assets.load('assets/ui/reactorGrid.svg'),
+    circuit_frame: await Assets.load('assets/ui/circuit_frame.svg'),
+    grid_tag: await Assets.load('assets/ui/grid_tag.svg'),
+    reactor_tag: await Assets.load('assets/ui/reactor_tag.svg'),
     toggle: await Assets.load('assets/ui/toggle.svg'),
-    circuitColor: await Assets.load('assets/ui/circuitColor.svg'),
     stealth: await Assets.load('assets/ui/stealth.svg'),
     detection: await Assets.load('assets/ui/detection.svg'),
     weapons: await Assets.load('assets/ui/weapons.svg'),
     reactor: await Assets.load('assets/ui/reactor.svg'),
+    vessel: await Assets.load('assets/ui/vessel.svg'),
     disabled: await Assets.load('assets/ui/disabled.svg'),
     ping_sys: await Assets.load('assets/ui/ping_sys.svg'),
     four_gauge: await Assets.load('assets/ui/4_gauge.svg'),

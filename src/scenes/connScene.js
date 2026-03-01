@@ -4,7 +4,7 @@ import ButtonBlock from '../render/buttonBlock';
 import { createButtonFromDef } from '../render/button';
 import { wireButton } from '../behavior/buttonBehavior';
 import { createMapPanel } from '../feature/map/mapRenderer';
-import { MapController } from '../control/mapController';
+import { MapController } from '../feature/map/mapController';
 import { Colors } from '../core/uiStyle';
 import { socketManager } from '../core/socketManager';
 

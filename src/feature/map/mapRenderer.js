@@ -1,6 +1,8 @@
 import { Container, Graphics } from 'pixi.js';
 import { MapViewArea } from './components/MapViewArea.js';
 import { MapUtils } from './mapUtils.js';
+import { MapController } from './mapController.js';
+import { socketManager } from '../../core/socketManager.js';
 
 /**
  * Creates a self-contained map panel with a view area and masking.
@@ -45,6 +47,13 @@ export function createMapPanel(ticker, width, height, panelLayoutConfig = {}) {
 
     // Add a convenience reference to the mapViewArea on the panel if needed
     mapPanel.mapView = mapViewArea;
+
+    // --- EMBEDDED CONTROLLER ---
+    // Every map panel owns its own controller instance for socket syncing and logic
+    const controller = new MapController();
+    controller.bindView(mapPanel);
+    controller.bindSocket(socketManager);
+    mapPanel.controller = controller;
 
     vb.on('layout', (event) => {
         const computedLayout = MapUtils.getLayout(vb, 'computed');

@@ -192,17 +192,17 @@ export class MapLabels {
         const totalSize = gridSize * tileSize;
 
         // Stroke color matches the grid lines (from MapGrid.js)
-        const strokeStyle = { width: 1, color: 0x005500 };
+        // const strokeStyle = { width: 1, color: 0x005500 };
 
         this.hBackground.clear()
             .rect(0, -labelGutter / 2, totalSize, labelGutter)
             .fill({ color: Colors.background })
-            .stroke(strokeStyle);
+        // .stroke(strokeStyle);
 
         this.vBackground.clear()
             .rect(-labelGutter / 2, 0, labelGutter, totalSize)
             .fill({ color: Colors.background })
-            .stroke(strokeStyle);
+        // .stroke(strokeStyle);
     }
 
     syncPosition(mapX, mapY, viewWidth = 0, viewHeight = 0) {

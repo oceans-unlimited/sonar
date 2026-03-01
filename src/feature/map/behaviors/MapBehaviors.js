@@ -61,6 +61,9 @@ export class MapBehaviors {
     }
 
     onPointerDown(e) {
+        // Lockout during animation
+        if (this.mapViewArea.currentState === MapStates.ANIMATING) return;
+
         // Multi-touch pinch zoom detection (legacy style)
         const touches = e.getNativeEvent ? e.getNativeEvent().touches : e.nativeEvent?.touches;
         if (touches && touches.length >= 2) {
@@ -91,6 +94,9 @@ export class MapBehaviors {
     }
 
     onPointerMove(e) {
+        // Lockout during animation
+        if (this.mapViewArea.currentState === MapStates.ANIMATING) return;
+
         // Multi-touch zoom
         const touches = e.getNativeEvent ? e.getNativeEvent().touches : e.nativeEvent?.touches;
         if (touches && touches.length >= 2) {
@@ -151,6 +157,8 @@ export class MapBehaviors {
     }
 
     onPointerUp(e) {
+        if (this.mapViewArea.currentState === MapStates.ANIMATING) return;
+
         if (this.isPotentialClick) {
             const duration = performance.now() - this.pressStartTime;
             if (duration <= 250) { // 250ms click threshold
@@ -170,7 +178,7 @@ export class MapBehaviors {
         }
 
         if (this.mapViewArea.currentState === MapStates.PAN) {
-            this.mapViewArea.setState(MapStates.SELECTING);
+            this.mapViewArea.setState(MapStates.SELECT_SQUARE);
         }
 
         this.reportActivity();
@@ -211,6 +219,7 @@ export class MapBehaviors {
     }
 
     onWheel(e) {
+        if (this.mapViewArea.currentState === MapStates.ANIMATING) return;
         e.preventDefault();
         const direction = e.deltaY > 0 ? -1 : 1;
         this.mapViewArea.viewBox.emit('map:zoomRequested', { direction });

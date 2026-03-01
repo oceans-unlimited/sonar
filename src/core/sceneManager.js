@@ -19,7 +19,7 @@ import { BaseController } from '../control/baseController';
 import { EngineerController } from '../control/engineerController';
 import { ColorTestController } from '../control/colorTestController';
 import { XOController } from '../control/xoController';
-import { MapController } from '../control/mapController';
+import { MapController } from '../feature/map/mapController';
 import { TeletypeController } from '../feature/teletype/teletypeController.js';
 import { ConnController } from '../control/connController';
 import { SubmarineController } from '../feature/submarine/SubmarineController';
@@ -70,7 +70,7 @@ export class SceneManager {
 
     async init() {
         // Load the default scene by its key on startup.
-        await this.loadScene('test');
+        await this.loadScene('mapTest');
     }
 
     /**

@@ -8,6 +8,7 @@ This pattern decouples the "Mechanism" (event routing, registration) from the "B
 **Core Pattern:**
 - **BaseController**: Central router + globals + common mechanics.
 - **Role Controllers**: Extend Base, register specific handlers, listen for specific socket events.
+- **Feature Controllers**: Extend Base, register specific handlers, listen for specific socket events and API calls from Role Controllers.
 - **SceneManager**: Acts as the factory using a `CONTROLLER_MAP`.
 
 ## Architecture
@@ -16,13 +17,13 @@ This pattern decouples the "Mechanism" (event routing, registration) from the "B
 *   **File:** `src/control/baseController.js`
 *   **Role:** Parent class for ALL scene controllers (Game, Lobby, Menu).
 *   **Responsibilities:**
-    *   **Registry:** Maintains `this.buttons = {}` (Button ID → API).
+    *   **Registry:** Maintains `this.buttons = {}` (Button ID → API), `this.visuals = {}` (Visual ID → PIXI Object), `this.features = {}` (Feature ID → Feature Object).
     *   **Action Map:** Uses `this.handlers = {}` to map Event Names → Handler Functions.
     *   **Routing:** `handleEvent(event, data)` is the **primary ingress point** for:
-        *   UI Interactions (Clicks, Toggles)
-        *   Internal Timers (Cooldowns)
-        *   Feature Notifications (Minigame complete)
-        *   *Note: Not for high-frequency game loop updates.*
+        *   **Client-Local Events:** UI-only state changes (e.g., `'SET_INTENT'`, `'CENTER_ON_OWNSHIP'`) that modify local visuals but do not affect global game state.
+        *   **Server-Driven Events:** Handlers mapped to incoming socket messages (e.g., `'stateUpdate'`, `'SONAR_PING'`).
+        *   **Internal Notifications:** Timers, cooldowns, or feature-to-feature communication.
+    *   **Separation of Concerns:** Handlers are agnostic to the source. A handler like `'SET_INTENT'` can be triggered by a parent scene calling `controller.handleEvent()` or by a mock event during testing. Client-local events **MUST NOT** be automatically emitted to the server; they are strictly for local view management.
     *   **Logging:** Centralized `console.log` for all routed events.
     *   **Partial Operation:** Supports offline-first/pre-bind operation (queues or drops actions safely).
     *   **Feature Injection:** Receives frozen feature registry.
@@ -44,7 +45,7 @@ This pattern decouples the "Mechanism" (event routing, registration) from the "B
     *   Define role-specific `this.handlers` in the constructor.
     *   Implement business logic methods.
     *   Manage role-specific socket listeners (`onSocketBound`).
-    *   Interact with specific Features (e.g., `this.features.reactor`).
+    *   Interact with specific Features (e.g., `this.features.map`).
     *   **Note:** This applies to *all* scenes. A `LobbyController` simply has a smaller map and ignores game-specific features.
 
 **Constructor Pattern:**
@@ -299,8 +300,4 @@ if (this.features) {
 ```
 
 ## Next Steps
-
-1.  **Refactor**: Rename/Move `SceneController` to `BaseController`. [COMPLETED]
-2.  **Implement**: Create `EngineerController` and move reactor logic there. [COMPLETED]
-3.  **Update**: Modify `SceneManager` to use the `CONTROLLER_MAP` factory pattern. [COMPLETED]
-4.  **Verify**: Ensure the modular scene pattern is fully adopted and `blueprint` parsing is removed. [COMPLETED]
+TBD

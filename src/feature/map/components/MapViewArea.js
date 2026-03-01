@@ -4,6 +4,7 @@ import { MapGrid } from './MapGrid.js';
 import { MapLabels } from './MapLabels.js';
 import { MapBehaviors } from '../behaviors/MapBehaviors.js';
 import { MapUtils } from '../mapUtils.js';
+import { LayoutContainer } from '@pixi/layout/components';
 
 export class MapViewArea {
     constructor(ticker, config = {}) {
@@ -11,10 +12,10 @@ export class MapViewArea {
         this.ticker = ticker;
 
         // Map State 
-        this.currentState = MapStates.SELECTING;
+        this.currentState = MapStates.SELECT_SQUARE;
 
         // Root component, uses Pixi Layout for flex sizing
-        this.viewBox = new Container({
+        this.viewBox = new LayoutContainer({
             label: 'MapViewBox',
             layout: {
                 ...config.layout
@@ -168,7 +169,7 @@ export class MapViewArea {
             if (t >= 1) {
                 this.ticker.remove(this._moveTicker);
                 this._moveTicker = null;
-                this.setState(MapStates.SELECTING);
+                this.setState(MapStates.SELECT_SQUARE);
             }
         };
 
@@ -194,8 +195,36 @@ export class MapViewArea {
             return;
         }
 
-        // Reuse ticker logic for standalone centering if needed
-        // (Currently setOwnShipPosition handles the main use case)
+        // Animated Centering
+        if (this._moveTicker) {
+            this.ticker.remove(this._moveTicker);
+        }
+
+        this.setState(MapStates.ANIMATING);
+
+        const startMapX = this.mapContent.x;
+        const startMapY = this.mapContent.y;
+
+        let elapsed = 0;
+        const duration = 500; // ms
+
+        this._moveTicker = (ticker) => {
+            elapsed += ticker.deltaTime * (1000 / 60);
+            const t = Math.min(1, elapsed / duration);
+            const ease = t * (2 - t); // Ease out quad
+
+            this.mapContent.x = startMapX + (targetMapX - startMapX) * ease;
+            this.mapContent.y = startMapY + (targetMapY - startMapY) * ease;
+            this.handleLayout();
+
+            if (t >= 1) {
+                this.ticker.remove(this._moveTicker);
+                this._moveTicker = null;
+                this.setState(MapStates.SELECT_SQUARE);
+            }
+        };
+
+        this.ticker.add(this._moveTicker);
     }
 
     /**
@@ -288,6 +317,18 @@ export class MapViewArea {
 
     setIntent(newIntent) {
         this.currentIntent = newIntent;
+
+        // Auto-switch mechanical state based on intent
+        if (newIntent === MapIntents.ROW_SELECT) {
+            this.setState(MapStates.SELECT_ROW);
+        } else if (newIntent === MapIntents.COLUMN_SELECT) {
+            this.setState(MapStates.SELECT_COLUMN);
+        } else if (newIntent === MapIntents.SECTOR_SELECT) {
+            this.setState(MapStates.SELECT_SECTOR);
+        } else {
+            this.setState(MapStates.SELECT_SQUARE);
+        }
+
         this.viewBox.emit('map:intentChanged', {
             intent: this.currentIntent
         });
@@ -305,15 +346,66 @@ export class MapViewArea {
      * @param {number} col 
      * @param {number} color Hex color (e.g. 0xFFFFFF)
      * @param {number} alpha Opacity
+     * @param {boolean} syncLabels Whether to also highlight the axis labels
      */
-    setGridOverlay(row, col, color = 0xFFFFFF, alpha = 0.3) {
+    setGridOverlay(row, col, color = 0xFFFFFF, alpha = 0.3, syncLabels = true) {
         const key = `${row}-${col}`;
         this.activeOverlays.set(key, { row, col, color, alpha });
-        this.renderOverlays();
+        
+        if (syncLabels) {
+            this.renderOverlays();
+            // Auto-sync the labels if they are active
+            this.mapLabels.setOverlay('row', row, color, alpha);
+            this.mapLabels.setOverlay('col', col, color, alpha);
+        }
+    }
 
-        // Auto-sync the labels if they are active
-        this.mapLabels.setOverlay('row', row, color, alpha);
-        this.mapLabels.setOverlay('col', col, color, alpha);
+    /**
+     * Highlights a full row, column, or sector based on a grid coordinate.
+     * @param {object} input - Either a {row, col} object or a PIXI Interaction event
+     * @param {'row' | 'col' | 'sector'} axis - Which axis/area to highlight
+     * @param {number} color - Hex color
+     * @param {number} alpha - Opacity
+     */
+    highlightGridRange(input, axis = 'row', color = 0xFFFFFF, alpha = 0.3) {
+        // 1. Get the clicked coordinate using existing behavior method
+        let coords = input;
+        if (input && input.global) {
+            coords = this.behaviors.getGridCoords(input.global);
+        }
+
+        if (!coords) return;
+
+        // 2. Handle Sector Selection
+        if (axis === 'sector') {
+            const sectorId = MapUtils.getSector(coords.row, coords.col);
+            const bounds = MapUtils.getSectorBounds(sectorId);
+            
+            for (let r = bounds.minRow; r <= bounds.maxRow; r++) {
+                for (let c = bounds.minCol; c <= bounds.maxCol; c++) {
+                    this.setGridOverlay(r, c, color, alpha, false);
+                }
+            }
+            this.renderOverlays();
+            return;
+        }
+
+        // 3. Handle Row/Column Selection
+        if (typeof coords[axis] === 'undefined') return;
+        const index = coords[axis];
+        const { gridSize } = this.config;
+
+        for (let i = 0; i < gridSize; i++) {
+            const r = axis === 'row' ? index : i;
+            const c = axis === 'row' ? i : index;
+            this.setGridOverlay(r, c, color, alpha, false);
+        }
+
+        // 4. Activate the relevant map label
+        this.mapLabels.setOverlay(axis, index, color, alpha);
+
+        // Finalize the visual update
+        this.renderOverlays();
     }
 
     /**
@@ -354,6 +446,27 @@ export class MapViewArea {
             this.overlayGraphics.rect(x, y, tileSize, tileSize);
             this.overlayGraphics.fill({ color: overlay.color, alpha: overlay.alpha });
         }
+    }
+
+    // --- Visibility Controls ---
+
+    setOpponentVisible(visible) {
+        // Implementation for opponent rendering will go here
+        // For now, we can toggle the tracks layer or a specific opponent container
+        console.log(`[MapViewArea] Opponent visibility set to: ${visible}`);
+    }
+
+    setPastTrackVisible(visible) {
+        this.layers.tracks.visible = visible;
+    }
+
+    setMinesVisible(visible) {
+        // Mines implementation will go here
+        console.log(`[MapViewArea] Mines visibility set to: ${visible}`);
+    }
+
+    setTerrainVisible(visible) {
+        this.layers.background.visible = visible;
     }
 
     destroy() {

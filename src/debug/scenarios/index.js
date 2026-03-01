@@ -7,6 +7,7 @@ import xoPristine from './xo/01_pristine.js';
 import testColorOps from './test/color_ops.js';
 import testMapPristine from './test/map_pristine.js';
 import testMapMovement from './test/map_movement.js';
+import testMapSelect from './test/mapSelect.js';
 import teletypePristine from './teletype/01_pristine.js';
 import connPristine from './conn/01_pristine.js';
 import submarinePristine from './submarine/pristine.js';
@@ -23,6 +24,7 @@ export const SCENARIO_REGISTRY = {
   'test_color_ops': testColorOps,
   'test_map_pristine': testMapPristine,
   'test_map_movement': testMapMovement,
+  'test_map_select': testMapSelect,
   'teletype_pristine': teletypePristine,
   'conn_pristine': connPristine,
   'submarine_pristine': submarinePristine,
@@ -58,7 +60,8 @@ export const SCENARIO_CATEGORIES = {
   'Test Bed': [
     'test_color_ops',
     'test_map_pristine',
-    'test_map_movement'
+    'test_map_movement',
+    'test_map_select'
   ],
   'TELETYPE': [
     'teletype_pristine'

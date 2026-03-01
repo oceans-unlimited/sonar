@@ -47,6 +47,8 @@ class SocketManager extends EventEmitter {
 
         // Proxy Director/Debug commands
         this.socket.on('DIRECTOR_CMD', (data) => this.emit('DIRECTOR_CMD', data));
+        this.socket.on('SONAR_PING', (data) => this.emit('SONAR_PING', data));
+        this.socket.on('CLEAR_OVERLAYS', (data) => this.emit('CLEAR_OVERLAYS', data));
 
         // Proxy connection events
         this.socket.on('disconnect', () => {
@@ -73,7 +75,14 @@ class SocketManager extends EventEmitter {
     // ─────────── Outbound Methods ───────────
 
     emit(event, ...args) {
-        const internalEvents = ['stateUpdate', 'playerId', 'disconnect', 'DIRECTOR_CMD'];
+        const internalEvents = [
+            'stateUpdate', 
+            'playerId', 
+            'disconnect', 
+            'DIRECTOR_CMD', 
+            'SONAR_PING', 
+            'CLEAR_OVERLAYS'
+        ];
 
         // If the event is one of our managed events, use standard EventEmitter.emit
         if (internalEvents.includes(event)) {

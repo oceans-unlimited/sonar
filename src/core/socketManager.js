@@ -33,6 +33,7 @@ class SocketManager extends EventEmitter {
 
         // --- Inbound Event Proxying ---
         this.socket.on('state', (state) => this.updateLastState(state));
+        this.socket.on('stateUpdate', (state) => this.updateLastState(state));
 
         // Server assigns player ID
         this.socket.on('player_id', (id) => {
@@ -69,6 +70,8 @@ class SocketManager extends EventEmitter {
      */
     updateLastState(state) {
         this.lastState = state;
+        const sub = state.submarines ? state.submarines[0] : null;
+        if (sub) console.log(`[SocketManager] State Update: Sub at (${sub.row}, ${sub.col})`);
         this.emit('stateUpdate', state);
     }
 
@@ -76,11 +79,11 @@ class SocketManager extends EventEmitter {
 
     emit(event, ...args) {
         const internalEvents = [
-            'stateUpdate', 
-            'playerId', 
-            'disconnect', 
-            'DIRECTOR_CMD', 
-            'SONAR_PING', 
+            'stateUpdate',
+            'playerId',
+            'disconnect',
+            'DIRECTOR_CMD',
+            'SONAR_PING',
             'CLEAR_OVERLAYS'
         ];
 

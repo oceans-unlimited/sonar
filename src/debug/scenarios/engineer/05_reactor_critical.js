@@ -4,8 +4,9 @@ import { MOCK_CROSSED_OUT_PATTERNS, SUBMARINE_STATES } from '../shared/engineMoc
 export default {
   name: 'Engineer - Reactor Critical',
   description: 'All reactor slots except one crossed, next reactor cross = breakdown',
+  playerId: 'player_eng',
   scene: 'engineer',
-  
+
   timeline: [
     buildStateUpdate({
       submarineState: SUBMARINE_STATES.SUBMERGED,

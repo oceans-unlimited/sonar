@@ -4,8 +4,9 @@ import { MOCK_CROSSED_OUT_PATTERNS, SUBMARINE_STATES } from '../shared/engineMoc
 export default {
   name: 'Engineer - Direction Critical',
   description: 'North direction has 5/6 slots crossed, one more = breakdown',
+  playerId: 'player_eng',
   scene: 'engineer',
-  
+
   timeline: [
     buildStateUpdate({
       submarineState: SUBMARINE_STATES.SUBMERGED,

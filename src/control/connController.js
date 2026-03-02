@@ -57,6 +57,7 @@ export class ConnController extends BaseController {
 
         // Cache position for internal logic
         this._lastPos = { row: sub.row, col: sub.col };
+        console.log(`[ConnController] State Update: Sub at (${sub.row}, ${sub.col})`);
 
         // Update Helm Button States
         this.updateHelmUI(state, sub);

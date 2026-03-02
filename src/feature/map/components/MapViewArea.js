@@ -169,11 +169,19 @@ export class MapViewArea {
     }
 
     setOwnShipPosition(row, col, animate = true, center = true) {
+        console.log(`[MapViewArea] setOwnShipPosition: row=${row}, col=${col}, animate=${animate}, center=${center}`);
         const { tileSize } = this.config;
         const targetX = col * tileSize + tileSize / 2;
         const targetY = row * tileSize + tileSize / 2;
 
         if (!this.ownShip) {
+            // Debug Marker
+            this.debugMarker = new Graphics();
+            this.debugMarker.circle(0, 0, 5);
+            this.debugMarker.fill({ color: 0xff0000 });
+            this.mapContent.addChild(this.debugMarker);
+            this.layers.tracks.attach(this.debugMarker);
+
             this.ownShip = Sprite.from('ownship');
             this.ownShip.anchor.set(0.5);
             this.ownShip.scale.set(0.35);
@@ -181,6 +189,10 @@ export class MapViewArea {
             this.layers.tracks.attach(this.ownShip);
             this.ownShip.x = targetX;
             this.ownShip.y = targetY;
+            if (this.debugMarker) {
+                this.debugMarker.x = targetX;
+                this.debugMarker.y = targetY;
+            }
             if (center) this.centerOn(row, col, false);
             return;
         }
@@ -188,6 +200,10 @@ export class MapViewArea {
         if (!animate) {
             this.ownShip.x = targetX;
             this.ownShip.y = targetY;
+            if (this.debugMarker) {
+                this.debugMarker.x = targetX;
+                this.debugMarker.y = targetY;
+            }
             if (center) this.centerOn(row, col, false);
             return;
         }
@@ -218,6 +234,11 @@ export class MapViewArea {
 
             this.ownShip.x = startMarkerX + (targetMarkerX - startMarkerX) * ease;
             this.ownShip.y = startMarkerY + (targetMarkerY - startMarkerY) * ease;
+
+            if (this.debugMarker) {
+                this.debugMarker.x = this.ownShip.x;
+                this.debugMarker.y = this.ownShip.y;
+            }
 
             if (center) {
                 this.mapContent.x = startMapX + (targetMapX - startMapX) * ease;

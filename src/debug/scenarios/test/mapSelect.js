@@ -4,6 +4,7 @@ export default {
     name: 'Map: Selection Modes Test',
     scene: 'mapTest',
     description: 'Tests individual square highlights and full row/column selection (Sonar Ping simulation).',
+    playerId: 'player_co',
 
     initialState: createMockSubmarineState({
         row: 7,
@@ -12,61 +13,61 @@ export default {
 
     timeline: [
         // 1. Initial Individual Square Selection (Direct Socket terminology)
-        { 
-            type: 'server_event', 
-            event: 'CLEAR_OVERLAYS', 
-            data: {}, 
-            delay: 1000 
+        {
+            type: 'server_event',
+            event: 'CLEAR_OVERLAYS',
+            data: {},
+            delay: 1000
         },
-        { 
-            type: 'server_event', 
-            event: 'SONAR_PING', 
-            data: { row: 2, col: 2, axis: 'row', color: 0x00FFFF, alpha: 0.3 }, 
-            delay: 2000 
+        {
+            type: 'server_event',
+            event: 'SONAR_PING',
+            data: { row: 2, col: 2, axis: 'row', color: 0x00FFFF, alpha: 0.3 },
+            delay: 2000
         },
-        
+
         // 2. Select a Column
-        { 
-            type: 'server_event', 
-            event: 'SONAR_PING', 
-            data: { col: 10, axis: 'col', color: 0xFFFF00, alpha: 0.4 }, 
-            delay: 4000 
+        {
+            type: 'server_event',
+            event: 'SONAR_PING',
+            data: { col: 10, axis: 'col', color: 0xFFFF00, alpha: 0.4 },
+            delay: 4000
         },
 
         // 3. Clear and select another Row
-        { 
-            type: 'server_event', 
-            event: 'CLEAR_OVERLAYS', 
-            data: {}, 
-            delay: 6000 
+        {
+            type: 'server_event',
+            event: 'CLEAR_OVERLAYS',
+            data: {},
+            delay: 6000
         },
-        { 
-            type: 'server_event', 
-            event: 'SONAR_PING', 
-            data: { row: 5, axis: 'row', color: 0xFF00FF, alpha: 0.5 }, 
-            delay: 7000 
+        {
+            type: 'server_event',
+            event: 'SONAR_PING',
+            data: { row: 5, axis: 'row', color: 0xFF00FF, alpha: 0.5 },
+            delay: 7000
         },
 
         // 4. Test automated state-driven highlight (simulate server response)
-        { 
-            type: 'state', 
-            data: createMockSubmarineState({ 
-                row: 7, 
+        {
+            type: 'state',
+            data: createMockSubmarineState({
+                row: 7,
                 col: 7,
                 activeInterrupt: {
                     type: 'SONAR_PING',
                     payload: { response: 'Row 8' }
                 }
-            }), 
-            delay: 9000 
+            }),
+            delay: 9000
         },
 
         // 5. Clear again
-        { 
-            type: 'server_event', 
-            event: 'CLEAR_OVERLAYS', 
-            data: {}, 
-            delay: 11000 
+        {
+            type: 'server_event',
+            event: 'CLEAR_OVERLAYS',
+            data: {},
+            delay: 11000
         }
     ],
 

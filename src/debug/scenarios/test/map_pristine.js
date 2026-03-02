@@ -2,6 +2,7 @@ export default {
     name: 'Map: Pristine Layout Test',
     scene: 'mapTest',
     description: 'A static test scenario to verify the rendering and layout scalability of the map system.',
+    playerId: 'player_co',
     initialState: {
         version: 1,
         phase: 'LIVE',
@@ -9,7 +10,7 @@ export default {
             {
                 id: 'A',
                 name: 'Sub A',
-                co: 'player_eng', // Match Director default playerId for now
+                co: 'player_co',
                 xo: null,
                 sonar: null,
                 eng: null,

@@ -5,17 +5,22 @@
  */
 
 import { simulationClock } from '../../../core/clock/simulationClock';
+import { PLAYER_ROLES } from '../shared/engineMockData.js';
 
 export default {
     name: "Conn - Pristine",
     scene: 'conn',
+    playerId: PLAYER_ROLES.CO,
     initialState: {
         phase: 'LIVE',
         board: Array(15).fill(0).map(() => Array(15).fill(0)), // Simple 15x15 water board
         submarines: [
             {
                 id: 'player_sub',
-                co: 'player_captain', // Captain role assigned to us
+                co: PLAYER_ROLES.CO,
+                xo: PLAYER_ROLES.XO,
+                eng: PLAYER_ROLES.ENG,
+                sonar: PLAYER_ROLES.SONAR,
                 submarineState: 'SUBMERGED',
                 row: 7,
                 col: 7,
@@ -40,9 +45,6 @@ export default {
 
         // Ensure clock is running so interaction isn't locked
         simulationClock.start();
-
-        // Server-side simulation: Assign player ID
-        director.emit('player_id', 'player_captain');
 
         // Local state tracking
         let state = {
@@ -75,7 +77,10 @@ export default {
                 submarines: [
                     {
                         id: 'player_sub',
-                        co: 'player_captain',
+                        co: PLAYER_ROLES.CO,
+                        xo: PLAYER_ROLES.XO,
+                        eng: PLAYER_ROLES.ENG,
+                        sonar: PLAYER_ROLES.SONAR,
                         submarineState: 'SUBMERGED',
                         row: state.row,
                         col: state.col,

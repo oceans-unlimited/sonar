@@ -124,19 +124,31 @@ export class MapController extends BaseController {
 
     parseFilteredState(state) {
         const playerId = this.socket.playerId;
-        if (!playerId) return null;
+        if (!playerId) {
+            console.warn('[MapController] No playerId on socket. Cannot parse state.');
+            return null;
+        }
 
         const ownSub = state.submarines.find(sub =>
             sub.co === playerId || sub.xo === playerId || sub.sonar === playerId || sub.eng === playerId
         );
-        if (!ownSub) return null;
+
+        if (!ownSub) {
+            console.warn(`[MapController] Player ${playerId} not found in any submarine.`);
+            return null;
+        }
 
         this.ownSubId = ownSub.id;
 
         const roleMap = { co: 'co', xo: 'xo', sonar: 'sonar', eng: 'eng' };
-        Object.entries(roleMap).forEach(([key, val]) => {
-            if (ownSub[key] === playerId) this.role = val;
-        });
+        for (const [key, val] of Object.entries(roleMap)) {
+            if (ownSub[key] === playerId) {
+                this.role = val;
+                break; // Prioritize first found role (Capt, XO, etc)
+            }
+        }
+
+        console.log(`[MapController] Parsed identity: Sub=${this.ownSubId}, Role=${this.role}, ID=${playerId}`);
 
         return {
             ownSub,
@@ -155,12 +167,22 @@ export class MapController extends BaseController {
         if (!mv) return;
 
         const { row, col } = ownSub;
+        console.log(`[MapController] updateMapVisuals: (${row}, ${col}), Role: ${role}`);
+
         if (row !== undefined && col !== undefined) {
             if (!this._lastPos || this._lastPos.row !== row || this._lastPos.col !== col) {
                 const isInitial = !this._lastPos;
                 this._lastPos = { row, col };
-                const shouldCenter = (role === 'co');
-                mv.setOwnShipPosition(row, col, !isInitial, shouldCenter);
+
+                this.logDirectorAction(`POS UPDATE: (${row}, ${col})`);
+
+                // 1. Update ownship position (Instant for now, as per "to be animated later")
+                mv.setOwnShipPosition(row, col, false, false);
+
+                // 2. Auto-center logic (Captain only, animated transition)
+                if (role === 'co') {
+                    mv.centerOn(row, col, !isInitial);
+                }
             }
         }
 

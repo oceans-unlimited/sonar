@@ -4,8 +4,9 @@ import { MOCK_CROSSED_OUT_PATTERNS, SUBMARINE_STATES } from '../shared/engineMoc
 export default {
   name: 'Engineer - Circuit Near Complete',
   description: 'Blue circuit has 3/4 slots crossed, one more triggers clear',
+  playerId: 'player_eng',
   scene: 'engineer',
-  
+
   timeline: [
     buildStateUpdate({
       submarineState: SUBMARINE_STATES.SUBMERGED,

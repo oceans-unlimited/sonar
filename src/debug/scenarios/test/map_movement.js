@@ -1,63 +1,104 @@
-import { createMockSubmarineState } from '../shared/engineMockData.js';
+import { createMockSubmarineState, PLAYER_ROLES } from '../shared/engineMockData.js';
 
+/**
+ * map_movement
+ * Test scenario for automated position updates and auto-centering.
+ * Simulates a series of server-emitted state updates.
+ */
 export default {
-    name: 'Map: Basic Movement Test',
+    name: 'Map: Movement & Auto-Center',
     scene: 'mapTest',
-    description: 'Automates a sequence of movement events to verify tracking and pathing logic.',
+    description: 'Tests automated ship movement and auto-centering triggered by server state updates.',
+    playerId: PLAYER_ROLES.CO,
 
-    // Initial State: Start at A1 (0,0)
-    initialState: createMockSubmarineState({
-        row: 0,
-        col: 0
-    }),
+    // Initial State: Start at (7, 7) - Middle of the map
+    initialState: {
+        version: 1,
+        phase: 'LIVE',
+        board: Array(15).fill(0).map(() => Array(15).fill(0)),
+        submarines: [
+            createMockSubmarineState({
+                id: 'SUB_DEFAULT',
+                co: PLAYER_ROLES.CO,
+                xo: PLAYER_ROLES.XO,
+                eng: PLAYER_ROLES.ENG,
+                sonar: PLAYER_ROLES.SONAR,
+                row: 7,
+                col: 7
+            })
+        ]
+    },
 
     timeline: [
-        { type: 'state', data: createMockSubmarineState({ row: 0, col: 0 }), delay: 1000 },
-        { type: 'state', data: createMockSubmarineState({ row: 0, col: 1 }), delay: 2500 },
-        { type: 'state', data: createMockSubmarineState({ row: 1, col: 1 }), delay: 4000 },
-        { type: 'state', data: createMockSubmarineState({ row: 1, col: 2 }), delay: 5500 },
-        { type: 'state', data: createMockSubmarineState({ row: 2, col: 2 }), delay: 7000 },
+        // Move North (Grid 6,7)
+        {
+            type: 'server_event',
+            event: 'state',
+            delay: 3000,
+            data: {
+                version: 2,
+                phase: 'LIVE',
+                board: Array(15).fill(0).map(() => Array(15).fill(0)),
+                submarines: [
+                    createMockSubmarineState({
+                        id: 'SUB_DEFAULT',
+                        co: PLAYER_ROLES.CO,
+                        row: 6, col: 7
+                    })
+                ]
+            }
+        },
+        // Move East (Grid 6,8)
+        {
+            type: 'server_event',
+            event: 'state',
+            delay: 3000,
+            data: {
+                version: 3,
+                phase: 'LIVE',
+                board: Array(15).fill(0).map(() => Array(15).fill(0)),
+                submarines: [
+                    createMockSubmarineState({
+                        id: 'SUB_DEFAULT',
+                        co: PLAYER_ROLES.CO,
+                        row: 6, col: 8
+                    })
+                ]
+            }
+        },
+        // Move South (Grid 7,8)
+        {
+            type: 'server_event',
+            event: 'state',
+            delay: 3000,
+            data: {
+                version: 4,
+                phase: 'LIVE',
+                board: Array(15).fill(0).map(() => Array(15).fill(0)),
+                submarines: [
+                    createMockSubmarineState({
+                        id: 'SUB_DEFAULT',
+                        co: PLAYER_ROLES.CO,
+                        row: 7, col: 8
+                    })
+                ]
+            }
+        }
     ],
-    /**
-     * Dynamic scenario logic to hook into interactive events and movement updates.
-     * @param {import('../../Director').Director} director 
-     */
-    run: (director) => {
-        const app = globalThis.__PIXI_APP__;
-        if (!app) return;
 
+    run: (director) => {
         const log = (msg) => {
-            if (window.logEvent) window.logEvent(msg);
             window.dispatchEvent(new CustomEvent('director:ui_trigger', {
                 detail: { action: 'LOG', message: msg }
             }));
         };
 
-        // Delay to ensure the scene is mounted
-        setTimeout(() => {
-            const scene = app.stage.children.find(c => c.label === 'mapTestScene');
-            if (!scene || !scene.mapView) {
-                console.warn('[Scenario] map_movement: mapTestScene/mapView not found.');
-                return;
-            }
+        log('🎬 Map Movement Scenario: Initializing...');
 
-            const mv = scene.mapView;
-            const viewBox = mv.viewBox;
-
-            // Listen for map-specific interactions
-            viewBox.on('map:clicked', (data) => {
-                log(`[INTERACT] Map Click: ${data.row}, ${data.col}`);
-            });
-
-            // Listen for the movement events being emitted by this scenario
-            director.on('SUB_MOVED', (data) => {
-                log(`[MOVED] Sub at ${data.pos.row}, ${data.pos.col} (Dir: ${data.dir})`);
-
-                // Optional: We could automatically pan the map to follow the sub
-                // But for now, we just log it to verify the event chain works.
-            });
-
-            log('✅ Map Movement Test: ACTIVE');
-        }, 500);
+        // Subscribe to state changes to confirm the Director -> SocketManager path
+        director.on('state', (state) => {
+            const sub = state.submarines[0];
+            log(`📡 DIRECTOR -> Emit 'state': Sub at (${sub.row}, ${sub.col})`);
+        });
     }
 };

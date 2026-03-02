@@ -36,7 +36,7 @@ export const CONTROLLER_MAP = {
     'engineer': EngineerController,
     'test': ColorTestController,
     'xo': XOController,
-    'mapTest': MapController,
+    'mapTest': ConnController,
     'teletype': TeletypeController,
     'conn': ConnController,
     'submarineTest': SubmarineController,

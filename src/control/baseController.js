@@ -8,6 +8,7 @@ export class BaseController {
     constructor() {
         this.view = null; // Reference to the scene's view container
         this.socket = null; // Injected via bindSocket
+        this._socketListeners = new Map(); // Track listeners for cleanup
 
         // Registries
         this.buttons = {};   // Registry for button objects
@@ -103,8 +104,21 @@ export class BaseController {
     bindSocket(socket) {
         this.socket = socket;
 
-        this.socket.on('stateUpdate', (state) => this.handleGameState(state));
-        this.socket.on('disconnect', () => this.handleDisconnect());
+        const stateHandler = (state) => this.handleGameState(state);
+        const disconnectHandler = () => this.handleDisconnect();
+
+        this.socket.on('stateUpdate', stateHandler);
+        this.socket.on('disconnect', disconnectHandler);
+        
+        this._socketListeners.set('stateUpdate', stateHandler);
+        this._socketListeners.set('disconnect', disconnectHandler);
+
+        // Agnostic event binding: Map all registered handlers to socket events
+        Object.keys(this.handlers).forEach(event => {
+            const handler = (data) => this.handleEvent(event, data);
+            this.socket.on(event, handler);
+            this._socketListeners.set(event, handler);
+        });
 
         // Initialize with cached state if available
         if (this.socket.lastState) {
@@ -169,10 +183,12 @@ export class BaseController {
     // ─────────── Cleanup ───────────
 
     destroy() {
-        console.log(`BaseController destroyed.`);
+        console.log(`[${this.constructor.name}] Destroying...`);
         if (this.socket) {
-            this.socket.off('stateUpdate', this.handleGameState);
-            this.socket.off('disconnect', this.handleDisconnect);
+            this._socketListeners.forEach((handler, event) => {
+                this.socket.off(event, handler);
+            });
+            this._socketListeners.clear();
             this.onSocketUnbound();
             this.socket = null;
         }

@@ -55,6 +55,11 @@ export function createMapPanel(ticker, width, height, panelLayoutConfig = {}) {
     controller.bindSocket(socketManager);
     mapPanel.controller = controller;
 
+    mapPanel.on('destroyed', () => {
+        console.log('[mapRenderer] Map panel destroyed. Cleaning up embedded controller.');
+        controller.destroy();
+    });
+
     vb.on('layout', (event) => {
         const computedLayout = MapUtils.getLayout(vb, 'computed');
         console.log('[mapRenderer] mapPanel layout synced:', computedLayout);

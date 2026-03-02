@@ -129,6 +129,9 @@ export class DebugOverlay {
             <option value="state">state</option>
             <option value="cross_off_system">cross_off_system</option>
             <option value="SONAR_PING">SONAR_PING</option>
+            <option value="REQUEST_NAVIGATE">REQUEST_NAVIGATE</option>
+            <option value="REQUEST_TORPEDO">REQUEST_TORPEDO</option>
+            <option value="REQUEST_MINE_LAY">REQUEST_MINE_LAY</option>
             <option value="SET_INTENT">SET_INTENT</option>
             <option value="CENTER_ON_OWNSHIP">CENTER_ON_OWNSHIP</option>
           </select>
@@ -249,16 +252,16 @@ export class DebugOverlay {
    * Routes events based on whether they are server-driven or client-local.
    */
   handleEventInjection(type, data) {
-    const clientLocalIntents = ['SET_INTENT', 'CENTER_ON_OWNSHIP'];
+    const clientLocalIntents = ['SET_INTENT', 'CENTER_ON_OWNSHIP', 'REQUEST_NAVIGATE', 'REQUEST_TORPEDO', 'REQUEST_MINE_LAY'];
     const controller = this.sceneManager.currentController;
 
     if (clientLocalIntents.includes(type) && controller) {
         // Route client-only actions directly to the controller
-        this.logEvent(`Local Intent: ${type}`, '#ffff00');
+        // No redundant log here, controller will log the resulting state change
         controller.handleEvent(type, data);
     } else {
         // Route server-driven events through the mock socket (Director)
-        this.logEvent(`Socket Event: ${type}`, '#ff00ff');
+        this.logEvent(`Injecting: ${type}`, '#ff00ff');
         this.director.injectEvent(type, data);
     }
   }

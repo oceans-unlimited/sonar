@@ -26,18 +26,24 @@ export async function createMapTestScene(controller, ticker) {
         gap: 20
     };
 
-    // 1. Create the Map Panel (Full Scale)
-    // The MapController is embedded inside createMapPanel automatically.
+    // 1. Create the Map Panel
     const mapPanel = createMapPanel(ticker, '100%', '100%', {
         backgroundColor: 0x0a1f0a,
         borderRadius: 8
     });
 
-    // Expose mapView for the scene level if needed
+    // 2. Register Feature
+    // We bind the map feature to the scene's controller
+    if (controller && mapPanel.controller) {
+        controller.bindFeatures({ map: mapPanel.controller });
+    }
+
+    // Expose mapView for compatibility with debug scenarios (e.g., map_pristine.js)
     scene.mapView = mapPanel.mapView;
+
     scene.addChild(mapPanel);
 
-    // 2. Control Buttons
+    // 3. Control Buttons
     const toggleBtn = createButtonFromDef({
         textLabel: 'Switch Row Labels',
         textOnly: true,
@@ -46,17 +52,15 @@ export async function createMapTestScene(controller, ticker) {
     });
 
     toggleBtn.on('pointertap', () => {
-        // This will be handled by the embedded MapController
-        mapPanel.controller.handleEvent('TOGGLE_ROW_LABELS');
+        // Route through the feature registry if available, otherwise fallback to direct controller
+        if (controller?.features?.map) {
+            controller.features.map.execute('TOGGLE_LABELS');
+        } else {
+            mapPanel.controller.execute('TOGGLE_LABELS');
+        }
     });
 
-    // 3. Selection Test Logic
-    // We bind a listener to the mapView's signals to verify interaction works
-    scene.mapView.viewBox.on('map:clicked', (data) => {
-        console.log('[mapTestScene] Map Clicked:', data);
-    });
-
-    // 4. Button Panel (Sidebar)
+    // 4. Button Panel
     const buttonPanel = new Panel('control', {
         label: 'panel_button',
         backgroundColor: 0x112211,
@@ -64,7 +68,7 @@ export async function createMapTestScene(controller, ticker) {
         borderWidth: 2,
         borderRadius: 8
     });
-    
+
     buttonPanel.addChild(toggleBtn);
     scene.addChild(buttonPanel);
 

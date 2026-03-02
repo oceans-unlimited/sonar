@@ -40,10 +40,11 @@ export default {
         ]
     },
     suggestedEvents: [
-        { label: 'Intent: NAVIGATE', event: 'SET_INTENT', data: { intent: 'NAVIGATE' } },
-        { label: 'Intent: TORPEDO', event: 'SET_INTENT', data: { intent: 'TORPEDO' } },
-        { label: 'Intent: MINE_LAY', event: 'SET_INTENT', data: { intent: 'MINE_LAY' } },
+        { label: 'Intent: NAVIGATE', event: 'REQUEST_NAVIGATE', data: { blocked: ['N', 'W'] } },
+        { label: 'Intent: TORPEDO', event: 'REQUEST_TORPEDO', data: {} },
+        { label: 'Intent: MINE_LAY', event: 'REQUEST_MINE_LAY', data: { blocked: ['N', 'NW'] } },
         { label: 'Intent: ROW_SELECT', event: 'SET_INTENT', data: { intent: 'ROW_SELECT' } },
+        { label: 'Intent: COL_SELECT', event: 'SET_INTENT', data: { intent: 'COLUMN_SELECT' } },
         { label: 'Intent: SECTOR_SELECT', event: 'SET_INTENT', data: { intent: 'SECTOR_SELECT' } },
         { label: 'Center Ownship', event: 'CENTER_ON_OWNSHIP', data: {} }
     ],

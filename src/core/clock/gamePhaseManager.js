@@ -54,6 +54,14 @@ export class GamePhaseManager {
     }
 
     /**
+     * Resets the phase to LOBBY without validation.
+     * Use for system resets or scenario reloads.
+     */
+    reset() {
+        this._phase = GamePhases.LOBBY;
+    }
+
+    /**
      * Subscribes a listener to phase changes.
      * @param {Function} callback 
      */

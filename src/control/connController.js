@@ -1,5 +1,6 @@
 import { BaseController } from './baseController';
 import { GlobalPhases, SubmarineStates } from '../constants';
+import { MapUtils } from '../feature/map/mapUtils';
 
 /**
  * ConnController
@@ -40,8 +41,8 @@ export class ConnController extends BaseController {
         this.map = this.features.map;
 
         // Set up specific callback for map selection confirmed
-        if (this.map?.view?.mapView) {
-            this.map.view.mapView.viewBox.on('map:selectionConfirmed', (data) => this.handleMapSelection(data));
+        if (this.map) {
+            this.map.on('selectionConfirmed', (data) => this.handleMapSelection(data));
         }
     }
 
@@ -59,6 +60,15 @@ export class ConnController extends BaseController {
         this._lastPos = { row: sub.row, col: sub.col };
         console.log(`[ConnController] State Update: Sub at (${sub.row}, ${sub.col})`);
 
+        // Handle START_POSITIONS interrupt
+        if (state.phase === GlobalPhases.INTERRUPT && state.activeInterrupt?.type === 'START_POSITIONS') {
+            const hasChosen = state.activeInterrupt.data?.submarineIdsWithStartPositionChosen?.includes(sub.id);
+            if (!hasChosen && sub.co === playerId) {
+                console.log('[ConnController] Requesting Initial Position Selection');
+                this.map?.execute('SET_INTENT', { intent: 'POSITION_SELECT' });
+            }
+        }
+
         // Update Helm Button States
         this.updateHelmUI(state, sub);
     }
@@ -70,11 +80,10 @@ export class ConnController extends BaseController {
         const isLive = state.phase === GlobalPhases.LIVE;
         const isSubmerged = sub.submarineState === SubmarineStates.SUBMERGED;
 
-        const directions = ['N', 'S', 'E', 'W'];
-        const opposite = { N: 'S', S: 'N', E: 'W', W: 'E' };
-        const lastMove = sub.submarineStateData?.POST_MOVEMENT?.directionMoved;
+        const possibleMoves = MapUtils.getPossibleMoves({ row: sub.row, col: sub.col }, false);
+        const validMoves = MapUtils.filterInvalidMoves(state, sub, possibleMoves);
 
-        directions.forEach(dir => {
+        ['N', 'S', 'E', 'W'].forEach(dir => {
             const btn = this.buttons[`helm_${dir.toLowerCase()}`];
             if (!btn) return;
 
@@ -83,41 +92,18 @@ export class ConnController extends BaseController {
                 return;
             }
 
-            if (lastMove && lastMove !== ' ' && dir === opposite[lastMove]) {
-                btn.setEnabled(false);
-                return;
-            }
-
-            const isValid = this.validateMove(state, sub, dir);
+            const isValid = validMoves.some(m => m.direction === dir);
             btn.setEnabled(isValid);
         });
     }
 
-    validateMove(state, sub, dir) {
-        const rowDeltas = { N: -1, S: 1, E: 0, W: 0 };
-        const colDeltas = { N: 0, S: 0, E: 1, W: -1 };
-
-        const newRow = sub.row + rowDeltas[dir];
-        const newCol = sub.col + colDeltas[dir];
-
-        if (newRow < 0 || newRow >= state.board.length || newCol < 0 || newCol >= state.board[0].length) return false;
-        if (state.board[newRow][newCol] !== 0) return false;
-
-        const inTrack = sub.past_track?.some(pos => pos.row === newRow && pos.col === newCol);
-        if (inTrack) return false;
-
-        return true;
-    }
-
     getNavigationBlocked(state, sub) {
         const directions = ['N', 'S', 'E', 'W'];
-        const opposite = { N: 'S', S: 'N', E: 'W', W: 'E' };
-        const lastMove = sub.submarineStateData?.MOVED?.directionMoved;
+        const possibleMoves = MapUtils.getPossibleMoves({ row: sub.row, col: sub.col }, false);
+        const validMoves = MapUtils.filterInvalidMoves(state, sub, possibleMoves);
+        const validDirections = validMoves.map(m => m.direction);
 
-        return directions.filter(dir => {
-            if (lastMove && lastMove !== ' ' && dir === opposite[lastMove]) return true;
-            return !this.validateMove(state, sub, dir);
-        });
+        return directions.filter(dir => !validDirections.includes(dir));
     }
 
     getMineBlocked(state, sub) {
@@ -128,11 +114,13 @@ export class ConnController extends BaseController {
         return directions.filter(dir => {
             const r = sub.row + rowDeltas[dir];
             const c = sub.col + colDeltas[dir];
+            
+            // Re-using logic from MapUtils.filterInvalidMoves but for 8 directions
             if (r < 0 || r >= 15 || c < 0 || c >= 15) return true;
             if (state.board[r][c] !== 0) return true;
-            if (sub.past_track?.some(pos => pos.row === r && pos.col === c)) return true;
-            if (sub.mines?.some(pos => pos.row === r && pos.col === c)) return true;
-            return false;
+            const inTrack = sub.past_track?.some(pos => pos.row === r && pos.col === c);
+            const isMine = sub.mines?.some(pos => pos.row === r && pos.col === c);
+            return inTrack || isMine;
         });
     }
 
@@ -173,14 +161,23 @@ export class ConnController extends BaseController {
     }
 
     handleMapSelection(data) {
-        if (!this.map?.view?.mapView) return;
-        const intent = this.map.view.mapView.currentIntent;
-        console.log(`[ConnController] Map Selection (${intent}):`, data);
+        // data should now contain intent or be routed properly by the map feature
+        console.log(`[ConnController] Map Selection:`, data);
+
+        // We can check if the map has a current intent if we really need to, 
+        // but ideally the event payload handles it. 
+        // For now, let's assume the legacy structure for minimal breakage but without PIXI.on
+        
+        // If the map feature provides the intent in the data, use it.
+        // Otherwise, the map feature should have handled the intent-specific logic.
+        const intent = data.intent || (this.map?.view?.mapView?.currentIntent);
 
         if (intent === 'TORPEDO') {
             this.socket.emit('launch_torpedo', { row: data.coords.row, col: data.coords.col });
         } else if (intent === 'MINE_LAY') {
             this.socket.emit('drop_mine', { row: data.coords.row, col: data.coords.col });
+        } else if (intent === 'POSITION_SELECT') {
+            this.socket.chooseInitialPosition(data.coords.row, data.coords.col);
         }
     }
 }

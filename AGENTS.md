@@ -38,7 +38,7 @@ No linting or formatting tools are currently configured. Consider adding ESLint 
 - **Classes**: PascalCase (`MapController`, `SubmarineStateMachine`)
 - **Constants**: UPPER_SNAKE_CASE (`GlobalPhases`, `InterruptTypes`)
 - **Files**: kebab-case for multi-word (`submarine-state.test.js`)
-- **Directories**: lowercase (`public/js/features/`)
+- **Directories**: lowercase (`src/feature/`)
 
 ### Code Structure
 ```javascript
@@ -144,7 +144,7 @@ Use `tst/test-helpers.js` for common Socket.IO test utilities:
 - **WebSocket Handling**: `src/server.lib.js`
 - **Constants**: `src/constants.js`
 
-### Client Architecture (New - src/)
+### Client Architecture (src/)
 - **Entry Point**: `src/main.jsx` (Vite-bundled)
 - **Scenes**: `src/scenes/` - Component orchestration factories
 - **Controllers**: `src/control/` - OOP-based state coordination (extending BaseController)
@@ -154,9 +154,9 @@ Use `tst/test-helpers.js` for common Socket.IO test utilities:
 - **Features**: `src/feature/` - Long-lived persistent systems (Map, Interrupts)
 - **Debug System**: `src/debug/` - Director Mode, scenarios, and overlays
 
-### Existing (Deprecated) Client Style
-- Files in `public/js/` follow a functional module pattern and are being phased out in favor of the class-based architecture in `src/`.
-- Gradual migration: New scenes should be built in `src/`, legacy ones maintained in `public/js/` until refactored.
+### Architectural Standards
+- **Source Control**: Use `src/` for all active application logic.
+- **Legacy Migration**: Older functional modules are being phased out in favor of the OOP architecture in `src/`.
 
 ### Strict Separation of Concerns
 **NEVER** mix responsibilities:

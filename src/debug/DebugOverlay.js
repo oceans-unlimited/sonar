@@ -85,7 +85,7 @@ export class DebugOverlay {
 
   render() {
     // Get the initial scene key to render scenario options correctly
-    const initialSceneKey = this.sceneManager.getAvailableScenes().find(scene => scene === 'mapTest') || this.sceneManager.getAvailableScenes()[0];
+    const initialSceneKey = this.sceneManager.getAvailableScenes().find(scene => scene === 'conn') || this.sceneManager.getAvailableScenes()[0];
     this.currentSceneKey = initialSceneKey;
 
     this.panel.innerHTML = `
@@ -256,13 +256,13 @@ export class DebugOverlay {
     const controller = this.sceneManager.currentController;
 
     if (clientLocalIntents.includes(type) && controller) {
-        // Route client-only actions directly to the controller
-        // No redundant log here, controller will log the resulting state change
-        controller.handleEvent(type, data);
+      // Route client-only actions directly to the controller
+      // No redundant log here, controller will log the resulting state change
+      controller.handleEvent(type, data);
     } else {
-        // Route server-driven events through the mock socket (Director)
-        this.logEvent(`Injecting: ${type}`, '#ff00ff');
-        this.director.injectEvent(type, data);
+      // Route server-driven events through the mock socket (Director)
+      this.logEvent(`Injecting: ${type}`, '#ff00ff');
+      this.director.injectEvent(type, data);
     }
   }
 
@@ -296,7 +296,7 @@ export class DebugOverlay {
   updateScenarioEvents(scenario) {
     const container = document.getElementById('scenario-events-container');
     const list = document.getElementById('scenario-events-list');
-    
+
     if (!scenario.suggestedEvents || scenario.suggestedEvents.length === 0) {
       container.style.display = 'none';
       return;

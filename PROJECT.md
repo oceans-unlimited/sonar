@@ -11,13 +11,13 @@
 
 ### 🏗️ **Implementation Overview**
 
-#### **1. Minimap Interface (`/features/map/`)**
+#### **1. Minimap Interface (`src/feature/map/`)**
 - **`MapHUDRenderer.js`**: New renderer for displaying ownship markers and selection reticles.
 - **View Configuration**: Added `viewConfig` (e.g., `MINIMAP_VIEW`) to `MapSystem`, `MapRenderer`, and `MapController`.
 - **Sector Feedback**: Implemented `highlightSector` and `renderSectors` for drawing 3x3 sector grids with dynamic highlighting.
 - **Toggle Mechanics**: Integrated logic to switch seamlessly between `full` and `mini` views.
 
-#### **2. Modular Damage System (`/features/damage/`)**
+#### **2. Modular Damage System (`src/feature/damage/`)**
 - **`DamageController.js`**: Listens for health state updates, triggers animations, and coordinates render updates.
 - **`DamageRenderer.js`**: Manages visual components:
   - **Dynamic Tinting**: Updates sub profile and text color (Green -> Yellow -> Red).
@@ -27,8 +27,8 @@
 - **Integration**: Mounted damage components into `ConnRenderer` header and linked animation states.
 
 #### **3. Test Infrastructure**
-- **`mapTestScene.js`**: Harness for verifying map scaling and sector highlighting.
-- **`featureTestScene.js`**: New harness for validating damage visuals and screen effects.
+- **`src/scenes/mapTestScene.js`**: Harness for verifying map scaling and sector highlighting.
+- **`src/scenes/featureTestScene.js`**: New harness for validating damage visuals and screen effects.
 
 ### ✅ **Features Delivered**
 - **Minimap**: Functional tactical view with sector highlighting.
@@ -76,7 +76,7 @@
 - **Extensibility**: Database-ready structure for future expansion
 
 ### ✅ **Deliverables**
-- **Comprehensive Plan**: Detailed MESSAGE_SYSTEM_PLAN.md with full implementation roadmap
+- **Comprehensive Plan**: Detailed `src/feature/teletype/` with full implementation roadmap
 - **Architecture Validation**: Follows established MapSystem patterns for consistency
 - **UI/UX Clarity**: Clear specifications for toast vs docked behaviors
 - **Integration Strategy**: Clean facade API for scene consumption

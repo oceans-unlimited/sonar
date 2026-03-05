@@ -15,9 +15,14 @@ export class ColorTestController extends BaseController {
 
         // --- Handler Map ---
         this.handlers = {
+            ...this.handlers,
             'TOGGLE_HEADER': (d) => this.handleToggleHeader(d),
             'CYCLE_BORDER': (d) => this.handleCycleBorder(d),
             'DIRECTOR_CMD': (d) => this.handleDirectorCmd(d),
+            
+            // Realtime Engine Logic Handlers (for logging/verification)
+            'LOG_SUB_STATE': () => this.logSubmarineStatus(),
+            'LOG_INTERRUPT': () => this.logInterruptStatus(),
         };
     }
 
@@ -28,7 +33,50 @@ export class ColorTestController extends BaseController {
         console.log('[ColorTestController] View bound.');
     }
 
+    onFeaturesBound() {
+        super.onFeaturesBound();
+        console.log('[ColorTestController] Features bound:', Object.keys(this.features));
+        
+        // Setup listeners for feature-level events if they exist
+        if (this.features.submarine) {
+            // Future: subscribe to sub-state changes
+        }
+    }
+
+    onGameStateUpdate(state) {
+        super.onGameStateUpdate(state);
+        // Log state changes to Director Panel
+        if (typeof window !== 'undefined' && window.logEvent) {
+            const phase = state.phase || 'UNKNOWN';
+            const interrupt = state.activeInterrupt?.type || 'NONE';
+            window.logEvent(`[Logic] Phase: ${phase} | Interrupt: ${interrupt}`);
+        }
+    }
+
     // ─────────── Handlers ───────────
+
+    logSubmarineStatus() {
+        const sub = this.features.submarine;
+        if (sub) {
+            const status = `Submarine: State=${sub.getState()} | Health=${sub.getHealth()}`;
+            console.log(status);
+            if (window.logEvent) window.logEvent(status);
+        } else {
+            console.warn('Submarine feature not bound.');
+        }
+    }
+
+    logInterruptStatus() {
+        const interrupt = this.features.interrupt;
+        if (interrupt) {
+            const active = interrupt.getActiveInterrupt();
+            const status = `Interrupt: ${active ? active.type : 'NONE'}`;
+            console.log(status);
+            if (window.logEvent) window.logEvent(status);
+        } else {
+            console.warn('Interrupt feature not bound.');
+        }
+    }
 
     handleToggleHeader({ blockId, color }) {
         const visual = this.visuals.get(blockId);

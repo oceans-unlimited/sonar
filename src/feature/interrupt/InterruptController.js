@@ -1,10 +1,30 @@
+import { BaseController } from '../../control/baseController';
 import { interruptManager } from './InterruptManager.js';
 
 /**
  * Controller-facing API for requesting interrupts.
  * Translates UI/Server intent into InterruptManager requests.
  */
-export class InterruptController {
+export class InterruptController extends BaseController {
+    constructor() {
+        super();
+        this.handlers = {
+            ...this.handlers,
+            'READY_INTERRUPT': () => this.handleReady()
+        };
+    }
+
+    onSocketBound() {
+        super.onSocketBound();
+        console.log('[InterruptController] Socket bound.');
+    }
+
+    handleReady() {
+        if (this.socket) {
+            this.socket.readyInterrupt();
+        }
+    }
+
     /**
      * Requests a pause interrupt.
      */
@@ -20,18 +40,18 @@ export class InterruptController {
     }
 
     /**
-     * Requests torpedo resolution interrupt.
-     * @param {object} payload - torpedo data, target, etc.
+     * Requests weapon resolution interrupt.
+     * @param {object} payload - weapon data, target, etc.
      */
-    requestTorpedoResolution(payload) {
-        interruptManager.requestInterrupt('TORPEDO_RESOLUTION', payload);
+    requestWeaponResolution(payload) {
+        interruptManager.requestInterrupt('WEAPON_RESOLUTION', payload);
     }
 
     /**
-     * Resolves torpedo resolution.
+     * Resolves weapon resolution.
      */
-    resolveTorpedo() {
-        interruptManager.resolveInterrupt('TORPEDO_RESOLUTION');
+    resolveWeapon() {
+        interruptManager.resolveInterrupt('WEAPON_RESOLUTION');
     }
 
     /**
@@ -60,6 +80,13 @@ export class InterruptController {
      */
     requestPlayerDisconnect(payload) {
         interruptManager.requestInterrupt('PLAYER_DISCONNECT', payload);
+    }
+
+    /**
+     * Signals that the local player is ready to resume from the interrupt.
+     */
+    readyInterrupt() {
+        this.handleEvent('READY_INTERRUPT');
     }
 
     /**

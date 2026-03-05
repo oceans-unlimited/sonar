@@ -1,6 +1,6 @@
 import { BaseController } from '../../control/baseController';
 import { MapConstants, MapStates, MapIntents } from './mapConstants';
-import { SystemColors, Alphas } from '../../core/uiStyle.js';
+import { Colors, SystemColors, Alphas } from '../../core/uiStyle.js';
 import { MapUtils } from './mapUtils.js';
 
 /**
@@ -21,7 +21,6 @@ export class MapController extends BaseController {
         this._prevInterruptType = null;
         this._sonarFadeTimeout = null;
 
-        // Custom Commands registry for cleaner routing
         this.commands = {
             'NAVIGATE': (d) => this.requestNavigate(d),
             'TORPEDO': () => this.requestTorpedo(),
@@ -29,7 +28,7 @@ export class MapController extends BaseController {
             'CENTER': () => this.centerOnOwnship(),
             'SET_INTENT': (d) => this.setIntent(d.intent),
             'TOGGLE_LABELS': () => this.handleToggleRowLabels(),
-            'CLEAR': () => this.view?.mapView?.overlays.clearAllOverlays()
+            'CLEAR': () => this.clearOverlays()
         };
 
         // Redundant with BaseController but kept for explicit mapping
@@ -75,6 +74,12 @@ export class MapController extends BaseController {
         }
     }
 
+    clearOverlays() {
+        if (this.view?.mapView) {
+            this.view.mapView.overlays.clearAllOverlays();
+        }
+    }
+
     centerOnOwnship() {
         if (this.view?.mapView && this._lastPos) {
             this.view.mapView.centerOn(this._lastPos.row, this._lastPos.col, true);
@@ -82,26 +87,23 @@ export class MapController extends BaseController {
     }
 
     requestNavigate(d = {}) {
-        if (this.view?.mapView && this._lastPos) {
+        if (this.view?.mapView) {
             const mv = this.view.mapView;
+            // Update behavior context with stealth if provided
+            mv.intentBehavior.updateContext({ stealth: !!d.stealth });
             mv.setIntent(MapIntents.NAVIGATE);
-            mv.overlays.showNavigationOptions(this._lastPos.row, this._lastPos.col, d.blocked || []);
         }
     }
 
     requestTorpedo() {
-        if (this.view?.mapView && this._lastPos) {
-            const mv = this.view.mapView;
-            mv.setIntent(MapIntents.TORPEDO);
-            mv.overlays.showTorpedoRange(this._lastPos.row, this._lastPos.col);
+        if (this.view?.mapView) {
+            this.view.mapView.setIntent(MapIntents.TORPEDO);
         }
     }
 
     requestMine(d = {}) {
-        if (this.view?.mapView && this._lastPos) {
-            const mv = this.view.mapView;
-            mv.setIntent(MapIntents.MINE_LAY);
-            mv.overlays.showMineOptions(this._lastPos.row, this._lastPos.col, d.blocked || []);
+        if (this.view?.mapView) {
+            this.view.mapView.setIntent(MapIntents.MINE_LAY);
         }
     }
 
@@ -118,6 +120,15 @@ export class MapController extends BaseController {
         if (!state || !state.submarines || !this.socket) return;
         const filteredData = this.parseFilteredState(state);
         if (!filteredData) return;
+
+        // Sync behavior context
+        if (this.view?.mapView) {
+            this.view.mapView.intentBehavior.updateContext({
+                ownship: filteredData.ownSub,
+                isDroneQuery: state.activeInterrupt?.type === 'DRONE'
+            });
+        }
+
         this.updateMapVisuals(filteredData, state);
         this.handleContextualVisuals(state);
     }
@@ -169,6 +180,9 @@ export class MapController extends BaseController {
         const { row, col } = ownSub;
         console.log(`[MapController] updateMapVisuals: (${row}, ${col}), Role: ${role}`);
 
+        const isStartPositions = context.phase === 'INTERRUPT' && context.activeInterrupt?.type === 'START_POSITIONS';
+        const hasChosen = context.activeInterrupt?.data?.submarineIdsWithStartPositionChosen?.includes(ownSub.id);
+
         if (row !== undefined && col !== undefined) {
             if (!this._lastPos || this._lastPos.row !== row || this._lastPos.col !== col) {
                 const isInitial = !this._lastPos;
@@ -176,13 +190,27 @@ export class MapController extends BaseController {
 
                 this.logDirectorAction(`POS UPDATE: (${row}, ${col})`);
 
-                // 1. Update ownship position (Instant for now, as per "to be animated later")
+                // 1. Update ownship position
                 mv.setOwnShipPosition(row, col, false, false);
 
                 // 2. Auto-center logic (Captain only, animated transition)
                 if (role === 'co') {
                     mv.centerOn(row, col, !isInitial);
                 }
+            }
+
+            // Apply contextual tinting
+            if (isStartPositions) {
+                if (hasChosen) {
+                    mv.setOwnshipTint(SystemColors.detection); // Green for chosen
+                    mv.setOwnShipPosition(row, col, false, true); // Ensure visible
+                } else {
+                    mv.setOwnshipTint(Colors.text);
+                    mv.setOwnShipPosition(row, col, false, false); // Hide if not chosen (placeholder 0,0)
+                }
+            } else {
+                mv.setOwnshipTint(Colors.text);
+                mv.setOwnShipPosition(row, col, false, true);
             }
         }
 
@@ -231,9 +259,16 @@ export class MapController extends BaseController {
         super.onViewBound(view);
         if (this.view?.mapView) {
             const mv = this.view.mapView;
-            mv.viewBox.on('map:clicked', (data) => this.handleMapClick(data));
+            // Behavior-driven event delegation
+            mv.onSelectionConfirmed = (data) => this.handleSelectionConfirmed(data);
+            mv.onMapClicked = (data) => this.handleMapClick(data);
         }
         if (this.lastState) this.onGameStateUpdate(this.lastState);
+    }
+
+    handleSelectionConfirmed(data) {
+        // Relay to parent controller if needed, or handle locally
+        this.emit('selectionConfirmed', data);
     }
 
     handleMapClick(data) {
@@ -245,46 +280,23 @@ export class MapController extends BaseController {
         const ownship = this.lastState?.submarines?.find(s => s.id === this.ownSubId);
         const squareData = MapUtils.getSquareData(data, ownship, this.lastState?.board);
 
+        // Visual handling delegated to behavior
+        mv.intentBehavior.handleInteraction(data);
+
+        // Logical handling remains in controller
         if (intent === MapIntents.NAVIGATE) {
-            const dir = mv.overlays.navigationOptions.get(`${data.row}-${data.col}`);
+            const dir = MapUtils.getDirection(ownship, data);
             if (dir) {
-                mv.overlays.clearAllOverlays();
-                mv.overlays.setGridOverlay(data.row, data.col, 0x00FF00, 0.6);
-                mv.viewBox.emit('map:selectionConfirmed', { direction: dir, ...squareData });
+                this.handleSelectionConfirmed({ direction: dir, ...squareData });
             }
             return;
         }
 
-        if (intent === MapIntents.TORPEDO) {
-            mv.overlays.clearAllOverlays();
-            mv.overlays.setGridOverlay(data.row, data.col, SystemColors.weapons, Alphas.medium);
-            mv.viewBox.emit('map:selectionConfirmed', squareData);
+        if (intent === MapIntents.TORPEDO || intent === MapIntents.MINE_LAY || intent === MapIntents.POSITION_SELECT) {
+            this.handleSelectionConfirmed(squareData);
             return;
         }
 
-        if (intent === MapIntents.MINE_LAY) {
-            const dir = mv.overlays.mineOptions.get(`${data.row}-${data.col}`);
-            if (dir) {
-                mv.overlays.clearAllOverlays();
-                mv.overlays.setGridOverlay(data.row, data.col, SystemColors.weapons, Alphas.medium);
-                mv.viewBox.emit('map:selectionConfirmed', { direction: dir, ...squareData });
-            }
-            return;
-        }
-
-        // Standard Highlights
-        mv.overlays.clearAllOverlays();
-        const stateIntents = {
-            [MapStates.SELECT_ROW]: 'row',
-            [MapStates.SELECT_COLUMN]: 'col',
-            [MapStates.SELECT_SECTOR]: 'sector'
-        };
-        const axis = stateIntents[mv.currentState];
-        if (axis) {
-            mv.overlays.highlightGridRange(data.row, data.col, axis, 0x00FF00, 0.4);
-        } else {
-            mv.overlays.setGridOverlay(data.row, data.col, 0x00FF00, 0.4);
-        }
-        mv.viewBox.emit('map:squareSelected', squareData);
+        this.emit('squareSelected', squareData);
     }
 }

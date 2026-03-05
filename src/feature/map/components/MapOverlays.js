@@ -1,10 +1,10 @@
 import { Graphics } from 'pixi.js';
-import { Colors, Alphas, SystemColors } from '../../../core/uiStyle.js';
 import { MapUtils } from '../mapUtils.js';
 
 /**
  * MapOverlays
- * Handles drawing and managing grid highlights for navigation, weapons, and sonar.
+ * Primitive layer for drawing grid highlights, ranges, and area overlays.
+ * Does not contain game logic; acts as a visual tool for behaviors.
  */
 export class MapOverlays {
     constructor(parentContainer, layers, config) {
@@ -17,10 +17,6 @@ export class MapOverlays {
         this.graphics = new Graphics();
         this.graphics.label = 'GridOverlays';
         this.graphics.eventMode = 'none';
-
-        // Navigation state
-        this.navigationOptions = new Map();
-        this.mineOptions = new Map();
 
         this.parent.addChild(this.graphics);
         if (this.layers.overlay) {
@@ -57,115 +53,8 @@ export class MapOverlays {
     }
 
     /**
-     * Clears all active grid overlays.
+     * Highlights a linear or area range (row, column, or sector).
      */
-    clearAllOverlays() {
-        this.activeOverlays.clear();
-        this.navigationOptions.clear();
-        this.mineOptions.clear();
-        if (this.onClear) this.onClear();
-        this.render();
-    }
-
-    /**
-     * Redraws all active overlays onto the Graphics layer.
-     */
-    render() {
-        this.graphics.clear();
-        if (this.activeOverlays.size === 0) return;
-
-        const { tileSize } = this.config;
-
-        for (const overlay of this.activeOverlays.values()) {
-            const x = overlay.col * tileSize;
-            const y = overlay.row * tileSize;
-
-            this.graphics.rect(x, y, tileSize, tileSize);
-            this.graphics.fill({ color: overlay.color, alpha: overlay.alpha });
-        }
-    }
-
-    /**
-     * Highlights available orthogonally adjacent squares for navigation.
-     */
-    showNavigationOptions(row, col, blocked = []) {
-        this.clearAllOverlays();
-        const directions = [
-            { id: 'N', r: row - 1, c: col },
-            { id: 'S', r: row + 1, c: col },
-            { id: 'E', r: row, c: col + 1 },
-            { id: 'W', r: row, c: col - 1 }
-        ];
-
-        const { gridSize } = this.config;
-        const navColor = Colors.roleXO;
-        const navAlpha = Alphas.dim;
-
-        directions.forEach(dir => {
-            if (dir.r < 0 || dir.r >= gridSize || dir.c < 0 || dir.c >= gridSize) return;
-            if (blocked.includes(dir.id)) return;
-
-            const key = `${dir.r}-${dir.c}`;
-            this.navigationOptions.set(key, dir.id);
-            this.activeOverlays.set(key, { row: dir.r, col: dir.c, color: navColor, alpha: navAlpha });
-        });
-
-        this.render();
-    }
-
-    /**
-     * Highlights a diamond-shaped range (Manhattan distance 4) for torpedo targeting.
-     */
-    showTorpedoRange(row, col) {
-        this.clearAllOverlays();
-        const { gridSize } = this.config;
-        const weaponColor = SystemColors.weapons;
-        const rangeAlpha = Alphas.dim;
-
-        for (let r = 0; r < gridSize; r++) {
-            for (let c = 0; c < gridSize; c++) {
-                const dist = Math.abs(r - row) + Math.abs(c - col);
-                if (dist > 0 && dist <= 4) {
-                    const key = `${r}-${c}`;
-                    this.activeOverlays.set(key, { row: r, col: c, color: weaponColor, alpha: rangeAlpha });
-                }
-            }
-        }
-        this.render();
-    }
-
-    /**
-     * Highlights available orthogonally and diagonally adjacent squares for mine laying.
-     */
-    showMineOptions(row, col, blocked = []) {
-        this.clearAllOverlays();
-        const directions = [
-            { id: 'N', r: row - 1, c: col },
-            { id: 'S', r: row + 1, c: col },
-            { id: 'E', r: row, c: col + 1 },
-            { id: 'W', r: row, c: col - 1 },
-            { id: 'NE', r: row - 1, c: col + 1 },
-            { id: 'NW', r: row - 1, c: col - 1 },
-            { id: 'SE', r: row + 1, c: col + 1 },
-            { id: 'SW', r: row + 1, c: col - 1 }
-        ];
-
-        const { gridSize } = this.config;
-        const weaponColor = SystemColors.weapons;
-        const rangeAlpha = Alphas.dim;
-
-        directions.forEach(dir => {
-            if (dir.r < 0 || dir.r >= gridSize || dir.c < 0 || dir.c >= gridSize) return;
-            if (blocked.includes(dir.id)) return;
-
-            const key = `${dir.r}-${dir.c}`;
-            this.mineOptions.set(key, dir.id);
-            this.activeOverlays.set(key, { row: dir.r, col: dir.c, color: weaponColor, alpha: rangeAlpha });
-        });
-
-        this.render();
-    }
-
     highlightGridRange(row, col, axis, color, alpha) {
         const { gridSize } = this.config;
 
@@ -194,5 +83,32 @@ export class MapOverlays {
         }
 
         this.render();
+    }
+
+    /**
+     * Clears all active grid overlays.
+     */
+    clearAllOverlays() {
+        this.activeOverlays.clear();
+        if (this.onClear) this.onClear();
+        this.render();
+    }
+
+    /**
+     * Redraws all active overlays onto the Graphics layer.
+     */
+    render() {
+        this.graphics.clear();
+        if (this.activeOverlays.size === 0) return;
+
+        const { tileSize } = this.config;
+
+        for (const overlay of this.activeOverlays.values()) {
+            const x = overlay.col * tileSize;
+            const y = overlay.row * tileSize;
+
+            this.graphics.rect(x, y, tileSize, tileSize);
+            this.graphics.fill({ color: overlay.color, alpha: overlay.alpha });
+        }
     }
 }

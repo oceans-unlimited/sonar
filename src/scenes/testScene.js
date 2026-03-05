@@ -11,6 +11,11 @@ import Card from '../render/card';
 import { wireButton } from '../behavior/buttonBehavior';
 import { Text } from 'pixi.js';
 
+// Features
+import { SubmarineController } from '../feature/submarine/SubmarineController';
+import { interruptController } from '../feature/interrupt/InterruptController';
+import { socketManager } from '../core/socketManager';
+
 /**
  * @param {import('../control/baseController').BaseController} controller
  * @returns {Container}
@@ -18,6 +23,19 @@ import { Text } from 'pixi.js';
 export async function createTestScene(controller, ticker) {
     const scene = new Container();
     scene.label = 'testScene';
+
+    // --- Initialize Logic Features ---
+    const subController = new SubmarineController();
+    subController.bindSocket(socketManager);
+
+    // Reuse the singleton interrupt controller
+    interruptController.bindSocket(socketManager);
+
+    // Bind features to the scene controller
+    controller.bindFeatures({
+        submarine: subController,
+        interrupt: interruptController
+    });
 
     scene.layout = {
         width: '80%',

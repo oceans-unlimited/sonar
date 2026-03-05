@@ -28,6 +28,12 @@ import { SurfaceController } from '../feature/surface/SurfaceController';
 
 // Services
 import { socketManager } from './socketManager.js';
+import { interruptManager } from '../feature/interrupt/InterruptManager.js';
+import { gamePhaseManager, GamePhases } from './clock/gamePhaseManager.js';
+
+// Features (Persistent Services)
+import { submarine } from '../feature/submarine/submarine';
+import { interruptController } from '../feature/interrupt/InterruptController';
 
 // ─────────── Maps ───────────
 
@@ -64,13 +70,49 @@ export class SceneManager {
         this.currentScene = null;
         this.currentController = null;
 
-        // Placeholder for future feature registry
-        this.features = {};
+        // Persistent Feature Registry
+        // These live for the duration of the application lifecycle.
+        this.features = {
+            submarine: new SubmarineController(),
+            interrupt: interruptController
+        };
+
+        // Bind persistent features to the transport layer
+        Object.values(this.features).forEach(f => f.bindSocket(socketManager));
+
+        this._setupStateSync();
+    }
+
+    _setupStateSync() {
+        socketManager.on('stateUpdate', (state) => {
+            if (state.phase) {
+                gamePhaseManager.setPhase(GamePhases[state.phase] || state.phase);
+            }
+
+            // Sync active interrupt
+            const serverInterrupt = state.activeInterrupt;
+            const clientInterrupt = interruptManager.getActiveInterrupt();
+
+            if (serverInterrupt && !clientInterrupt) {
+                // Server has interrupt, client doesn't - Start it
+                interruptManager.requestInterrupt(serverInterrupt.type, serverInterrupt.data || serverInterrupt.payload);
+            } else if (!serverInterrupt && clientInterrupt) {
+                // Server has no interrupt, client does - Resolve it
+                interruptManager.resolveInterrupt(clientInterrupt.type);
+            } else if (serverInterrupt && clientInterrupt && serverInterrupt.type === clientInterrupt.type) {
+                // Types match - Update payload if needed
+                interruptManager.updateInterrupt(serverInterrupt.type, serverInterrupt.data || serverInterrupt.payload);
+            } else if (serverInterrupt && clientInterrupt && serverInterrupt.type !== clientInterrupt.type) {
+                // Types mismatch - End old and start new
+                interruptManager.resolveInterrupt(clientInterrupt.type);
+                interruptManager.requestInterrupt(serverInterrupt.type, serverInterrupt.data || serverInterrupt.payload);
+            }
+        });
     }
 
     async init() {
-        // Load the default scene by its key on startup.
-        await this.loadScene('mapTest');
+        // Load the default scene by its key on startup. Change to speed up Director/Debug testing.
+        await this.loadScene('conn');
     }
 
     /**
@@ -98,6 +140,14 @@ export class SceneManager {
             console.log('[SceneManager] Destroying old controller...');
             this.currentController.destroy();
             this.currentController = null;
+        }
+
+        // 2.1. Reset Global Logic Managers (Test Mode Only)
+        // Resetting phase to LOBBY ensures that any new state update (e.g. to LIVE)
+        // is always a valid transition, avoiding warnings during scenario reloads.
+        const isTestMode = new URLSearchParams(window.location.search).has('mode', 'test');
+        if (isTestMode) {
+            gamePhaseManager.reset();
         }
 
         // 3. Create the Controller (Logic) using the Factory Pattern

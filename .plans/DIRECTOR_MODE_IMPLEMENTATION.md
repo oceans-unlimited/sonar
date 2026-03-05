@@ -32,6 +32,13 @@ Activation is controlled via the `?mode=test` URL parameter. When detected in `m
 ### Phase 2: Debug Overlay UI [COMPLETED]
 ### Phase 3: Integration with Main Application [COMPLETED]
 ### Phase 4: Example Scenarios [COMPLETED]
+### Phase 5: Persistent Feature Integration [PLANNED]
+
+To support the "Data Normalizer" architecture, the Director must be able to bootstrap persistent features.
+
+1. **Initial Fact Set**: Scenarios may include a `facts` object.
+2. **Bootstrapping**: When a scenario is loaded, `SceneManager` calls `feature.reset()` and then `feature.handleStateUpdate(initialState)`.
+3. **Command Passthrough**: `DIRECTOR_CMD` events are routed directly to Features to bypass standard validation for edge-case testing.
 
 #### [NEW] [Director.js](file:///home/seth/Documents/Coding/laboratory/src/debug/Director.js)
 
@@ -467,7 +474,7 @@ const isTestMode = window.location.search.includes('mode=test');
 
 ---
 
-#### [MODIFY] [sceneManager.js](file:///home/seth/Documents/Coding/laboratory/src/core/sceneManager.js)
+#### [MODIFY] [sceneManager.js](file:///home/seth/Documents/Coding/laboratory/src/src/core/sceneManager.js)
 
 **Changes:**
 1. Export a `SCENE_MAP` for use by the DebugOverlay and Director.

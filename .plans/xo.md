@@ -1,6 +1,6 @@
 # First Officer (XO) Role: Game Logic & Communication Events
 
-This document outlines the server-side logic and Socket.io communications specifically pertaining to the **First Officer** (XO) role, as derived from the `src/` and `public/js/` directories.
+This document outlines the server-side logic and Socket.io communications specifically pertaining to the **First Officer** (XO) role, as derived from the `src/` directory.
 
 ## 1. Core State & Data Structures
 
@@ -34,7 +34,7 @@ The First Officer's state is primarily managed within the `submarine` object in 
 *   **Trigger**: XO clicks a subsystem row that has reached its maximum level.
 *   **Logic**:
     *   While the UI signals readiness ("READY TO DISCHARGE"), the actual logic for system effects (like firing a torpedo or dropping a mine) is typically initiated by the **Captain**, using the charges the XO has accumulated.
-    *   *Note: `xoController.js` contains a stub for `discharge_gauge` which emits a custom socket event.*
+    *   *Note: `src/control/xoController.js` contains a stub for `discharge_gauge` which emits a custom socket event.*
 
 ---
 

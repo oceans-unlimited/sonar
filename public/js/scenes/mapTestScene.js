@@ -191,14 +191,14 @@ export async function createMapTestScene(app, assets) {
             spoofPosition(currentR, currentC);
         }
 
-        // Mock the TORPEDO_RESOLUTION interrupt
+        // Mock the WEAPON_RESOLUTION interrupt
         import('../features/interrupts/InterruptManager.js').then(({ interruptManager }) => {
             import('../features/interrupts/InterruptTypes.js').then(({ InterruptTypes }) => {
-                interruptManager.requestInterrupt(InterruptTypes.TORPEDO_RESOLUTION, { row: r, col: c });
+                interruptManager.requestInterrupt(InterruptTypes.WEAPON_RESOLUTION, { row: r, col: c });
 
                 // End it after animation duration + buffer (e.g., 2.5s)
                 setTimeout(() => {
-                    interruptManager.resolveInterrupt(InterruptTypes.TORPEDO_RESOLUTION);
+                    interruptManager.resolveInterrupt(InterruptTypes.WEAPON_RESOLUTION);
                 }, 2500);
             });
         });

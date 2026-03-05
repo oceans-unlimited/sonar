@@ -4,6 +4,7 @@ import { MapGrid } from './MapGrid.js';
 import { MapLabels } from './MapLabels.js';
 import { MapOverlays } from './MapOverlays.js';
 import { MapBehaviors } from '../behaviors/MapBehaviors.js';
+import { MapIntentBehavior } from '../behaviors/MapIntentBehavior.js';
 import { MapUtils } from '../mapUtils.js';
 import { LayoutContainer } from '@pixi/layout/components';
 
@@ -65,6 +66,9 @@ export class MapViewArea {
         // Modular Overlays
         this.overlays = new MapOverlays(this.mapContent, this.layers, this.config);
 
+        // Intent Visualization Behavior
+        this.intentBehavior = new MapIntentBehavior(this);
+
         // Sync highlights between grid and labels
         this.overlays.onHighlight = (type, data) => {
             if (type === 'square') {
@@ -82,7 +86,11 @@ export class MapViewArea {
         this.mapContent.y = this.config.labelGutter;
         this.mapLabels.syncPosition(this.mapContent.x, this.mapContent.y);
 
-        // Behaviors
+        // Callbacks for Controller interaction
+        this.onMapClicked = null;
+        this.onSelectionConfirmed = null;
+
+        // Input Behaviors
         this.behaviors = new MapBehaviors(this);
 
         this.ownShip = null;
@@ -98,7 +106,10 @@ export class MapViewArea {
     setState(newState, intent = null) {
         const oldState = this.currentState;
         this.currentState = newState;
-        if (intent) this.currentIntent = intent;
+        if (intent) {
+            this.currentIntent = intent;
+            this.intentBehavior.applyIntent(intent);
+        }
 
         this.viewBox.emit('map:stateChanged', {
             state: this.currentState,
@@ -116,7 +127,7 @@ export class MapViewArea {
             [MapIntents.SECTOR_SELECT]: MapStates.SELECT_SECTOR
         };
 
-        this.setState(stateMap[newIntent] || MapStates.SELECT_SQUARE);
+        this.setState(stateMap[newIntent] || MapStates.SELECT_SQUARE, newIntent);
         this.viewBox.emit('map:intentChanged', { intent: this.currentIntent });
     }
 
@@ -166,6 +177,12 @@ export class MapViewArea {
         this.config.rowLabelsRight = isRight;
         this.mapLabels.updateConfig({ rowLabelsRight: isRight });
         this.handleLayout();
+    }
+
+    setOwnshipTint(color) {
+        if (this.ownShip) {
+            this.ownShip.tint = color;
+        }
     }
 
     setOwnShipPosition(row, col, animate = true, center = true) {

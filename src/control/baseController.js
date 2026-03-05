@@ -1,14 +1,18 @@
+import { EventEmitter } from 'pixi.js';
+
 /**
  * Base Controller
  * Provides shared patterns for event routing, button/visual registration,
  * socket binding, and lifecycle hooks.
  */
 
-export class BaseController {
+export class BaseController extends EventEmitter {
     constructor() {
+        super();
         this.view = null; // Reference to the scene's view container
         this.socket = null; // Injected via bindSocket
         this._socketListeners = new Map(); // Track listeners for cleanup
+        this._featureListeners = new Map(); // Track { feature, event, handler } for cleanup
 
         // Registries
         this.buttons = {};   // Registry for button objects
@@ -137,6 +141,35 @@ export class BaseController {
         this.onFeaturesBound();
     }
 
+    /**
+     * Safe subscription to a persistent feature. 
+     * Automatically tracked for cleanup when the controller is destroyed.
+     * @param {string} featureKey - Key in this.features
+     * @param {string} event - Event name
+     * @param {Function} handler - Callback function
+     */
+    subscribeToFeature(featureKey, event, handler) {
+        const feature = this.features[featureKey];
+        if (!feature) {
+            console.warn(`[BaseController] Feature not found for subscription: ${featureKey}`);
+            return;
+        }
+
+        if (typeof feature.on !== 'function') {
+            console.warn(`[BaseController] Feature ${featureKey} does not support .on() events.`);
+            return;
+        }
+
+        // Apply listener
+        feature.on(event, handler);
+
+        // Store for cleanup
+        if (!this._featureListeners.has(featureKey)) {
+            this._featureListeners.set(featureKey, []);
+        }
+        this._featureListeners.get(featureKey).push({ event, handler });
+    }
+
     // ─────────── Lifecycle Hooks (override in subclass) ───────────
 
     onSocketBound() { }
@@ -184,6 +217,8 @@ export class BaseController {
 
     destroy() {
         console.log(`[${this.constructor.name}] Destroying...`);
+        
+        // 1. Cleanup Socket Listeners
         if (this.socket) {
             this._socketListeners.forEach((handler, event) => {
                 this.socket.off(event, handler);
@@ -192,6 +227,19 @@ export class BaseController {
             this.onSocketUnbound();
             this.socket = null;
         }
+
+        // 2. Cleanup Feature Listeners
+        this._featureListeners.forEach((listeners, featureKey) => {
+            const feature = this.features[featureKey];
+            if (feature && typeof feature.off === 'function') {
+                listeners.forEach(({ event, handler }) => {
+                    feature.off(event, handler);
+                });
+            }
+        });
+        this._featureListeners.clear();
+
+        // 3. Clear Registries
         this.features = {};
         this.buttons = {};
         this.visuals = {};

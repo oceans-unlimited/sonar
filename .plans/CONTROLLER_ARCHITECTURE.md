@@ -20,13 +20,13 @@ This pattern decouples the "Mechanism" (event routing, registration) from the "B
     *   **Registry:** Maintains `this.buttons = {}` (Button ID → API), `this.visuals = {}` (Visual ID → PIXI Object), `this.features = {}` (Feature ID → Feature Object).
     *   **Action Map:** Uses `this.handlers = {}` to map Event Names → Handler Functions.
     *   **Routing:** `handleEvent(event, data)` is the **primary ingress point** for:
-        *   **Client-Local Events:** UI-only state changes (e.g., `'SET_INTENT'`, `'CENTER_ON_OWNSHIP'`) that modify local visuals but do not affect global game state.
-        *   **Server-Driven Events:** Handlers mapped to incoming socket messages (e.g., `'stateUpdate'`, `'SONAR_PING'`).
-        *   **Internal Notifications:** Timers, cooldowns, or feature-to-feature communication.
-    *   **Separation of Concerns:** Handlers are agnostic to the source. A handler like `'SET_INTENT'` can be triggered by a parent scene calling `controller.handleEvent()` or by a mock event during testing. Client-local events **MUST NOT** be automatically emitted to the server; they are strictly for local view management.
+        *   **Client-Local Intents:** UI-only state changes (e.g., `'SET_INTENT'`, `'CENTER_ON_OWNSHIP'`) that modify local visuals but do not affect global game state.
+        *   **Feature-Driven Facts:** Handlers mapped to events from persistent features (e.g., `submarine:moved`, `interrupt:started`). 
+        *   **Server-Driven Intents:** Responses to specific socket messages (e.g., `SONAR_PING`).
+    *   **Data Rule:** Scene Controllers should **rarely** listen to the raw `stateUpdate` from the socket. Instead, they should listen to the corresponding Feature/View Model (see [.design/realtime_engine.md](.design/realtime_engine.md)). This ensures data is normalized and filtered (e.g. "My Sub" logic is handled by the feature).
+    *   **Separation of Concerns:** Handlers are agnostic to the source. Client-local events **MUST NOT** be automatically emitted to the server; they are strictly for local view management.
     *   **Logging:** Centralized `console.log` for all routed events.
-    *   **Partial Operation:** Supports offline-first/pre-bind operation (queues or drops actions safely).
-    *   **Feature Injection:** Receives frozen feature registry.
+    *   **Feature Injection:** Receives frozen feature registry from SceneManager.
 
 **Lifecycle Hooks (for Subclasses):**
 *   `onSocketBound()`: Add role-specific socket listeners.
@@ -71,7 +71,7 @@ constructor() {
 ```
 
 ### 3. SceneManager (The Factory)
-*   **File:** `src/core/sceneManager.js`
+*   **File:** `src/src/core/sceneManager.js`
 *   **Responsibilities:**
     *   Load the requested scene module from `src/scenes/`.
     *   Instantiate the correct controller class from a `CONTROLLER_MAP` based on the scene's designated controller key (e.g., 'engineer').
@@ -121,7 +121,7 @@ Controllers can manage non-interactive UI elements (Panels, ButtonBlocks, Sprite
 ```javascript
 // src/control/myController.js
 import { setColor, cascadeColor } from '../render/util/colorOps.js';
-import { Colors } from '../core/uiStyle.js';
+import { Colors } from '../src/core/uiStyle.js';
 
 handleStatusChange(data) {
     const { status } = data;
@@ -276,7 +276,7 @@ export class EngineerController extends BaseController {
 ```
 
 ### C. The Factory Logic
-**File:** `src/core/sceneManager.js`
+**File:** `src/src/core/sceneManager.js`
 
 ```javascript
 const CONTROLLER_MAP = {

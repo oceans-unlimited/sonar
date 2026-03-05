@@ -215,7 +215,7 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
       log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted torpedo launch.`);
 
       logicalServer.launchTorpedo(socket.id, row, col);
-      if (logicalServer.state.phase === GlobalPhases.INTERRUPT && logicalServer.state.activeInterrupt.type === InterruptTypes.TORPEDO_RESOLUTION) {
+      if (logicalServer.state.phase === GlobalPhases.INTERRUPT && logicalServer.state.activeInterrupt.type === InterruptTypes.WEAPON_RESOLUTION) {
         setTimeout(() => {
           log("Resuming live play after torpedo launch.")
           logicalServer.resumeFromInterrupt();
@@ -235,12 +235,12 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
     socket.on('trigger_mine', ({ row, col }) => {
       log(`Player ${logicalServer.playerName(socket.id)} (${socket.id}) attempted to trigger a mine.`);
       logicalServer.triggerMine(socket.id, row, col);
-      if (logicalServer.state.phase === GlobalPhases.INTERRUPT && logicalServer.startGame.activeInterrupt.type === InterruptTypes.MINE_TRIGGER_RESOLUTION) {
+      if (logicalServer.state.phase === GlobalPhases.INTERRUPT && logicalServer.state.activeInterrupt.type === InterruptTypes.WEAPON_RESOLUTION) {
         setTimeout(() => {
           log("Resuming live play after mine was triggered.");
           logicalServer.resumeFromInterrupt();
           ioServer.emit("state", logicalServer.state);
-        })
+        }, 3000);
       }
       ioServer.emit("state", logicalServer.state);
     });

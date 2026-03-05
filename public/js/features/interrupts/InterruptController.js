@@ -20,18 +20,18 @@ export class InterruptController {
     }
 
     /**
-     * Requests torpedo resolution interrupt.
-     * @param {object} payload - torpedo data, target, etc.
+     * Requests weapon resolution interrupt.
+     * @param {object} payload - weapon data, target, etc.
      */
-    requestTorpedoResolution(payload) {
-        interruptManager.requestInterrupt('TORPEDO_RESOLUTION', payload);
+    requestWeaponResolution(payload) {
+        interruptManager.requestInterrupt('WEAPON_RESOLUTION', payload);
     }
 
     /**
-     * Resolves torpedo resolution.
+     * Resolves weapon resolution.
      */
-    resolveTorpedo() {
-        interruptManager.resolveInterrupt('TORPEDO_RESOLUTION');
+    resolveWeapon() {
+        interruptManager.resolveInterrupt('WEAPON_RESOLUTION');
     }
 
     /**

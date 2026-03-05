@@ -81,10 +81,17 @@ Create `src/debug/Overlay.js`.
 *   A simple vanilla JS component that appends a `<div id="debug-panel">` to the body.
 *   Populate it with buttons generated from the list of available Scenarios.
 
-### Step 4: Feature Mocks
+### 4. Feature Mocks
 Ensure the `Director` can also inject **Mock Features**.
 *   Instead of the real `InterruptManager`, inject a `MockInterruptManager` that logs calls instead of stopping the clock.
 *   This allows isolated unit-testing of controllers.
+
+### 5. Fact Injection (Persistent Features)
+To support testing logical loops without full server compliance, the Director supports **Fact Injection**.
+*   **The Goal**: Override the "Sources of Truth" (Submarine View Models, Map Spatial Model) with data states that might be difficult to reach via standard gameplay.
+*   **The Mechanism**: The Director emits a `DIRECTOR_CMD` event. Persistent features (like the `Submarine` feature) listen for this command and use it to force internal state changes (e.g. "Force Sub A into SURFACED state") without waiting for a socket state broadcast.
+*   **Multi-Vessel Support**: Scenarios can now define initial states for both `Submarine('A')` and `Submarine('B')` independently, allowing for "Mock Enemy" testing in any scene.
+
 
 ---
 

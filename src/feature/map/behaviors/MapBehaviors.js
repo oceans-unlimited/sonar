@@ -164,7 +164,11 @@ export class MapBehaviors {
             if (duration <= 250) { // 250ms click threshold
                 const coords = this.getGridCoords(e.global);
                 if (coords) {
-                    this.mapViewArea.viewBox.emit('map:clicked', coords);
+                    if (this.mapViewArea.onMapClicked) {
+                        this.mapViewArea.onMapClicked(coords);
+                    } else {
+                        this.mapViewArea.viewBox.emit('map:clicked', coords);
+                    }
                 }
             }
         }

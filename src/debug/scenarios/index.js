@@ -10,9 +10,11 @@ import testMapMovement from './test/map_movement.js';
 import testMapSelect from './test/mapSelect.js';
 import teletypePristine from './teletype/01_pristine.js';
 import connPristine from './conn/01_pristine.js';
+import connStartPositions from './conn/01_start_positions.js';
 import submarinePristine from './submarine/pristine.js';
 import damagePristine from './damage/pristine.js';
 import surfacePristine from './surface/pristine.js';
+import realtimeEngineLogic from './test/realtime_engine_logic.js';
 
 export const SCENARIO_REGISTRY = {
   'engineer_pristine': engineerPristine,
@@ -22,11 +24,13 @@ export const SCENARIO_REGISTRY = {
   'engineer_reactor_critical': engineerReactorCritical,
   'xo_pristine': xoPristine,
   'test_color_ops': testColorOps,
+  'test_realtime_engine_logic': realtimeEngineLogic,
   'test_map_pristine': testMapPristine,
   'test_map_movement': testMapMovement,
   'test_map_select': testMapSelect,
   'teletype_pristine': teletypePristine,
   'conn_pristine': connPristine,
+  'conn_start_positions': connStartPositions,
   'submarine_pristine': submarinePristine,
   'damage_pristine': damagePristine,
   'surface_pristine': surfacePristine
@@ -46,7 +50,8 @@ export const SCENARIO_CATEGORIES = {
     'xo_pristine'
   ],
   'Captain (Conn)': [
-    'conn_pristine'
+    'conn_pristine',
+    'conn_start_positions'
   ],
   'Submarine Feature': [
     'submarine_pristine'
@@ -59,6 +64,7 @@ export const SCENARIO_CATEGORIES = {
   ],
   'Test Bed': [
     'test_color_ops',
+    'test_realtime_engine_logic',
     'test_map_pristine',
     'test_map_movement',
     'test_map_select'

@@ -65,7 +65,7 @@ This plan adheres to `client-side-architecture.md`:
   1. Server-Side Generation (Source of Truth)
   The layout is dynamically generated on the server to ensuring all clients (and the game logic) share the same configuration.
 
-   * File: `logical-server.lib.js` & `engineLayout.lib.js`
+   * File: `src/logical-server.lib.js` & `src/engineLayout.lib.js`
    * Action: When the LogicalServer initializes (or when startGame() is called), it calls createSubmarine(id).
    * Process:
        1. createSubmarine instantiates new EngineLayoutGenerator().
@@ -80,7 +80,7 @@ This plan adheres to `client-side-architecture.md`:
   2. Transmission (Socket.io)
   The server broadcasts the entire game state, including the generated layout, to all connected clients.
 
-   * File: `server.lib.js`
+   * File: `src/server.lib.js`
    * Action: Whenever a significant event occurs (player connection, startGame, or gameplay actions like cross_off_system), the
      server triggers an update.
    * Process:
@@ -90,7 +90,7 @@ This plan adheres to `client-side-architecture.md`:
   3. Client Reception
   The client receives the raw state and creates an internal event to notify the rest of the application.
 
-   * File: `socketManager.js` (to be added to core to handle socket events)
+   * File: `src/core/socketManager.js` (to be added to core to handle socket events)
    * Action: The socket client receives the 'state' message.
    * Process:
        1. socket.on('state', (state) => { ... }) triggers.

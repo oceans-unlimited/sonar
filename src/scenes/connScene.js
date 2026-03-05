@@ -7,6 +7,8 @@ import { createMapPanel } from '../feature/map/mapRenderer';
 import { MapController } from '../feature/map/mapController';
 import { Colors } from '../core/uiStyle';
 import { socketManager } from '../core/socketManager';
+import { interruptController } from '../feature/interrupt/InterruptController';
+import { InterruptOverlay } from '../feature/interrupt/InterruptOverlay';
 
 /**
  * ConnScene Factory
@@ -49,8 +51,14 @@ export async function createConnScene(controller, ticker) {
     mapController.bindSocket(socketManager);
     mapController.bindView(sceneContent);
 
+    // Initialize Interrupt Feature
+    interruptController.bindSocket(socketManager);
+
     // Inject the feature into the primary controller
-    controller.bindFeatures({ map: mapController });
+    controller.bindFeatures({ 
+        map: mapController,
+        interrupt: interruptController 
+    });
 
     // --- 3. Control Panel (Right Sidebar) ---
     const controlsSidebar = new Panel('control', {
@@ -123,6 +131,10 @@ export async function createConnScene(controller, ticker) {
     controlsSidebar.addChild(weaponsBlock);
 
     sceneContent.addChild(controlsSidebar);
+
+    // --- 6. Interrupt Overlay ---
+    const interruptOverlay = new InterruptOverlay(ticker);
+    sceneContent.addChild(interruptOverlay);
 
     return sceneContent;
 }

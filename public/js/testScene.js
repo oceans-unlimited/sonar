@@ -49,7 +49,8 @@ export async function createTestScene(controller, ticker) {
      * We subscribe to high-signal fact changes from the Submarine View Model.
      */
     controller.onFeaturesBound = () => {
-        const subFeature = controller.features.submarine;
+        const subFeature = controller.features.get('submarine');
+        if (!subFeature) return;
         
         // Listen for identity resolution (Who am I?)
         subFeature.on('identity:resolved', ({ sub, role }) => {
@@ -58,14 +59,20 @@ export async function createTestScene(controller, ticker) {
         });
 
         // Listen for specific fact changes on the ownship sub
-        subFeature.subscribeToOwnship('sub:moved', () => {
+        controller.subscribeToFeature('submarine', 'submarine:moved', () => {
             updateDisplay(subFeature.getOwnship(), subFeature.getLocalRole());
         });
 
-        subFeature.subscribeToOwnship('sub:stateChanged', () => {
+        controller.subscribeToFeature('submarine', 'submarine:stateChanged', () => {
             updateDisplay(subFeature.getOwnship(), subFeature.getLocalRole());
         });
     };
+
+    // If already bound, trigger initial update
+    if (controller.features.has('submarine')) {
+        const subFeature = controller.features.get('submarine');
+        updateDisplay(subFeature.getOwnship(), subFeature.getLocalRole());
+    }
 
     function updateDisplay(sub, role) {
         if (!sub) return;

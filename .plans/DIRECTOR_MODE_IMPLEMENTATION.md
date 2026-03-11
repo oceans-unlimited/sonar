@@ -36,9 +36,16 @@ Activation is controlled via the `?mode=test` URL parameter. When detected in `m
 
 To support the "Data Normalizer" architecture, the Director must be able to bootstrap persistent features.
 
-1. **Initial Fact Set**: Scenarios may include a `facts` object.
-2. **Bootstrapping**: When a scenario is loaded, `SceneManager` calls `feature.reset()` and then `feature.handleStateUpdate(initialState)`.
-3. **Command Passthrough**: `DIRECTOR_CMD` events are routed directly to Features to bypass standard validation for edge-case testing.
+1. **Initial Fact Set**: Scenarios may include a `facts` object (e.g. `facts: { submarines: [...] }`).
+2. **Bootstrapping**: When a scenario is loaded, the `Director` re-emits these facts via a standard `stateUpdate` to prime the `Submarine` feature.
+3. **Command Passthrough**: Persistent features listen for `DIRECTOR_CMD` to execute "Forbidden Transitions" or data overrides during manual testing.
+
+## Scenario Design Patterns
+
+### Whitelisted Communication (`DIRECTOR_CMD`)
+The `socketManager` acts as a security filter, blocking arbitrary event names from reaching the controllers.
+- **Requirement**: All custom scenario commands (e.g. `RUN_METHOD_TEST`, `LOG_TO_TERMINAL`) MUST be wrapped inside a `DIRECTOR_CMD` object in the scenario timeline.
+- **Controller Handling**: Controllers should implement a `handleDirectorCmd(data)` method to route the `type` or `action` fields from the command to their internal logic.
 
 #### [NEW] [Director.js](file:///home/seth/Documents/Coding/laboratory/src/debug/Director.js)
 

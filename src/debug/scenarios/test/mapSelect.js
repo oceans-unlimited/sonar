@@ -6,10 +6,17 @@ export default {
     description: 'Tests individual square highlights and full row/column selection (Sonar Ping simulation).',
     playerId: 'player_co',
 
-    initialState: createMockSubmarineState({
-        row: 7,
-        col: 7
-    }),
+    initialState: {
+        version: 1,
+        phase: 'LIVE',
+        board: Array(15).fill(Array(15).fill(0)),
+        submarines: [
+            createMockSubmarineState({
+                row: 7,
+                col: 7
+            })
+        ]
+    },
 
     timeline: [
         // 1. Initial Individual Square Selection (Direct Socket terminology)
@@ -51,14 +58,21 @@ export default {
         // 4. Test automated state-driven highlight (simulate server response)
         {
             type: 'state',
-            data: createMockSubmarineState({
-                row: 7,
-                col: 7,
+            data: {
+                version: 2,
+                phase: 'INTERRUPT',
+                board: Array(15).fill(Array(15).fill(0)),
                 activeInterrupt: {
                     type: 'SONAR_PING',
-                    payload: { response: 'Row 8' }
-                }
-            }),
+                    payload: { response: { row: 8, axis: 'row' } }
+                },
+                submarines: [
+                    createMockSubmarineState({
+                        row: 7,
+                        col: 7
+                    })
+                ]
+            },
             delay: 9000
         },
 

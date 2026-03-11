@@ -4,7 +4,7 @@ export default {
   name: 'Engineer - Damage Resolution',
   description: 'Weapon hits, Engineer sees damage resolution overlay',
   scene: 'engineer',
-  
+
   timeline: [
     {
       type: 'server_event',
@@ -26,7 +26,7 @@ export default {
       data: {
         version: Date.now() + 1,
         phase: 'INTERRUPT',
-        interruptType: 'WEAPON_RESOLUTION',
+        activeInterrupt: { type: 'WEAPON_RESOLUTION' },
         ready: [],
         submarines: [createMockSubmarineState({
           submarineState: SUBMARINE_STATES.SUBMERGED,
@@ -41,7 +41,7 @@ export default {
       data: {
         version: Date.now() + 2,
         phase: 'INTERRUPT',
-        interruptType: 'WEAPON_RESOLUTION',
+        activeInterrupt: { type: 'WEAPON_RESOLUTION' },
         ready: ['player_co'],
         submarines: [createMockSubmarineState({
           submarineState: SUBMARINE_STATES.SUBMERGED,

@@ -1,16 +1,21 @@
 import { BaseController } from '../../control/baseController';
-import { interruptManager } from './InterruptManager.js';
 
 /**
- * Controller-facing API for requesting interrupts.
- * Translates UI/Server intent into InterruptManager requests.
+ * InterruptController
+ * Server-driven interrupt API.
+ * 
+ * This controller ONLY emits socket events to express client intent.
+ * It does NOT call interruptManager directly.
+ * 
+ * Interrupt state changes flow exclusively through:
+ *   Server → state.activeInterrupt → SceneManager._setupStateSync() → interruptManager
  */
 export class InterruptController extends BaseController {
     constructor() {
         super();
         this.handlers = {
             ...this.handlers,
-            'READY_INTERRUPT': () => this.handleReady()
+            'READY_INTERRUPT': () => this._emitReady()
         };
     }
 
@@ -19,83 +24,43 @@ export class InterruptController extends BaseController {
         console.log('[InterruptController] Socket bound.');
     }
 
-    handleReady() {
+    // ─────────── Client → Server Intent ───────────
+
+    /**
+     * Signals the server that the Captain wants to pause the game.
+     * Server validates and broadcasts state with activeInterrupt if approved.
+     */
+    requestPause() {
         if (this.socket) {
-            this.socket.readyInterrupt();
+            this.socket.emit('request_pause');
         }
     }
 
     /**
-     * Requests a pause interrupt.
-     */
-    requestPause() {
-        interruptManager.requestInterrupt('PAUSE');
-    }
-
-    /**
-     * Resolves a pause interrupt.
-     */
-    resolvePause() {
-        interruptManager.resolveInterrupt('PAUSE');
-    }
-
-    /**
-     * Requests weapon resolution interrupt.
-     * @param {object} payload - weapon data, target, etc.
-     */
-    requestWeaponResolution(payload) {
-        interruptManager.requestInterrupt('WEAPON_RESOLUTION', payload);
-    }
-
-    /**
-     * Resolves weapon resolution.
-     */
-    resolveWeapon() {
-        interruptManager.resolveInterrupt('WEAPON_RESOLUTION');
-    }
-
-    /**
-     * Requests sonar ping interrupt.
-     */
-    requestSonarPing(payload) {
-        interruptManager.requestInterrupt('SONAR_PING', payload);
-    }
-
-    /**
-     * Requests scenario action interrupt.
-     */
-    requestScenarioAction(payload) {
-        interruptManager.requestInterrupt('SCENARIO_ACTION', payload);
-    }
-
-    /**
-     * Requests start positions interrupt.
-     */
-    requestStartPositions(payload) {
-        interruptManager.requestInterrupt('START_POSITIONS', payload);
-    }
-
-    /**
-     * Requests player disconnect interrupt.
-     */
-    requestPlayerDisconnect(payload) {
-        interruptManager.requestInterrupt('PLAYER_DISCONNECT', payload);
-    }
-
-    /**
-     * Signals that the local player is ready to resume from the interrupt.
+     * Signals the server that the local player is ready to resume.
+     * Server collects ready signals and resolves the interrupt when all are in.
      */
     readyInterrupt() {
         this.handleEvent('READY_INTERRUPT');
     }
 
     /**
-     * Resolves an interrupt.
+     * Submits the Captain's sonar response to the server.
+     * @param {object} data - { sector, row } or similar response payload.
      */
-    resolve(type) {
-        interruptManager.resolveInterrupt(type);
+    submitSonarResponse(data) {
+        if (this.socket) {
+            this.socket.emit('submit_sonar_response', data);
+        }
+    }
+
+    // ─────────── Internal ───────────
+
+    _emitReady() {
+        if (this.socket) {
+            this.socket.emit('ready_interrupt');
+        }
     }
 }
 
 export const interruptController = new InterruptController();
-

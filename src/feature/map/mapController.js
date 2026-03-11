@@ -1,12 +1,15 @@
 import { BaseController } from '../../control/baseController';
 import { MapConstants, MapStates, MapIntents } from './mapConstants';
-import { Colors, SystemColors, Alphas } from '../../core/uiStyle.js';
+import { Colors, SystemColors } from '../../core/uiStyle.js';
 import { MapUtils } from './mapUtils.js';
+import { mapManager } from './mapManager.js';
+import { submarine } from '../submarine/submarine.js';
 
 /**
  * MapController
- * Handles server synchronization and filtered rendering for map features.
- * Acts as the primary API endpoint for the map feature.
+ * Scene-level view-broker for Map features. 
+ * Consumes data from the global mapManager and submarine singletons.
+ * Handles UI intent (NAVIGATE, TORPEDO) and filters views based on local role context.
  */
 export class MapController extends BaseController {
     constructor() {
@@ -31,7 +34,6 @@ export class MapController extends BaseController {
             'CLEAR': () => this.clearOverlays()
         };
 
-        // Redundant with BaseController but kept for explicit mapping
         this.handlers = {
             ...this.handlers,
             'SET_INTENT': (d) => this.execute('SET_INTENT', d),
@@ -42,12 +44,46 @@ export class MapController extends BaseController {
             'TOGGLE_ROW_LABELS': () => this.execute('TOGGLE_LABELS'),
             'CLEAR_OVERLAYS': () => this.execute('CLEAR')
         };
+
+        this._initMapSubscriptions();
+    }
+
+    _initMapSubscriptions() {
+        // --- 1. Terrain loaded ---
+        mapManager.on('map:terrainLoaded', (board) => {
+            // Handled passively by views fetching terrain, or explicit trigger here if needed
+        });
+
+        // --- 2. Identity / Role Updated (Filters) ---
+        mapManager.on('map:identityUpdated', ({ sub, role }) => {
+            this.ownSubId = sub._id;
+            this.role = role;
+            this.refreshVisuals();
+        });
+
+        // --- 3. Positional Updates ---
+        mapManager.on('map:ownshipMoved', (event) => {
+            this.refreshVisuals();
+        });
+
+        // --- 4. Context/Interrupts Updated ---
+        mapManager.on('map:contextUpdated', () => {
+            this.handleContextualVisuals();
+            this.refreshVisuals();
+        });
+
+        // --- 5. Enemy Sonar Pings ---
+        submarine.on('submarine:pinged', (data) => {
+            // Wait, Submarine features tracks this now globally
+            // map:enemyPinged is how mapManager exposes it.
+        });
+        mapManager.on('map:enemyPinged', (data) => {
+            this.handleSonarPing(data);
+        });
     }
 
     /**
      * Primary endpoint for external API calls to the map feature.
-     * @param {string} cmd - Command name
-     * @param {any} payload - Optional data
      */
     execute(cmd, payload = {}) {
         const action = this.commands[cmd];
@@ -60,7 +96,6 @@ export class MapController extends BaseController {
 
     logDirectorAction(msg) {
         console.log(`[MapController] ${msg}`);
-        // Log to Director Panel's event log
         window.dispatchEvent(new CustomEvent('director:ui_trigger', {
             detail: { action: 'LOG', message: msg }
         }));
@@ -89,7 +124,6 @@ export class MapController extends BaseController {
     requestNavigate(d = {}) {
         if (this.view?.mapView) {
             const mv = this.view.mapView;
-            // Update behavior context with stealth if provided
             mv.intentBehavior.updateContext({ stealth: !!d.stealth });
             mv.setIntent(MapIntents.NAVIGATE);
         }
@@ -114,74 +148,28 @@ export class MapController extends BaseController {
         }
     }
 
-    // ─────────── Section: Server Logic (State Sync) ───────────
+    // ─────────── Rendering Logic (View Updating) ───────────
 
-    onGameStateUpdate(state) {
-        if (!state || !state.submarines || !this.socket) return;
-        const filteredData = this.parseFilteredState(state);
-        if (!filteredData) return;
-
-        // Sync behavior context
-        if (this.view?.mapView) {
-            this.view.mapView.intentBehavior.updateContext({
-                ownship: filteredData.ownSub,
-                isDroneQuery: state.activeInterrupt?.type === 'DRONE'
-            });
-        }
-
-        this.updateMapVisuals(filteredData, state);
-        this.handleContextualVisuals(state);
-    }
-
-    parseFilteredState(state) {
-        const playerId = this.socket.playerId;
-        if (!playerId) {
-            console.warn('[MapController] No playerId on socket. Cannot parse state.');
-            return null;
-        }
-
-        const ownSub = state.submarines.find(sub =>
-            sub.co === playerId || sub.xo === playerId || sub.sonar === playerId || sub.eng === playerId
-        );
-
-        if (!ownSub) {
-            console.warn(`[MapController] Player ${playerId} not found in any submarine.`);
-            return null;
-        }
-
-        this.ownSubId = ownSub.id;
-
-        const roleMap = { co: 'co', xo: 'xo', sonar: 'sonar', eng: 'eng' };
-        for (const [key, val] of Object.entries(roleMap)) {
-            if (ownSub[key] === playerId) {
-                this.role = val;
-                break; // Prioritize first found role (Capt, XO, etc)
-            }
-        }
-
-        console.log(`[MapController] Parsed identity: Sub=${this.ownSubId}, Role=${this.role}, ID=${playerId}`);
-
-        return {
-            ownSub,
-            role: this.role,
-            context: {
-                phase: state.phase,
-                activeInterrupt: state.activeInterrupt,
-                subState: ownSub.submarineState
-            }
-        };
-    }
-
-    updateMapVisuals(filteredData, fullState) {
-        const { ownSub, role, context } = filteredData;
+    refreshVisuals() {
         const mv = this.view?.mapView;
         if (!mv) return;
 
-        const { row, col } = ownSub;
-        console.log(`[MapController] updateMapVisuals: (${row}, ${col}), Role: ${role}`);
+        const ownshipData = mapManager.getOwnshipData();
+        const role = mapManager.getLocalRole();
+        const ctx = mapManager.getRoleContext();
 
-        const isStartPositions = context.phase === 'INTERRUPT' && context.activeInterrupt?.type === 'START_POSITIONS';
-        const hasChosen = context.activeInterrupt?.data?.submarineIdsWithStartPositionChosen?.includes(ownSub.id);
+        if (!ownshipData || !role) return;
+
+        const { row, col } = ownshipData.position;
+        const isStartPositions = ctx.phase === 'INTERRUPT' && ctx.interrupt?.type === 'START_POSITIONS';
+        // Note: activeInterrupt logic regarding 'hasChosen' needs sub data. We use a simple fallback for now.
+        const hasChosen = ctx.interrupt?.data?.submarineIdsWithStartPositionChosen?.includes(this.ownSubId);
+
+        // Update intent behavior context
+        mv.intentBehavior.updateContext({
+            ownship: ownshipData.raw._data, // Keep legacy compatibility for mapUtils expectations for now
+            isDroneQuery: ctx.interrupt?.type === 'DRONE'
+        });
 
         if (row !== undefined && col !== undefined) {
             if (!this._lastPos || this._lastPos.row !== row || this._lastPos.col !== col) {
@@ -193,20 +181,20 @@ export class MapController extends BaseController {
                 // 1. Update ownship position
                 mv.setOwnShipPosition(row, col, false, false);
 
-                // 2. Auto-center logic (Captain only, animated transition)
+                // 2. Auto-center logic (Captain only)
                 if (role === 'co') {
                     mv.centerOn(row, col, !isInitial);
                 }
             }
 
-            // Apply contextual tinting
+            // Apply contextual tinting based on start position phase
             if (isStartPositions) {
                 if (hasChosen) {
-                    mv.setOwnshipTint(SystemColors.detection); // Green for chosen
-                    mv.setOwnShipPosition(row, col, false, true); // Ensure visible
+                    mv.setOwnshipTint(SystemColors.detection);
+                    mv.setOwnShipPosition(row, col, false, true);
                 } else {
                     mv.setOwnshipTint(Colors.text);
-                    mv.setOwnShipPosition(row, col, false, false); // Hide if not chosen (placeholder 0,0)
+                    mv.setOwnShipPosition(row, col, false, false);
                 }
             } else {
                 mv.setOwnshipTint(Colors.text);
@@ -214,30 +202,24 @@ export class MapController extends BaseController {
             }
         }
 
-        mv.setOpponentVisible(context.phase === 'GAME_OVER');
+        // Contextual Filters defined by Role
+        mv.setOpponentVisible(ctx.phase === 'GAME_OVER');
         mv.setPastTrackVisible(role === 'co');
         mv.setMinesVisible(role === 'co' || role === 'sonar');
         mv.setTerrainVisible(role !== 'xo');
     }
 
-    handleContextualVisuals(state) {
+    handleContextualVisuals() {
         const mv = this.view?.mapView;
         if (!mv) return;
 
-        const interrupt = state.activeInterrupt;
-        const currentInterruptType = interrupt?.type;
+        const ctx = mapManager.getRoleContext();
+        const currentInterruptType = ctx.interrupt?.type;
 
-        if (currentInterruptType === 'SONAR_PING') {
-            const response = interrupt.payload?.response;
-            if (response) {
-                this.parseAndHighlightPing(response);
-                if (this._sonarFadeTimeout) {
-                    clearTimeout(this._sonarFadeTimeout);
-                    this._sonarFadeTimeout = null;
-                }
-            }
-        }
-        else if (this._prevInterruptType === 'SONAR_PING') {
+        // Note: Ping highlighting is generally Sonar's job using getEnemyPingData, but legacy intercept logic
+        // placed it here. We'll leave the fade logic intact, triggered by map:enemyPinged explicitly.
+
+        if (this._prevInterruptType === 'SONAR_PING' && currentInterruptType !== 'SONAR_PING') {
             const delay = MapConstants.SONAR_PERSISTENCE_MS || 8000;
             this._sonarFadeTimeout = setTimeout(() => {
                 mv.overlays.clearAllOverlays();
@@ -252,6 +234,12 @@ export class MapController extends BaseController {
         if (this.view?.mapView) {
             const axis = data.axis || 'row';
             this.view.mapView.overlays.highlightGridRange(data.row, data.col, axis, 0xFFFF00, 0.5);
+
+            // Note: If we need to clear previous fade timeout
+            if (this._sonarFadeTimeout) {
+                clearTimeout(this._sonarFadeTimeout);
+                this._sonarFadeTimeout = null;
+            }
         }
     }
 
@@ -259,15 +247,15 @@ export class MapController extends BaseController {
         super.onViewBound(view);
         if (this.view?.mapView) {
             const mv = this.view.mapView;
-            // Behavior-driven event delegation
             mv.onSelectionConfirmed = (data) => this.handleSelectionConfirmed(data);
             mv.onMapClicked = (data) => this.handleMapClick(data);
         }
-        if (this.lastState) this.onGameStateUpdate(this.lastState);
+
+        // Initial visual sync in case mapManager already has data
+        this.refreshVisuals();
     }
 
     handleSelectionConfirmed(data) {
-        // Relay to parent controller if needed, or handle locally
         this.emit('selectionConfirmed', data);
     }
 
@@ -277,15 +265,17 @@ export class MapController extends BaseController {
         if (mv.currentState === MapStates.ANIMATING) return;
 
         const intent = mv.currentIntent;
-        const ownship = this.lastState?.submarines?.find(s => s.id === this.ownSubId);
-        const squareData = MapUtils.getSquareData(data, ownship, this.lastState?.board);
+        const ownshipData = mapManager.getOwnshipData();
+        if (!ownshipData) return;
+        const terrain = mapManager.getTerrain();
 
-        // Visual handling delegated to behavior
+        const squareData = MapUtils.getSquareData(data, ownshipData.raw._data, terrain);
+
         mv.intentBehavior.handleInteraction(data);
 
-        // Logical handling remains in controller
+        // Logical checking
         if (intent === MapIntents.NAVIGATE) {
-            const dir = MapUtils.getDirection(ownship, data);
+            const dir = MapUtils.getDirection(ownshipData.position, data);
             if (dir) {
                 this.handleSelectionConfirmed({ direction: dir, ...squareData });
             }
@@ -300,3 +290,4 @@ export class MapController extends BaseController {
         this.emit('squareSelected', squareData);
     }
 }
+

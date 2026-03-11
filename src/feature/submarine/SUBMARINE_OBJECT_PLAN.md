@@ -24,13 +24,19 @@ SubmarineState
 │   ├── past_track (Array<{row, col}>)      <-- RESET on Surfacing
 │   ├── position_history (Array<{row, col}>) <-- PERSISTENT full log
 │   ├── mines (Array<{row, col}>)
+│   ├── ping_data (Object|null)             <-- Last Sonar Ping response from this sub
 │   ├── engineLayout (Object)
-│   └── actionGauges (Object: {sonar, torpedo, etc.})
+│   ├── actionGauges (Object: {sonar, torpedo, etc.})
+│   └── profileAsset (string)                 <-- 'sub_profileA', 'sub_profileB'
 └── context (State Metadata)
     └── submarineStateData
         ├── MOVED (Object: {directionMoved, engineerCrossedOutSystem, xoChargedGauge})
         └── SURFACING (Object: {roleTaskCompletion[]})
 ```
+
+> [!NOTE]
+> **Asset Naming Convention**: Submarine profile images must follow the pattern `public/assets/ui/sub_profile[ID].svg`. The `SubmarineState` class uses the ID to derive the asset key (e.g., ID 'A' -> 'sub_profileA').
+
 
 ## 2. Class Specification
 
@@ -58,6 +64,7 @@ SubmarineState
 - `getHealth()`: Returns `{ current, max, percent, isCritical }`.
 - `getTrack()`: Returns the current `past_track` array.
 - `getHistory()`: Returns the full `position_history` array.
+- `getLastPingData()`: Returns the structured `ping_data` object if available.
 - `getStatusMessage()`: Returns human-readable status (e.g., "Awaiting Engineer Confirmation").
 
 ## 3. Communication Pattern

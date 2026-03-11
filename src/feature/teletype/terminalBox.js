@@ -1,5 +1,5 @@
 import { LayoutContainer } from "@pixi/layout/components";
-import { Container } from "pixi.js";
+import { Container, Graphics } from "pixi.js";
 import { MessageRow } from "./MessageRow.js";
 
 export const ROW_HEIGHT = 30;       // matches TeletypeStyle.lineHeight
@@ -38,11 +38,18 @@ export default class TerminalBox extends LayoutContainer {
             width: width,
             height: height,
             overflow: 'hidden',
+            backgroundColor: 0x000000,
+            backgroundAlpha: 0.1, // Just enough to see the bounds if needed
+            ...(options.layout || {})
         };
 
         // Inner wrapper — position is managed manually for smooth scrolling
+        // We use a standard Container to bypass the layout engine
         this.rowWrapper = new Container();
+        this.rowWrapper.x = PADDING;
         this.rowWrapper.y = this.terminalHeight - PADDING;
+
+        // Add directly to this container
         this.addChild(this.rowWrapper);
     }
 

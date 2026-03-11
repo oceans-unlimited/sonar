@@ -50,15 +50,24 @@ Develop comprehensive test scenarios for critical game states to ensure Engineer
 
 ---
 
+## Phase 5: Feature Integration — Interrupt & Submarine [IN PROGRESS]
+
+The Interrupt and Submarine features have been implemented as persistent singletons.
+See [interrupt/README.md](../src/feature/interrupt/README.md) and [submarine/README.md](../src/feature/submarine/README.md).
+
+Current work:
+- [ ] **Interrupt Overlay**: Refactor to Feature-Owned Renderer + Role Hint architecture.
+  - Add `interruptPanelRenderer.js` (stateless, role-aware panel builders).
+  - Add `InterruptOverlay` to engineer and XO scenes.
+- [ ] **Submarine Singleton Consumption**: Audit role-based scenes to use the `SubmarineController` facade instead of raw server state.
+- [ ] **Director Scenarios**: Fix engineer interrupt scenarios (format + registration), create interrupt scenarios for Captain and XO roles.
+
+---
+
 ## Future Steps
-1.  **System Implementation**:
-    *   Create `InterruptManager` feature for handling pauses and resolution sequences.
-    *   Develop `DamageSystem` feature to track hull health and visual impacts.
-2.  **Director Expansion**:
-    *   Enable commented-out scenarios (Surfacing, Interrupts) once features are ready.
-    *   Create scenarios for Captain and XO roles.
+1.  **DamageSystem Feature**: Track hull health and visual impacts.
+2.  **Director Expansion**: Create multi-scene scenarios and assertion-based verification.
 3.  **Core Improvements**:
-    *   Prove extensibility with non-button components (card/icon/panel).
     *   Implement `animators.js` for complex time-based effects (Glow, Pulse).
     *   Integrate persistence for switch states across scene loads.
 

@@ -40,6 +40,19 @@ To support the "Feature-First" architecture, the `BaseController` must provide t
 - `xoController.js`: Manages the First Officer's station (Gauges & Charging).
 - `colorTestController.js`: Diagnostic tool for logic and visual testing.
 
+## Best Practices & Gotchas
+
+### 1. Identity Race Conditions
+Persistent features (like the `Submarine` feature) often resolve the player's identity (Sub A vs Sub B) immediately upon application startup. Transient scene controllers may mount long after this event has fired.
+- **Rule**: Controllers should check for an *already resolved* identity in `onViewBound` in addition to subscribing to the resolution event in `onFeaturesBound`.
+
+### 2. Map-Based Registries
+The `BaseController` uses ES6 `Map` objects for `this.buttons`, `this.visuals`, and `this.features`.
+- **Rule**: Always use `.get(id)` and `.set(id, val)` instead of plain object access to ensure compatibility with standardized cleanup and lookup logic.
+
+### 3. Feature Cleanup
+To prevent memory leaks, always use `this.subscribeToFeature(key, event, handler)`. Never call `feature.on()` directly inside a controller, as it will persist after the scene is destroyed and lead to "Ghost" logic execution.
+
 ## Dependencies
 - **[realtime_engine.md](../../.design/realtime_engine.md)**: Defines the global data hierarchy.
 - **[SUBMARINE_OBJECT_PLAN.md](../feature/submarine/SUBMARINE_OBJECT_PLAN.md)**: Defines the primary data source for controllers.

@@ -6,7 +6,7 @@ The Map feature is a high-performance, role-aware 2D grid system built with Pixi
 
 1.  **Spatial Data Tracking**: Maintains the authoritative "World Map," including terrain, mine locations, path history, and temporary detections (Sonar pings).
 2.  **Logical Integration**: Consumes positional data directly from the `SubmarineState` objects rather than raw network traffic.
-3.  **Contextual Filtering**: Dynamically filters the World Map based on the client's assigned role (e.g., Captains see path history; Sonar Operators see enemy detections).
+3.  **Contextual Filtering**: Dynamically filters the World Map based on the client's assigned role (e.g., Captains see ownship path history and ownship mines; Sonar Operators see ownship position).
 4.  **Data Bubbling**: Acts as a coordinate-to-data translator. Grid interactions (click/hover) emit a rich `SquareData` payload for scene-level decision making.
 
 ## Architecture: The Spatial Model Chain
@@ -37,7 +37,6 @@ The Map Feature automatically filters the "World Map" based on the active role c
 | **Terrain** | Visible | Visible | Hidden (Layout-only) |
 | **Path History** | Visible | Hidden | Hidden |
 | **Own Mines** | Visible | Visible | Hidden |
-| **Enemy Detections** | Hidden | Visible | Hidden |
 
 ## Implementation Details
 

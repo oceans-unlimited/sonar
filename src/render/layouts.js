@@ -28,6 +28,24 @@ export const panelPatterns = {
         padding: 17,
         gap: 17
     },
+    fixed: {
+        width: 680,
+        height: 460,
+        flexDirection: 'column',
+        padding: 17,
+        gap: 17
+    },
+    engine: {
+        width: 'auto',
+        minWidth: 500,
+        maxWidth: '75%',
+        height: 'auto',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 17,
+        gap: 17
+    }
 }
 
 export const cardPatterns = {
@@ -48,11 +66,24 @@ export const cardPatterns = {
     }
 }
 
+export const tagPatterns = {
+    circuit: {
+        position: 'absolute',
+        right: 3,
+        bottom: 3
+    },
+    reactor: {
+        position: 'absolute',
+        right: 4,
+        bottom: 0
+    }
+}
+
 export const buttonPatterns = {
     basic: {
-        width: 'auto',
-        height: '100%',
-        minHeight: 70,
+        // width: 'auto',
+        // height: '100%',
+        // minHeight: 70,
     },
     frame: {
         width: 'auto',
@@ -68,10 +99,8 @@ export const buttonPatterns = {
         aspectRatio: 1
     },
     reactor: {
-        width: 'auto',
+        width: 50,
         height: '100%',
-        minHeight: 70,
-        aspectRatio: 1
     },
     text: {
         width: 'auto',

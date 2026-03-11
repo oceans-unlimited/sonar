@@ -60,7 +60,7 @@ export class TeletypeController extends BaseController {
         }
 
         // appendLine now auto-types immediately
-        const terminal = this.visuals['terminal'];
+        const terminal = this.visuals.get('terminal');
         if (terminal && typeof terminal.appendLine === 'function') {
             terminal.appendLine(text, styleOverrides);
         }

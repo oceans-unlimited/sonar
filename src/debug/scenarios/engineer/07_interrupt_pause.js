@@ -4,7 +4,7 @@ export default {
   name: 'Engineer - Pause Interrupt',
   description: 'Captain pauses game, Engineer sees non-interactive overlay',
   scene: 'engineer',
-  
+
   timeline: [
     {
       type: 'server_event',
@@ -26,7 +26,7 @@ export default {
       data: {
         version: Date.now() + 1,
         phase: 'INTERRUPT',
-        interruptType: 'PAUSE',
+        activeInterrupt: { type: 'PAUSE' },
         ready: [],
         submarines: [createMockSubmarineState({
           submarineState: SUBMARINE_STATES.SUBMERGED,

@@ -7,7 +7,6 @@ import { createMapPanel } from '../feature/map/mapRenderer';
 import { MapController } from '../feature/map/mapController';
 import { Colors } from '../core/uiStyle';
 import { socketManager } from '../core/socketManager';
-import { interruptController } from '../feature/interrupt/InterruptController';
 import { InterruptOverlay } from '../feature/interrupt/InterruptOverlay';
 
 /**
@@ -51,13 +50,10 @@ export async function createConnScene(controller, ticker) {
     mapController.bindSocket(socketManager);
     mapController.bindView(sceneContent);
 
-    // Initialize Interrupt Feature
-    interruptController.bindSocket(socketManager);
-
     // Inject the feature into the primary controller
-    controller.bindFeatures({ 
-        map: mapController,
-        interrupt: interruptController 
+    // Note: Interrupt and Submarine features are automatically injected by SceneManager.
+    controller.bindFeatures({
+        map: mapController
     });
 
     // --- 3. Control Panel (Right Sidebar) ---
@@ -133,7 +129,7 @@ export async function createConnScene(controller, ticker) {
     sceneContent.addChild(controlsSidebar);
 
     // --- 6. Interrupt Overlay ---
-    const interruptOverlay = new InterruptOverlay(ticker);
+    const interruptOverlay = new InterruptOverlay(ticker, 'co');
     sceneContent.addChild(interruptOverlay);
 
     return sceneContent;

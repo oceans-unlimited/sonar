@@ -27,6 +27,7 @@ export default class ButtonBlock extends Container {
         const chosenPattern = buttonBlockPatterns[layoutPattern];
 
         this.layout = {
+            width: '100%',
             flexDirection: 'column',
             gap: 8
         };

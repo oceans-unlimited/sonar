@@ -50,6 +50,11 @@ class Submarine extends EventEmitter {
                 sub = new SubmarineState(subData.id);
                 this._submarines.set(subData.id, sub);
                 console.log(`[SubmarineFeature] Registered Sub ${subData.id}`);
+
+                // 1.1. Event Bubbling: Relay state events to the feature level
+                sub.on('sub:moved', (data) => this.emit('submarine:moved', { id: subData.id, ...data }));
+                sub.on('sub:damaged', (data) => this.emit('submarine:damaged', { id: subData.id, ...data }));
+                sub.on('sub:stateChanged', (data) => this.emit('submarine:stateChanged', { id: subData.id, ...data }));
             }
 
             // 2. Update the state object

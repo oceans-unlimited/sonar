@@ -15,9 +15,9 @@ export class BaseController extends EventEmitter {
         this._featureListeners = new Map(); // Track { feature, event, handler } for cleanup
 
         // Registries
-        this.buttons = {};   // Registry for button objects
-        this.visuals = {};   // Registry for visual objects
-        this.features = {};  // Registry for feature objects
+        this.buttons = new Map();   // Registry for button objects
+        this.visuals = new Map();   // Registry for visual objects
+        this.features = new Map();  // Registry for feature objects
 
         this.onSceneChange = null; // Callback for scene transitions
         this.lastState = null; // Cache for the most recent game state
@@ -39,7 +39,9 @@ export class BaseController extends EventEmitter {
 
             'SWAP_BACK': () => {
                 if (this.onSceneChange) this.onSceneChange('primary');
-            }
+            },
+
+            'DIRECTOR_CMD': (d) => this.handleDirectorCmd(d)
         };
 
         console.log(`BaseController initialized.`);
@@ -64,7 +66,7 @@ export class BaseController extends EventEmitter {
      * @param {object} controlAPI - The return value of wireButton()
      */
     registerButton(id, api) {
-        this.buttons[id] = api;
+        this.buttons.set(id, api);
     }
 
     /**
@@ -74,7 +76,7 @@ export class BaseController extends EventEmitter {
      * @param {object} displayObject - Any PixiJS display object
      */
     registerVisual(id, displayObject) {
-        this.visuals[id] = displayObject;
+        this.visuals.set(id, displayObject);
     }
 
     // ─────────── Event Routing ───────────
@@ -113,7 +115,7 @@ export class BaseController extends EventEmitter {
 
         this.socket.on('stateUpdate', stateHandler);
         this.socket.on('disconnect', disconnectHandler);
-        
+
         this._socketListeners.set('stateUpdate', stateHandler);
         this._socketListeners.set('disconnect', disconnectHandler);
 
@@ -134,8 +136,10 @@ export class BaseController extends EventEmitter {
     }
 
     bindFeatures(featureRegistry) {
-        // Freeze to prevent mutation of the shared registry
-        this.features = Object.freeze({ ...featureRegistry });
+        // We convert the incoming object to our Map
+        Object.entries(featureRegistry).forEach(([key, val]) => {
+            this.features.set(key, val);
+        });
 
         // Hook for subclasses
         this.onFeaturesBound();
@@ -149,7 +153,7 @@ export class BaseController extends EventEmitter {
      * @param {Function} handler - Callback function
      */
     subscribeToFeature(featureKey, event, handler) {
-        const feature = this.features[featureKey];
+        const feature = this.features.get(featureKey);
         if (!feature) {
             console.warn(`[BaseController] Feature not found for subscription: ${featureKey}`);
             return;
@@ -182,8 +186,8 @@ export class BaseController extends EventEmitter {
 
     handleSystemIsolation({ id, isActive }) {
         console.log(`[BaseController] System Isolation: ${isActive ? 'LOCKDOWN' : 'NORMAL'}`);
-        Object.keys(this.buttons).forEach(btnId => {
-            if (btnId !== id) this.buttons[btnId].setEnabled(!isActive);
+        this.buttons.forEach((api, btnId) => {
+            if (btnId !== id) api.setEnabled(!isActive);
         });
     }
 
@@ -217,7 +221,7 @@ export class BaseController extends EventEmitter {
 
     destroy() {
         console.log(`[${this.constructor.name}] Destroying...`);
-        
+
         // 1. Cleanup Socket Listeners
         if (this.socket) {
             this._socketListeners.forEach((handler, event) => {
@@ -230,7 +234,7 @@ export class BaseController extends EventEmitter {
 
         // 2. Cleanup Feature Listeners
         this._featureListeners.forEach((listeners, featureKey) => {
-            const feature = this.features[featureKey];
+            const feature = this.features.get(featureKey);
             if (feature && typeof feature.off === 'function') {
                 listeners.forEach(({ event, handler }) => {
                     feature.off(event, handler);
@@ -240,8 +244,8 @@ export class BaseController extends EventEmitter {
         this._featureListeners.clear();
 
         // 3. Clear Registries
-        this.features = {};
-        this.buttons = {};
-        this.visuals = {};
+        this.features.clear();
+        this.buttons.clear();
+        this.visuals.clear();
     }
 }

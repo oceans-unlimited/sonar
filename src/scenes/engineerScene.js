@@ -1,8 +1,14 @@
-import { SYSTEM_ASSETS } from '../core/uiStyle.js';
+import { SYSTEM_ASSETS, Fonts, Colors } from '../core/uiStyle.js';
 import { Container, Text } from 'pixi.js';
+import { LayoutContainer } from '@pixi/layout/components';
 import { createButtonFromDef } from '../render/button.js';
-import ButtonBlock from '../render/buttonBlock.js';
+import Panel from '../render/panel';
+import { SystemStatusCard } from '../render/card';
 import { wireButton } from '../behavior/buttonBehavior.js';
+import { InterruptOverlay } from '../feature/interrupt/InterruptOverlay';
+import { teletypeManager } from '../feature/teletype/TeletypeManager.js';
+import { damageManager } from '../feature/damage/DamageManager.js';
+import EngineerButtonBlock from '../render/engineerButtonBlock.js';
 
 /**
  * Builds the Engineer scene graph.
@@ -19,23 +25,37 @@ export function createEngineScene(controller, ticker) {
 
     // The layout is now hard-coded as this is a specific scene
     sceneContent.layout = {
-        flexDirection: 'column',
-        // gap: 20,
-        justifyContent: 'space-between',
+        width: '100%',
+        height: 'auto',
+        flexDirection: 'row',
+        padding: 15,
+        justifyContent: 'center',
         // alignItems: 'baseline',
     };
+
+    // --- Main Engine Panel ---
+    const enginePanel = new Panel('engine', {
+        label: 'enginePanel',
+        borderWidth: 0
+    });
+    enginePanel.setAlpha(0);
+    sceneContent.addChild(enginePanel);
 
     const loadingText = new Text({
         text: 'Awaiting initial state from server...',
         style: {
-            fontFamily: 'Courier New',
+            fontFamily: Fonts.primary,
             fontSize: 18,
             fill: '#00ff00',
             align: 'center',
+        },
+        layout: {
+            width: 'intrinsic',
+            height: 'intrinsic',
         }
     });
     loadingText.anchor.set(0.5);
-    sceneContent.addChild(loadingText);
+    enginePanel.addChild(loadingText);
 
     /**
      * Populates the scene with content once the initial layout is received.
@@ -43,7 +63,7 @@ export function createEngineScene(controller, ticker) {
      */
     sceneContent.populate = (initialLayout) => {
         // Remove loading message
-        sceneContent.removeChild(loadingText);
+        enginePanel.removeChild(loadingText);
         loadingText.destroy();
 
         // Create a lookup for circuit colors: "direction:slotId" -> colorHex
@@ -122,18 +142,65 @@ export function createEngineScene(controller, ticker) {
             // Frames Second
             Object.entries(dirData.frameSlots).forEach(([id, name]) => processButton(id, name, true));
 
-            // Create Single Block
+            // Create Specialized Engineer Block
             const blockConfig = {
-                heading: dirKey, // N, E, S, W
-                label: `block_${dirKey.toLowerCase()}`, // Selector ID
-                color: '#FFFFFF', // Default white for text/headers
-                header: true,
-                line: true
+                label: dirKey, // Cardinal Direction (N, E, S, W)
+                color: Colors.active // Initial default color
             };
-            const block = new ButtonBlock(blockButtons, 'horizontal', blockConfig);
-            sceneContent.addChild(block);
+            const block = new EngineerButtonBlock(blockButtons, 'horizontal', blockConfig);
+
+            // Register frame for color control via cardinal ID
+            controller.registerVisual(dirKey, block);
+
+            enginePanel.addChild(block);
         });
     };
+
+    // --- Control Panel ---
+    const controlPanel = new Panel('control', {
+        label: 'controlPanel',
+        borderColor: Colors.primary,
+        borderWidth: 2,
+        padding: 15
+    });
+    controlPanel.setAlpha(0);
+
+    // Initialize Damage Feature for this scene
+    damageManager.mount(ticker, sceneContent, controlPanel, {
+        layout: {
+            marginBottom: 10,
+            width: '100%'
+        }
+    });
+    sceneContent.on('destroyed', () => damageManager.unmount());
+
+    // Listen for damage events to push to terminal
+    damageManager.controller.on('damageTaken', ({ current }) => {
+        controller.pushAtmosphereMessage(`>>> ALERT: HULL COMPROMISED - ${current} HULL REMAINING <<<`);
+    });
+
+    // Add System Status Cards
+    const systems = ['vessel', 'weapons', 'detection'];
+    systems.forEach(sys => {
+        const card = new SystemStatusCard(sys);
+        controlPanel.addChildAt(card, 0);
+        controller.registerVisual(`status_${sys}`, card);
+    });
+
+    // --- Teletype Terminal ---
+    teletypeManager.mount(controlPanel, {
+        width: '100%',
+        height: 120,
+        maxRows: 10,
+        layout: { marginTop: 10 }
+    });
+    sceneContent.on('destroyed', () => teletypeManager.unmount());
+
+    sceneContent.addChild(controlPanel);
+
+    // --- Interrupt Overlay ---
+    const interruptOverlay = new InterruptOverlay(ticker, 'eng');
+    sceneContent.addChild(interruptOverlay);
 
     return sceneContent;
 }

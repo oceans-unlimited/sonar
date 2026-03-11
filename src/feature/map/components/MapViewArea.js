@@ -192,13 +192,6 @@ export class MapViewArea {
         const targetY = row * tileSize + tileSize / 2;
 
         if (!this.ownShip) {
-            // Debug Marker
-            this.debugMarker = new Graphics();
-            this.debugMarker.circle(0, 0, 5);
-            this.debugMarker.fill({ color: 0xff0000 });
-            this.mapContent.addChild(this.debugMarker);
-            this.layers.tracks.attach(this.debugMarker);
-
             this.ownShip = Sprite.from('ownship');
             this.ownShip.anchor.set(0.5);
             this.ownShip.scale.set(0.35);

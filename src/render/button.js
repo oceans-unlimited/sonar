@@ -2,7 +2,7 @@ import { Container, Sprite, Graphics, Text, Assets, NineSliceSprite } from 'pixi
 import { LayoutContainer } from '@pixi/layout/components';
 import { scaleToHeight, scaleByMinDimension } from './util/scaling'
 import { Fonts, Colors } from '../core/uiStyle';
-import { buttonPatterns } from './layouts';
+import { buttonPatterns, tagPatterns } from './layouts';
 
 const PROFILES = {
     basic: { overlay: false },
@@ -66,7 +66,8 @@ export default class Button extends Container {
             width: this.profile === 'text' ? 'auto' : '100%',
             height: this.profile === 'text' ? 'auto' : '100%',
             justifyContent: 'center',
-            alignItems: 'center'
+            alignItems: 'center',
+            padding: this.profile === 'circuit' ? 10 : 0,
         };
         this.addChild(this.content);
 
@@ -107,9 +108,9 @@ export default class Button extends Container {
         background.tint = color;
 
         background.layout = {
-            isLeaf: true,
-            height: '100%',
-            objectFit: 'contain'
+            width: 100,
+            height: 80,
+            objectFit: 'contain',
         };
 
         this.content.addChild(background);
@@ -173,11 +174,13 @@ export default class Button extends Container {
         tag.tint = color;
         tag.visible = false;
 
-        tag.layout = {
+        const tagLayout = tagPatterns[this.profile] || {
             position: 'absolute',
-            right: 5,
-            bottom: 5
+            right: 3,
+            bottom: 3
         };
+
+        tag.layout = tagLayout;
 
         this.addChild(tag);
         return this;

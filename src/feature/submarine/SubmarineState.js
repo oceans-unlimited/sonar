@@ -10,7 +10,7 @@ export class SubmarineState extends EventEmitter {
     constructor(id) {
         super();
         this._id = id;
-        
+
         // Baseline Schema
         this._data = {
             id: id,
@@ -26,6 +26,7 @@ export class SubmarineState extends EventEmitter {
             past_track: [],
             position_history: [],
             mines: [],
+            ping_data: null,
             engineLayout: {},
             actionGauges: {
                 sonar: 0,
@@ -88,9 +89,9 @@ export class SubmarineState extends EventEmitter {
 
         if (this._data.submarineState !== oldSubState) {
             this._previousState = oldSubState;
-            this.emit('sub:stateChanged', { 
-                state: this._data.submarineState, 
-                previous: oldSubState 
+            this.emit('sub:stateChanged', {
+                state: this._data.submarineState,
+                previous: oldSubState
             });
         }
 
@@ -145,7 +146,7 @@ export class SubmarineState extends EventEmitter {
 
     isStealthActive() {
         // Example logic: if the last move was 'silence' or if in a specific state
-        return this._data.actionGauges.silence === 0 && this._previousState === 'SUBMERGED'; 
+        return this._data.actionGauges.silence === 0 && this._previousState === 'SUBMERGED';
     }
 
     // ─────────── Formatted Getters (The "Facts") ───────────
@@ -154,6 +155,7 @@ export class SubmarineState extends EventEmitter {
         return {
             row: this._data.row,
             col: this._data.col,
+            sector: this._data.sector,
             alphaNumeric: MapUtils.toAlphaNumeric(this._data.row, this._data.col)
         };
     }
@@ -167,12 +169,26 @@ export class SubmarineState extends EventEmitter {
         };
     }
 
+    /**
+     * Returns the asset key for the submarine's profile image.
+     * Convention: public/assets/ui/sub_profile[ID].svg -> asset key 'sub_profile[ID]'
+     * @returns {string} 
+     */
+    getProfileAsset() {
+        // IDs are typically 'A', 'B', etc.
+        return `sub_profile${this._id}`;
+    }
+
     getTrack() {
         return [...this._data.past_track];
     }
 
     getHistory() {
         return [...this._data.position_history];
+    }
+
+    getLastPingData() {
+        return this._data.ping_data ? { ...this._data.ping_data } : null;
     }
 
     getState() {

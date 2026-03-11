@@ -25,6 +25,7 @@ import { ConnController } from '../control/connController';
 import { SubmarineController } from '../feature/submarine/SubmarineController';
 import { DamageController } from '../feature/damage/DamageController';
 import { SurfaceController } from '../feature/surface/SurfaceController';
+import { SubmarineTestController } from '../control/SubmarineTestController';
 
 // Services
 import { socketManager } from './socketManager.js';
@@ -34,6 +35,7 @@ import { gamePhaseManager, GamePhases } from './clock/gamePhaseManager.js';
 // Features (Persistent Services)
 import { submarine } from '../feature/submarine/submarine';
 import { interruptController } from '../feature/interrupt/InterruptController';
+import { mapManager } from '../feature/map/mapManager';
 
 // ─────────── Maps ───────────
 
@@ -45,7 +47,7 @@ export const CONTROLLER_MAP = {
     'mapTest': ConnController,
     'teletype': TeletypeController,
     'conn': ConnController,
-    'submarineTest': SubmarineController,
+    'submarineTest': SubmarineTestController,
     'damageTest': DamageController,
     'surfaceTest': SurfaceController,
 };
@@ -162,6 +164,7 @@ export class SceneManager {
         // 3.1. Inject Dependencies (Socket & Features)
         // We inject the socketManager singleton as the "socket" provider
         // This decouples the controller from the specific import
+        this.currentController.app = this.app;
         this.currentController.bindSocket(socketManager);
 
         if (this.features) {

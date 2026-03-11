@@ -1,20 +1,25 @@
 import { LayoutContainer } from '@pixi/layout/components';
-import { Container, Graphics, Text, Sprite, TextStyle } from 'pixi.js';
 import { interruptManager } from './InterruptManager.js';
 import { interruptController } from './InterruptController.js';
-import { Colors, Fonts } from '../../core/uiStyle.js';
-import { createButtonFromDef } from '../../render/button.js';
 import { wireButton } from '../../behavior/buttonBehavior.js';
+import { buildPanel } from './interruptPanelRenderer.js';
 
 /**
  * InterruptOverlay
- * Full-screen layout container that displays active interrupt information.
+ * Thin lifecycle shell. Subscribes to interruptManager events,
+ * delegates rendering to interruptPanelRenderer, and wires behaviors
+ * on the returned content.
  */
 export class InterruptOverlay extends LayoutContainer {
-    constructor(ticker) {
+    /**
+     * @param {import('pixi.js').Ticker} ticker - The application ticker.
+     * @param {string} role - Local player role key (co, xo, eng, sonar).
+     */
+    constructor(ticker, role = null) {
         super();
         this.label = 'interruptOverlay';
         this.ticker = ticker;
+        this._role = role;
 
         this.layout = {
             width: '100%',
@@ -28,112 +33,102 @@ export class InterruptOverlay extends LayoutContainer {
         };
 
         this.visible = false;
-        this.eventMode = 'none'; // Pass events through to map by default
+        this.eventMode = 'none';
 
         this._setupListeners();
     }
 
     _setupListeners() {
-        interruptManager.subscribe((event, interrupt) => {
-            if (event === 'interruptStarted') {
-                this.show(interrupt);
-            } else if (event === 'interruptEnded' || event === 'interruptResolved') {
-                this.hide();
-            } else if (event === 'interruptUpdated') {
-                this.refresh(interrupt);
-            }
-        });
+        this._handleInterrupt = this._handleInterrupt.bind(this);
+        interruptManager.subscribe(this._handleInterrupt);
     }
 
+    _handleInterrupt(event, interrupt) {
+        if (event === 'interruptStarted') {
+            this.show(interrupt);
+        } else if (event === 'interruptEnded' || event === 'interruptResolved') {
+            this.hide();
+        } else if (event === 'interruptUpdated') {
+            this.refresh(interrupt);
+        }
+    }
+
+    destroy(options) {
+        interruptManager.unsubscribe(this._handleInterrupt);
+        super.destroy(options);
+    }
+
+    /**
+     * Properly destroys our added panel to free WASM memory in @pixi/layout.
+     * We track the panel explicitly to avoid destroying LayoutContainer's internal children (background, mask, etc).
+     */
+    _clearAndDestroy() {
+        if (this._currentPanel) {
+            this.removeChild(this._currentPanel);
+            if (this._currentPanel.destroy) {
+                this._currentPanel.destroy({ children: true });
+            }
+            this._currentPanel = null;
+        }
+    }
+
+    /**
+     * Renders the interrupt panel via the stateless renderer,
+     * then wires any interactive elements.
+     * @param {object} interrupt - { type, payload }
+     */
     show(interrupt) {
         if (!interrupt || !interrupt.type) return;
-        this.removeChildren();
+        this._clearAndDestroy();
         this.visible = true;
 
-        const panel = new LayoutContainer({
-            label: 'interruptPanel',
-            layout: {
-                width: 400,
-                height: 'auto',
-                padding: 20,
-                backgroundColor: 0x051505,
-                backgroundAlpha: 0.9,
-                borderColor: Colors.text,
-                borderWidth: 2,
-                borderRadius: 8,
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 15
-            }
-        });
-        panel.eventMode = 'static'; // Panel itself should block events
+        // 1. Delegate rendering to stateless panel renderer
+        const panel = buildPanel(interrupt, this._role);
 
-        // Title
-        const titleText = new Text({
-            text: interrupt.type.replace(/_/g, ' '),
-            style: new TextStyle({
-                fontFamily: Fonts.header,
-                fontSize: 24,
-                fill: Colors.text,
-                fontWeight: 'bold',
-                letterSpacing: 2
-            }),
-            layout: { marginBottom: 5 }
-        });
-        panel.addChild(titleText);
+        // 2. Wire behaviors on labelled interactive children
+        this._wireInteractiveNodes(panel);
 
-        // Message
-        const message = interrupt.payload?.message || "SYSTEM INTERRUPT ACTIVE";
-        const msgText = new Text({
-            text: message,
-            style: new TextStyle({
-                fontFamily: Fonts.primary,
-                fontSize: 16,
-                fill: 0xcccccc,
-                align: 'center'
-            })
-        });
-        panel.addChild(msgText);
-
-        // Ready Button (if applicable)
-        if (this._shouldShowReadyButton(interrupt.type)) {
-            const btn = createButtonFromDef({
-                asset: 'pause', // Standard pause/play icon for resume
-                color: Colors.text,
-                profile: 'frame',
-                textLabel: 'READY'
-            });
-
-            const wired = wireButton(btn, {
-                id: 'interrupt_ready_btn',
-                event: 'READY_INTERRUPT',
-                preset: 'TOGGLE'
-            }, (event, data) => {
-                // Route through the feature controller
-                interruptController.readyInterrupt();
-            }, this.ticker);
-
-            panel.addChild(btn);
-        }
-
+        this._currentPanel = panel;
         this.addChild(panel);
     }
 
     hide() {
         this.visible = false;
         this.eventMode = 'none';
-        this.removeChildren();
+        this._clearAndDestroy();
     }
 
     refresh(interrupt) {
-        // Refresh content if visible
         if (this.visible && interrupt) {
             this.show(interrupt);
         }
     }
 
-    _shouldShowReadyButton(type) {
-        const manualTypes = ['PAUSE', 'START_POSITIONS', 'PLAYER_DISCONNECT', 'SONAR_PING'];
-        return manualTypes.includes(type);
+    /**
+     * Finds labelled interactive nodes in the rendered panel and wires behaviors.
+     * @param {LayoutContainer} panel 
+     */
+    _wireInteractiveNodes(panel) {
+        // READY button (standard resume signal)
+        const readyBtn = panel.getChildByLabel('interrupt_ready_btn', true);
+        if (readyBtn) {
+            wireButton(readyBtn, {
+                id: 'interrupt_ready_btn',
+                onPress: () => interruptController.readyInterrupt()
+            });
+        }
+
+        // Submit button (Captain sonar response — routes through same ready path for now)
+        const submitBtn = panel.getChildByLabel('interrupt_submit_btn', true);
+        if (submitBtn) {
+            wireButton(submitBtn, {
+                id: 'interrupt_submit_btn',
+                onPress: () => {
+                    // TODO: Collect sonar response data from form and call:
+                    // interruptController.submitSonarResponse(data);
+                    interruptController.readyInterrupt();
+                }
+            });
+        }
     }
 }

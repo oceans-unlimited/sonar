@@ -50,7 +50,7 @@ export class ConnController extends BaseController {
         if (!state || !this.socket) return;
 
         const playerId = this.socket.playerId;
-        const sub = state.submarines.find(s =>
+        const sub = state.submarines?.find(s =>
             s.co === playerId || s.xo === playerId || s.sonar === playerId || s.eng === playerId
         );
 
@@ -114,7 +114,7 @@ export class ConnController extends BaseController {
         return directions.filter(dir => {
             const r = sub.row + rowDeltas[dir];
             const c = sub.col + colDeltas[dir];
-            
+
             // Re-using logic from MapUtils.filterInvalidMoves but for 8 directions
             if (r < 0 || r >= 15 || c < 0 || c >= 15) return true;
             if (state.board[r][c] !== 0) return true;
@@ -167,7 +167,7 @@ export class ConnController extends BaseController {
         // We can check if the map has a current intent if we really need to, 
         // but ideally the event payload handles it. 
         // For now, let's assume the legacy structure for minimal breakage but without PIXI.on
-        
+
         // If the map feature provides the intent in the data, use it.
         // Otherwise, the map feature should have handled the intent-specific logic.
         const intent = data.intent || (this.map?.view?.mapView?.currentIntent);

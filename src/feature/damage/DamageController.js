@@ -1,53 +1,100 @@
-import { BaseController } from '../../control/baseController';
+import { BaseController } from '../../control/baseController.js';
+import { submarine } from '../submarine/submarine.js';
+import { shake, flashDamage } from '../../render/effects/damageEffects.js';
+import { getStage } from '../../render/util/sceneGraph.js';
 
 /**
  * DamageController
- * Feature controller for handling hull damage events and visual feedback.
+ * Coordinates damage logic and triggers visual feedback.
+ * Listens to the submarine feature for damage events.
  */
 export class DamageController extends BaseController {
     constructor() {
         super();
-        this.handlers = {
-            ...this.handlers,
-            /**
-             * TRIGGER: UI button for testing damage visuals.
-             */
-            'SIMULATE_DAMAGE': (d) => this.handleSimulateDamage(d)
-        };
+        this.ticker = null;
+        this.ui = null;
+        this._onDamage = this.handleDamageEvent.bind(this);
     }
 
-    onSocketBound() {
-        // Listen for specific damage events from the server
-        const rawSocket = this.socket?.socket;
-        if (rawSocket) {
-            rawSocket.on('ENGINE_DAMAGE', (data) => this.handleDamage(data));
-        }
-    }
+    /**
+     * Initializes the controller.
+     * @param {import('pixi.js').Ticker} ticker - The application ticker.
+     * @param {import('pixi.js').Container} view - The scene view container to shake.
+     * @param {object} ui - The DamageUI visual component.
+     */
+    init(ticker, view, ui) {
+        this.ticker = ticker;
+        this.bindView(view);
+        this.ui = ui;
 
-    onSocketUnbound() {
-        const rawSocket = this.socket?.socket;
-        if (rawSocket) {
-            rawSocket.off('ENGINE_DAMAGE');
+        // Listen for damage events from the submarine feature
+        submarine.on('submarine:damaged', this._onDamage);
+
+        // Initial state sync if ownship is already resolved
+        const ownship = submarine.getOwnship();
+        if (ownship && this.ui) {
+            this.ui.update(ownship.getHealth(), ownship.getProfileAsset());
         }
     }
 
     /**
-     * Primary handler for incoming damage data.
-     * @param {object} data - { severity, row, col, subId }
+     * Clean up listeners.
      */
-    handleDamage(data) {
-        console.warn(`[DamageController] Hull integrity compromised:`, data);
-        // HOOK: Trigger screen shake, red flash, or other global effects here.
-        if (this.view && this.view.playDamageEffect) {
-            this.view.playDamageEffect(data.severity);
-        }
+    cleanup() {
+        submarine.off('submarine:damaged', this._onDamage);
+        this.destroy(); // BaseController cleanup
     }
 
     /**
-     * Testing hook to trigger effects without server broadcast.
+     * Handles damage events from the submarine feature.
+     * @param {object} data - Damage data containing id and health stats.
      */
-    handleSimulateDamage(data) {
-        const severity = data?.severity || 'moderate';
-        this.handleDamage({ severity });
+    handleDamageEvent(data) {
+        const ownship = submarine.getOwnship();
+        if (!ownship || data.id !== ownship._id) return;
+
+        console.log(`[DamageController] Damage detected for ownship: ${data.current}`);
+        this.triggerDamageEffect(data, ownship.getProfileAsset());
+    }
+
+    /**
+     * Triggers visual feedback for damage.
+     * @param {object} healthData - Health data object.
+     * @param {string} profileAsset - Submarine profile asset.
+     */
+    triggerDamageEffect(healthData, profileAsset) {
+        if (!this.ticker || !this.view) return;
+
+        // 1. Shake the scene view
+        shake(this.view, this.ticker, 10, 800);
+
+        // 2. Flash red tint on stage
+        // Use our sceneGraph helper to find the root Stage without requiring the app object
+        const stage = getStage(this.view);
+        if (stage) {
+            flashDamage(
+                stage,
+                this.ticker,
+                window.innerWidth,
+                window.innerHeight,
+                800
+            );
+        }
+
+        // 3. Update the UI visual
+        if (this.ui) {
+            this.ui.update(healthData, profileAsset);
+        }
+
+        // 4. Emit event for other controllers
+        this.emit('damageTaken', { ...healthData, profileAsset });
+    }
+
+    // Alias for legacy support
+    triggerDamageFeedback(healthData) {
+        this.triggerDamageEffect(healthData);
     }
 }
+
+// Export singleton
+export const damageController = new DamageController();

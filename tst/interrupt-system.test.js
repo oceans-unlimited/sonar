@@ -51,7 +51,7 @@ describe('Interrupt System', {skip: true}, () => {
         const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
 
         interruptController.requestPause();
-        interruptController.requestTorpedoResolution({ target: 'sub1' });
+        interruptController.requestWeaponResolution({ target: 'sub1' });
 
         expect(interruptManager.getActiveInterrupt().type).toBe(InterruptTypes.PAUSE);
         expect(consoleSpy).toHaveBeenCalled();
@@ -63,10 +63,10 @@ describe('Interrupt System', {skip: true}, () => {
         // We need to use fake timers for this
         vi.useFakeTimers();
 
-        interruptController.requestTorpedoResolution();
+        interruptController.requestWeaponResolution();
         expect(simulationClock.isRunning()).toBe(false);
 
-        // Advance time by the torpedo resolution duration (5000ms in InterruptTimers)
+        // Advance time by the weapon resolution duration (5000ms in InterruptTimers)
         vi.advanceTimersByTime(5000);
 
         expect(simulationClock.isRunning()).toBe(true);

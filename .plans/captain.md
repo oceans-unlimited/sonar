@@ -1,6 +1,6 @@
 # Captain Role: Game Logic & Communication Events
 
-This document outlines the server-side logic and Socket.io communications specifically pertaining to the **Captain** (Conn) role, as derived from the `src/` and `public/js/` directories.
+This document outlines the server-side logic and Socket.io communications specifically pertaining to the **Captain** (Conn) role, as derived from the `src/` directory.
 
 ## 1. Core State & Data Structures
 
@@ -18,7 +18,7 @@ The Captain's state is primarily managed within the `submarine` object and the g
 ## 2. In-Game Events (Live Phase)
 
 ### `move`
-*   **Trigger**: Captain clicks a direction button (N, S, E, W) on the Helm (sent via `connController.js` and `MapSystem`).
+*   **Trigger**: Captain clicks a direction button (N, S, E, W) on the Helm (sent via `src/control/connController.js` and `src/feature/map/MapController.js`).
 *   **Payload**: `direction` (e.g., 'N')
 *   **Logic (Server-side)**:
     1.  **Validation**: Submarine must be in `SUBMERGED` state.

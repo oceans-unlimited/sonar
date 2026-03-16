@@ -16,7 +16,7 @@ export class Director extends EventEmitter {
         this.timerId = null;
         this.lastState = null;
         this.isRunning = false;
-        this.playerId = 'player_eng';
+        this.playerId = null;
     }
 
     /**
@@ -41,11 +41,14 @@ export class Director extends EventEmitter {
             return;
         }
 
-        // Canonical server behavior: assign player ID upon connection/load
-        this.emit('player_id', this.playerId);
-
+        // Initialize state
         this.reset(); // Clear any previous running state/timers
         this.currentScenario = scenario;
+
+        // Canonical server behavior: assign player ID upon connection/load
+        this.playerId = scenario.playerId || null;
+        this.emit('player_id', this.playerId);
+
         this.timeline = scenario.timeline || [];
         this.timelineIndex = 0;
         this.isPaused = false;
@@ -191,7 +194,7 @@ export class Director extends EventEmitter {
             const eventName = step.event;
             console.log(`[Director] Emitting server_event: ${eventName}`, data);
 
-            if (eventName === 'state') {
+            if (eventName === 'state' || eventName === 'stateUpdate') {
                 this.lastState = data;
             }
 
@@ -210,7 +213,7 @@ export class Director extends EventEmitter {
 
             console.log(`[Director] Emitting: ${eventName}`, data);
 
-            if (eventName === 'state') {
+            if (eventName === 'state' || eventName === 'stateUpdate') {
                 this.lastState = data;
             }
 

@@ -1,18 +1,23 @@
+import { EventEmitter } from 'pixi.js';
+
 /**
  * Base Controller
  * Provides shared patterns for event routing, button/visual registration,
  * socket binding, and lifecycle hooks.
  */
 
-export class BaseController {
+export class BaseController extends EventEmitter {
     constructor() {
+        super();
         this.view = null; // Reference to the scene's view container
         this.socket = null; // Injected via bindSocket
+        this._socketListeners = new Map(); // Track listeners for cleanup
+        this._featureListeners = new Map(); // Track { feature, event, handler } for cleanup
 
         // Registries
-        this.buttons = {};   // Registry for button objects
-        this.visuals = {};   // Registry for visual objects
-        this.features = {};  // Registry for feature objects
+        this.buttons = new Map();   // Registry for button objects
+        this.visuals = new Map();   // Registry for visual objects
+        this.features = new Map();  // Registry for feature objects
 
         this.onSceneChange = null; // Callback for scene transitions
         this.lastState = null; // Cache for the most recent game state
@@ -34,7 +39,9 @@ export class BaseController {
 
             'SWAP_BACK': () => {
                 if (this.onSceneChange) this.onSceneChange('primary');
-            }
+            },
+
+            'DIRECTOR_CMD': (d) => this.handleDirectorCmd(d)
         };
 
         console.log(`BaseController initialized.`);
@@ -59,7 +66,7 @@ export class BaseController {
      * @param {object} controlAPI - The return value of wireButton()
      */
     registerButton(id, api) {
-        this.buttons[id] = api;
+        this.buttons.set(id, api);
     }
 
     /**
@@ -69,7 +76,7 @@ export class BaseController {
      * @param {object} displayObject - Any PixiJS display object
      */
     registerVisual(id, displayObject) {
-        this.visuals[id] = displayObject;
+        this.visuals.set(id, displayObject);
     }
 
     // ─────────── Event Routing ───────────
@@ -103,8 +110,21 @@ export class BaseController {
     bindSocket(socket) {
         this.socket = socket;
 
-        this.socket.on('stateUpdate', (state) => this.handleGameState(state));
-        this.socket.on('disconnect', () => this.handleDisconnect());
+        const stateHandler = (state) => this.handleGameState(state);
+        const disconnectHandler = () => this.handleDisconnect();
+
+        this.socket.on('stateUpdate', stateHandler);
+        this.socket.on('disconnect', disconnectHandler);
+
+        this._socketListeners.set('stateUpdate', stateHandler);
+        this._socketListeners.set('disconnect', disconnectHandler);
+
+        // Agnostic event binding: Map all registered handlers to socket events
+        Object.keys(this.handlers).forEach(event => {
+            const handler = (data) => this.handleEvent(event, data);
+            this.socket.on(event, handler);
+            this._socketListeners.set(event, handler);
+        });
 
         // Initialize with cached state if available
         if (this.socket.lastState) {
@@ -116,11 +136,42 @@ export class BaseController {
     }
 
     bindFeatures(featureRegistry) {
-        // Freeze to prevent mutation of the shared registry
-        this.features = Object.freeze({ ...featureRegistry });
+        // We convert the incoming object to our Map
+        Object.entries(featureRegistry).forEach(([key, val]) => {
+            this.features.set(key, val);
+        });
 
         // Hook for subclasses
         this.onFeaturesBound();
+    }
+
+    /**
+     * Safe subscription to a persistent feature. 
+     * Automatically tracked for cleanup when the controller is destroyed.
+     * @param {string} featureKey - Key in this.features
+     * @param {string} event - Event name
+     * @param {Function} handler - Callback function
+     */
+    subscribeToFeature(featureKey, event, handler) {
+        const feature = this.features.get(featureKey);
+        if (!feature) {
+            console.warn(`[BaseController] Feature not found for subscription: ${featureKey}`);
+            return;
+        }
+
+        if (typeof feature.on !== 'function') {
+            console.warn(`[BaseController] Feature ${featureKey} does not support .on() events.`);
+            return;
+        }
+
+        // Apply listener
+        feature.on(event, handler);
+
+        // Store for cleanup
+        if (!this._featureListeners.has(featureKey)) {
+            this._featureListeners.set(featureKey, []);
+        }
+        this._featureListeners.get(featureKey).push({ event, handler });
     }
 
     // ─────────── Lifecycle Hooks (override in subclass) ───────────
@@ -135,8 +186,8 @@ export class BaseController {
 
     handleSystemIsolation({ id, isActive }) {
         console.log(`[BaseController] System Isolation: ${isActive ? 'LOCKDOWN' : 'NORMAL'}`);
-        Object.keys(this.buttons).forEach(btnId => {
-            if (btnId !== id) this.buttons[btnId].setEnabled(!isActive);
+        this.buttons.forEach((api, btnId) => {
+            if (btnId !== id) api.setEnabled(!isActive);
         });
     }
 
@@ -169,15 +220,32 @@ export class BaseController {
     // ─────────── Cleanup ───────────
 
     destroy() {
-        console.log(`BaseController destroyed.`);
+        console.log(`[${this.constructor.name}] Destroying...`);
+
+        // 1. Cleanup Socket Listeners
         if (this.socket) {
-            this.socket.off('stateUpdate', this.handleGameState);
-            this.socket.off('disconnect', this.handleDisconnect);
+            this._socketListeners.forEach((handler, event) => {
+                this.socket.off(event, handler);
+            });
+            this._socketListeners.clear();
             this.onSocketUnbound();
             this.socket = null;
         }
-        this.features = {};
-        this.buttons = {};
-        this.visuals = {};
+
+        // 2. Cleanup Feature Listeners
+        this._featureListeners.forEach((listeners, featureKey) => {
+            const feature = this.features.get(featureKey);
+            if (feature && typeof feature.off === 'function') {
+                listeners.forEach(({ event, handler }) => {
+                    feature.off(event, handler);
+                });
+            }
+        });
+        this._featureListeners.clear();
+
+        // 3. Clear Registries
+        this.features.clear();
+        this.buttons.clear();
+        this.visuals.clear();
     }
 }

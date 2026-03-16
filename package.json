@@ -8,7 +8,9 @@
     "dev": "nodemon src/server.js",
     "test": "vitest",
     "test:file": "vitest",
-    "vite:dev": "vite"
+    "vite:dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "keywords": [],
   "author": "",

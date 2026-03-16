@@ -8,7 +8,7 @@ export class InterruptTimers {
     constructor() {
         this._durations = {
             [InterruptTypes.SONAR_PING]: 2000,
-            [InterruptTypes.TORPEDO_RESOLUTION]: 5000,
+            [InterruptTypes.WEAPON_RESOLUTION]: 5000,
             [InterruptTypes.SCENARIO_ACTION]: 3000
         };
         this._activeTimer = null;

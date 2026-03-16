@@ -59,7 +59,7 @@ This cycle tracks the flow of information from the Captain's move to the Enginee
 ## 5. In-Game Events (Live Phase)
 
 ### `cross_off_system`
-*   **Trigger**: Engineer clicks a system slot on their panel (sent via `engineController.js`).
+*   **Trigger**: Engineer clicks a system slot on their panel (sent via `src/control/engineerController.js`).
 *   **Payload**: `{ direction, slotId }`
 *   **Logic (Server-side)**:
     1.  **Validation**: Submarine must be in `MOVED` state.

@@ -9,17 +9,23 @@ Each feature should have its own subdirectory:
 ```
 feature/
 ├── interrupt/
-│   ├── InterruptManager.js
-│   ├── InterruptController.js
-│   ├── InterruptTypes.js
-│   └── InterruptTimers.js
+│   ├── InterruptManager.js         // State: owns interrupt lifecycle + clock
+│   ├── InterruptController.js      // Controller: API for requesting interrupts
+│   ├── InterruptOverlay.js         // View shell: lifecycle, scrim, mounts content
+│   ├── interruptPanelRenderer.js   // Renderer: stateless [type,role] panel builders
+│   ├── InterruptTypes.js           // Constants
+│   └── README.md
 ├── map/
-│   ├── MapManager.js
-│   ├── MapController.js
-│   └── MapRenderer.js
+│   ├── mapController.js
+│   ├── MapViewArea.js
+│   ├── mapUtils.js
+│   └── README.md
 └── submarine/
-    ├── SubmarineState.js
-    └── SubmarineController.js
+    ├── submarine.js                // Feature singleton: manages state lifecycle
+    ├── SubmarineState.js           // View Model: per-sub data + queries
+    ├── SubmarineController.js      // Controller facade for scene controllers
+    ├── submarineTransitions.js     // Constants: legal state transitions
+    └── README.md
 ```
 
 ## Rules

@@ -85,12 +85,7 @@ export const CircuitColors = {
 // ──────────────────────── Teletype Styles ────────────────────────
 // Teletype Style
 export const TeletypeStyle = new TextStyle({
-    fill: new FillGradient({
-        colorStops: [
-            { offset: 0, color: Colors.text },
-            { offset: 1, color: Colors.dim }
-        ]
-    }),
+    fill: Colors.text,
     fontFamily: Fonts.primary,
     fontVariant: "small-caps",
     fontSize: 16,

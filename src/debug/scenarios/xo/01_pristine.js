@@ -5,16 +5,21 @@
  */
 
 import { simulationClock } from '../../../core/clock/simulationClock';
+import { PLAYER_ROLES } from '../shared/engineMockData.js';
 
 export default {
     name: "XO - Pristine",
     scene: 'xo',
+    playerId: PLAYER_ROLES.XO,
     initialState: {
         phase: 'LIVE',
         submarines: [
             {
                 id: 'player_sub',
-                crew: { xo: 'player_xo' }, // XO role assigned to player_xo
+                co: PLAYER_ROLES.CO,
+                xo: PLAYER_ROLES.XO,
+                eng: PLAYER_ROLES.ENG,
+                sonar: PLAYER_ROLES.SONAR,
                 submarineState: 'POST_MOVEMENT',
                 submarineStateData: {
                     POST_MOVEMENT: {
@@ -39,15 +44,11 @@ export default {
      */
     run: async (director) => {
         const log = (msg) => window.dispatchEvent(new CustomEvent('director:ui_trigger', { detail: { action: 'log', message: msg } }));
-        
+
         log('🚀 XO Pristine Test Started');
-        
+
         // Ensure clock is running so interaction isn't locked
         simulationClock.start();
-
-        // Server-side simulation: Assign player ID
-        // SocketManager listens for 'player_id' to know who we are
-        director.emit('player_id', 'player_xo');
 
         // Local state tracking (initially matching initialState)
         let gauges = {
@@ -60,11 +61,11 @@ export default {
         };
 
         const maxLevels = {
-            sonar: 4,
+            sonar: 3,
             drone: 3,
             mine: 3,
             torpedo: 3,
-            silence: 6,
+            silence: 5,
             scenario: 5
         };
 
@@ -73,14 +74,15 @@ export default {
             if (gauges[key] !== undefined && gauges[key] < maxLevels[key]) {
                 gauges[key]++;
                 log(`⚡ Charged ${key}: ${gauges[key]}/${maxLevels[key]}`);
-                
+
                 // Re-emit updated state to client
                 director.injectEvent('state', {
                     phase: 'LIVE',
                     submarines: [
                         {
                             id: 'player_sub',
-                            crew: { xo: 'player_xo' },
+                            co: PLAYER_ROLES.CO,
+                            xo: PLAYER_ROLES.XO,
                             submarineState: 'POST_MOVEMENT',
                             submarineStateData: {
                                 POST_MOVEMENT: {

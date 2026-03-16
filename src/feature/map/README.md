@@ -1,71 +1,61 @@
 # Map Feature
 
-The Map feature provides a high-performance, interactive 2D grid system built with PixiJS v8 and `@pixi/layout`. It supports panning, zooming, coordinate labeling, and layered rendering for submarine navigation.
+The Map feature is a high-performance, role-aware 2D grid system built with PixiJS v8. It serves as the single application-wide entity for tracking, filtering, and visualizing spatial data.
 
-## Current Functionality
+## Core Responsibilities
 
--   **Interactive Navigation**: Panning (drag/keyboard) and Zooming (wheel/pinch) via `MapBehaviors`.
--   **Layered Rendering**: Isolated layers for Background, Grid, Tracks (markers), Labels, and Overlays.
--   **Coordinate System**: 15x15 grid with alphanumeric labels (A-O, 1-15) that stay pinned to the axes during panning.
--   **Viewport Management**: Automatic clamping to prevent panning out of bounds and "Center On" functionality.
--   **Multi-mode Display**: Supports full map views and specialized "MiniMap" configurations.
--   **Intent System**: State-driven interaction (e.g., Waypoint placement, Torpedo targeting) via `MapStates` and `MapIntents`.
+1.  **Spatial Data Tracking**: Maintains the authoritative "World Map," including terrain, mine locations, path history, and temporary detections (Sonar pings).
+2.  **Logical Integration**: Consumes positional data directly from the `SubmarineState` objects rather than raw network traffic.
+3.  **Contextual Filtering**: Dynamically filters the World Map based on the client's assigned role (e.g., Captains see ownship path history and ownship mines; Sonar Operators see ownship position).
+4.  **Data Bubbling**: Acts as a coordinate-to-data translator. Grid interactions (click/hover) emit a rich `SquareData` payload for scene-level decision making.
 
-## Implementation Guide
+## Architecture: The Spatial Model Chain
 
-To add a map to a scene, use the `createMapPanel` helper. This handles the creation of the `MapViewArea`, masking, and layout integration.
+The map feature separates the "What is where" (Data) from the "What is shown" (View) through a three-tier hierarchy.
 
-```javascript
-import { createMapPanel } from '../feature/map/mapRenderer.js';
+### 1. Data Source: Submarine State
+The Map does not communicate with the Server. It listens to the `SubmarineState` object (Data Normalizer & View Model).
+- **Logical Events**: When the Submarine State emits `sub:moved`, the Map updates the ownship icon.
+- **Rules**: The Map queries the Submarine State for permissions like `canPlaceMine()` or `isStealthActive()`.
+- **See also**: [.design/realtime_engine.md](.design/realtime_engine.md) for the data flow specification.
 
-// Inside a Scene or Controller
-const mapWidth = 800;
-const mapHeight = 600;
+### 2. Coordination: MapFeature (The Entity)
+A persistent service that lives for the duration of the application.
+- **The Spatial Model**: Tracks all positional entities.
+- **Universal Memory**: Retains data that the server might not broadcast in every packet (e.g., the last 3 seconds of a Sonar ping visualization).
 
-const mapPanel = createMapPanel(
-    app.ticker, 
-    mapWidth, 
-    mapHeight, 
-    { x: 10, y: 10 } // Optional layout config
-);
+### 3. Rendering: MapViewArea & Overlays
+The visual components used to render the grid.
+- **Agnostic Visuals**: `MapOverlays` provide primitive drawing tools (ranges, highlights).
+- **Intent-Based Overlays**: `MapIntentBehavior` translates high-level game intents (NAVIGATE, TORPEDO) into specific visual ranges.
 
-// Access the underlying MapViewArea for logic
-const mapView = mapPanel.mapView;
+## Contextual Filtering Rules
+The Map Feature automatically filters the "World Map" based on the active role context provided by the controller:
 
-// Set ownship position
-mapView.setOwnShipPosition(7, 7, true); // (row, col, animate)
+| Element | Captain (CO) | Sonar | XO / Engineer |
+| :--- | :--- | :--- | :--- |
+| **Terrain** | Visible | Visible | Hidden (Layout-only) |
+| **Path History** | Visible | Hidden | Hidden |
+| **Own Mines** | Visible | Visible | Hidden |
 
-this.container.addChild(mapPanel);
+## Implementation Details
+
+- **`MapFeature`**: Persistent service managing the Spatial Model and Submarine State subscriptions.
+- **`MapController`**: Scene-level broker. Configures the filtering and interaction mode for a specific map instance.
+- **`MapViewArea`**: The structural orchestrator managing PIXI layers (background, grid, tracks, overlays).
+- **`MapUtils`**: Pure logic hub for coordinate conversion, distance math, and grid bounds.
+
+## Data Schema (`SquareData`)
+When a grid square is interacted with, the map bubbles up the following payload:
+
+```typescript
+interface SquareData {
+    coords: { row: number, col: number };
+    sector: number;           // 1-9
+    terrain: 'WATER' | 'LAND';
+    alphaNumeric: string;     // e.g., "F3"
+    isOwnMine: boolean;
+    isInPastTrack: boolean;   // Path history presence
+    range: number;            // Manhattan distance from ownship
+}
 ```
-
-### Components
-- **`MapViewArea`**: The primary coordinator. Manages the view-state and child components.
-- **`MapGrid`**: Handles the drawing of the grid and sector lines.
-- **`MapLabels`**: Handles the rendering and positioning of A-O/1-15 axis labels.
-- **`MapBehaviors`**: Attaches pointer and keyboard listeners for interaction.
-
-## TODO / Priority Milestones
-
-1.  **Ownship Socket Integration**
-    - **Trigger**: Listen for `stateUpdate` events from `socketManager`.
-    - **Logic**: Identify the local player's submarine. If the `row` or `col` differs from the current `ownship` position, call `mapView.setOwnShipPosition(row, col, true, isCentered)`.
-    - **Auto-Centering**: Implement an inactivity timer (e.g., 2 seconds). If the user hasn't panned manually, the map should auto-center on the ownship when it moves.
-
-2.  **Past Position Tracking (Breadcrumbs)**
-    - **Data Source**: Use the `past_track` (snake_case) array from the server's submarine object.
-    - **Rendering**:
-        - Use `Graphics` for drawing connecting lines between historical points on the `tracks` layer.
-        - Use a pool of `Sprite` objects (aliased as `map_dot`) for the circular breadcrumb nodes.
-        - **Scaling**: Line width should be ~10% of `tileSize`; nodes should be ~20% of `tileSize`.
-        - **Masking**: Implement a `maskCurrentPosition` flag. If true, do not render the node for the very last coordinate in the `past_track` array (to avoid overlap with the submarine sprite).
-    - **Performance**: Ensure track nodes are pooled and only updated when the `past_track` length or `tileSize` (zoom) changes.
-
-3.  **Terrain & Obstacle Rendering**
-    - **Data Source**: The server provides a 2D `board` array (0 for WATER, 1 for LAND).
-    - **Implementation**: Create a `MapTerrain` component that renders static `Graphics` or `TilingSprite` blocks on the `background` layer.
-    - **Optimization**: Since terrain is static, bake it into a single `RenderTexture` or use a single `Graphics` object that only re-renders on zoom.
-
-4.  **Smooth Zoom & Scale**
-    - **Logic**: Implement a `setZoom(scale)` method in `MapViewArea` that uses a Ticker to interpolate `config.tileSize`.
-    - **Stable Focus**: During zoom, calculate the offset change to keep the grid-local point at the center of the viewport stable (zoom-to-cursor/center).
-

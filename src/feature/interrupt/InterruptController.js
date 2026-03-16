@@ -1,74 +1,66 @@
-import { interruptManager } from './InterruptManager.js';
+import { BaseController } from '../../control/baseController';
 
 /**
- * Controller-facing API for requesting interrupts.
- * Translates UI/Server intent into InterruptManager requests.
+ * InterruptController
+ * Server-driven interrupt API.
+ * 
+ * This controller ONLY emits socket events to express client intent.
+ * It does NOT call interruptManager directly.
+ * 
+ * Interrupt state changes flow exclusively through:
+ *   Server → state.activeInterrupt → SceneManager._setupStateSync() → interruptManager
  */
-export class InterruptController {
+export class InterruptController extends BaseController {
+    constructor() {
+        super();
+        this.handlers = {
+            ...this.handlers,
+            'READY_INTERRUPT': () => this._emitReady()
+        };
+    }
+
+    onSocketBound() {
+        super.onSocketBound();
+        console.log('[InterruptController] Socket bound.');
+    }
+
+    // ─────────── Client → Server Intent ───────────
+
     /**
-     * Requests a pause interrupt.
+     * Signals the server that the Captain wants to pause the game.
+     * Server validates and broadcasts state with activeInterrupt if approved.
      */
     requestPause() {
-        interruptManager.requestInterrupt('PAUSE');
+        if (this.socket) {
+            this.socket.emit('request_pause');
+        }
     }
 
     /**
-     * Resolves a pause interrupt.
+     * Signals the server that the local player is ready to resume.
+     * Server collects ready signals and resolves the interrupt when all are in.
      */
-    resolvePause() {
-        interruptManager.resolveInterrupt('PAUSE');
+    readyInterrupt() {
+        this.handleEvent('READY_INTERRUPT');
     }
 
     /**
-     * Requests torpedo resolution interrupt.
-     * @param {object} payload - torpedo data, target, etc.
+     * Submits the Captain's sonar response to the server.
+     * @param {object} data - { sector, row } or similar response payload.
      */
-    requestTorpedoResolution(payload) {
-        interruptManager.requestInterrupt('TORPEDO_RESOLUTION', payload);
+    submitSonarResponse(data) {
+        if (this.socket) {
+            this.socket.emit('submit_sonar_response', data);
+        }
     }
 
-    /**
-     * Resolves torpedo resolution.
-     */
-    resolveTorpedo() {
-        interruptManager.resolveInterrupt('TORPEDO_RESOLUTION');
-    }
+    // ─────────── Internal ───────────
 
-    /**
-     * Requests sonar ping interrupt.
-     */
-    requestSonarPing(payload) {
-        interruptManager.requestInterrupt('SONAR_PING', payload);
-    }
-
-    /**
-     * Requests scenario action interrupt.
-     */
-    requestScenarioAction(payload) {
-        interruptManager.requestInterrupt('SCENARIO_ACTION', payload);
-    }
-
-    /**
-     * Requests start positions interrupt.
-     */
-    requestStartPositions(payload) {
-        interruptManager.requestInterrupt('START_POSITIONS', payload);
-    }
-
-    /**
-     * Requests player disconnect interrupt.
-     */
-    requestPlayerDisconnect(payload) {
-        interruptManager.requestInterrupt('PLAYER_DISCONNECT', payload);
-    }
-
-    /**
-     * Resolves an interrupt.
-     */
-    resolve(type) {
-        interruptManager.resolveInterrupt(type);
+    _emitReady() {
+        if (this.socket) {
+            this.socket.emit('ready_interrupt');
+        }
     }
 }
 
 export const interruptController = new InterruptController();
-

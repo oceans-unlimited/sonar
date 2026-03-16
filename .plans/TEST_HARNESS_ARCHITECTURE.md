@@ -81,10 +81,19 @@ Create `src/debug/Overlay.js`.
 *   A simple vanilla JS component that appends a `<div id="debug-panel">` to the body.
 *   Populate it with buttons generated from the list of available Scenarios.
 
-### Step 4: Feature Mocks
-Ensure the `Director` can also inject **Mock Features**.
-*   Instead of the real `InterruptManager`, inject a `MockInterruptManager` that logs calls instead of stopping the clock.
-*   This allows isolated unit-testing of controllers.
+### 4. Feature Integration (Real Features, Not Mocks)
+The `InterruptManager` and `Submarine` features are now **fully implemented** persistent singletons.
+*   The Director injects state updates via `socketManager`, which naturally flows through to the real features.
+*   `InterruptManager` responds to `state.activeInterrupt` coming from `SceneManager._setupStateSync()`.
+*   The `InterruptOverlay` renders role-aware panels via `interruptPanelRenderer.js`.
+*   See [interrupt/README.md](../src/feature/interrupt/README.md) and [submarine/README.md](../src/feature/submarine/README.md) for full specifications.
+
+### 5. Fact Injection (Persistent Features)
+To support testing logical loops without full server compliance, the Director supports **Fact Injection**.
+*   **The Goal**: Override the "Sources of Truth" (Submarine View Models, Map Spatial Model) with data states that might be difficult to reach via standard gameplay.
+*   **The Mechanism**: Scenarios emit `state` events via `director.injectEvent('state', {...})`. The `Submarine` feature ingests these through the standard `socketManager → stateUpdate` pipeline.
+*   **Interrupt Testing**: Scenarios include `activeInterrupt` in the state payload to trigger interrupt overlay rendering without a real server.
+
 
 ---
 

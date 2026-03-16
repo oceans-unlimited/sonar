@@ -4,8 +4,9 @@ import { SUBMARINE_STATES, MOCK_CROSSED_OUT_PATTERNS } from '../shared/engineMoc
 export default {
   name: 'Engineer - Pristine State',
   description: 'Full health, no damage, SUBMERGED state. This reflects the initial state broadcast when a game begins.',
+  playerId: 'player_eng',
   scene: 'engineer',
-  
+
   timeline: [
     buildStateUpdate({
       submarineState: SUBMARINE_STATES.SUBMERGED,

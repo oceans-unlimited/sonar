@@ -32,6 +32,20 @@ Activation is controlled via the `?mode=test` URL parameter. When detected in `m
 ### Phase 2: Debug Overlay UI [COMPLETED]
 ### Phase 3: Integration with Main Application [COMPLETED]
 ### Phase 4: Example Scenarios [COMPLETED]
+### Phase 5: Persistent Feature Integration [PLANNED]
+
+To support the "Data Normalizer" architecture, the Director must be able to bootstrap persistent features.
+
+1. **Initial Fact Set**: Scenarios may include a `facts` object (e.g. `facts: { submarines: [...] }`).
+2. **Bootstrapping**: When a scenario is loaded, the `Director` re-emits these facts via a standard `stateUpdate` to prime the `Submarine` feature.
+3. **Command Passthrough**: Persistent features listen for `DIRECTOR_CMD` to execute "Forbidden Transitions" or data overrides during manual testing.
+
+## Scenario Design Patterns
+
+### Whitelisted Communication (`DIRECTOR_CMD`)
+The `socketManager` acts as a security filter, blocking arbitrary event names from reaching the controllers.
+- **Requirement**: All custom scenario commands (e.g. `RUN_METHOD_TEST`, `LOG_TO_TERMINAL`) MUST be wrapped inside a `DIRECTOR_CMD` object in the scenario timeline.
+- **Controller Handling**: Controllers should implement a `handleDirectorCmd(data)` method to route the `type` or `action` fields from the command to their internal logic.
 
 #### [NEW] [Director.js](file:///home/seth/Documents/Coding/laboratory/src/debug/Director.js)
 
@@ -467,7 +481,7 @@ const isTestMode = window.location.search.includes('mode=test');
 
 ---
 
-#### [MODIFY] [sceneManager.js](file:///home/seth/Documents/Coding/laboratory/src/core/sceneManager.js)
+#### [MODIFY] [sceneManager.js](file:///home/seth/Documents/Coding/laboratory/src/src/core/sceneManager.js)
 
 **Changes:**
 1. Export a `SCENE_MAP` for use by the DebugOverlay and Director.

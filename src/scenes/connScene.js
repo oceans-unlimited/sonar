@@ -4,9 +4,10 @@ import ButtonBlock from '../render/buttonBlock';
 import { createButtonFromDef } from '../render/button';
 import { wireButton } from '../behavior/buttonBehavior';
 import { createMapPanel } from '../feature/map/mapRenderer';
-import { MapController } from '../control/mapController';
+import { MapController } from '../feature/map/mapController';
 import { Colors } from '../core/uiStyle';
 import { socketManager } from '../core/socketManager';
+import { InterruptOverlay } from '../feature/interrupt/InterruptOverlay';
 
 /**
  * ConnScene Factory
@@ -50,7 +51,10 @@ export async function createConnScene(controller, ticker) {
     mapController.bindView(sceneContent);
 
     // Inject the feature into the primary controller
-    controller.bindFeatures({ map: mapController });
+    // Note: Interrupt and Submarine features are automatically injected by SceneManager.
+    controller.bindFeatures({
+        map: mapController
+    });
 
     // --- 3. Control Panel (Right Sidebar) ---
     const controlsSidebar = new Panel('control', {
@@ -123,6 +127,10 @@ export async function createConnScene(controller, ticker) {
     controlsSidebar.addChild(weaponsBlock);
 
     sceneContent.addChild(controlsSidebar);
+
+    // --- 6. Interrupt Overlay ---
+    const interruptOverlay = new InterruptOverlay(ticker, 'co');
+    sceneContent.addChild(interruptOverlay);
 
     return sceneContent;
 }

@@ -118,10 +118,10 @@ export class MapController {
         this._stateUpdateHandler = (state) => this.handleStateUpdate(state);
         this._interruptHandler = (event, interrupt) => {
             if (event === 'interruptStarted') {
-                if (interrupt.type === InterruptTypes.TORPEDO_RESOLUTION) {
+                if (interrupt.type === InterruptTypes.WEAPON_RESOLUTION) {
                     this.handleDetonationInterrupt(interrupt.payload);
                 } else if (interrupt.payload?.enemySubId || interrupt.payload?.sectorId) {
-                    // Hook for drone/sonar/enemy feedback
+                    // Hook for drone/sonar/weapon feedback
                     this.handleEnemyDetection(interrupt.payload);
                 }
             }

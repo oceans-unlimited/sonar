@@ -1,3 +1,10 @@
+export const PLAYER_ROLES = {
+  CO: 'player_co',
+  XO: 'player_xo',
+  ENG: 'player_eng',
+  SONAR: 'player_sonar'
+};
+
 export const SUBMARINE_STATES = {
   SUBMERGED: 'SUBMERGED',
   MOVED: 'MOVED',
@@ -135,10 +142,10 @@ export function createMockSubmarineState(overrides = {}) {
   const defaultState = {
     id: 'A',
     name: 'Sub A',
-    co: 'player_co',
-    xo: 'player_xo',
-    eng: 'player_eng',
-    sonar: 'player_sonar',
+    co: PLAYER_ROLES.CO,
+    xo: PLAYER_ROLES.XO,
+    eng: PLAYER_ROLES.ENG,
+    sonar: PLAYER_ROLES.SONAR,
     engineLayout: createMockEngineLayout(),
     actionGauges: { mine: 0, torpedo: 0, drone: 0, sonar: 0, silence: 0 },
     row: 0,

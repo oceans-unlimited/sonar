@@ -10,6 +10,7 @@ import ButtonBlock from '../render/buttonBlock';
 import { createButtonFromDef } from '../render/button';
 import { SystemColors, Fonts, Alphas } from '../core/uiStyle';
 import { wireButton } from '../behavior/buttonBehavior.js';
+import { InterruptOverlay } from '../feature/interrupt/InterruptOverlay.js';
 
 /**
  * @param {Object} controller - The active SceneController instance.
@@ -171,6 +172,10 @@ export async function createXOScene(controller, ticker) {
 
         sceneContent.addChild(panel);
     });
+
+    // --- Interrupt Overlay ---
+    const interruptOverlay = new InterruptOverlay(ticker, 'xo');
+    sceneContent.addChild(interruptOverlay);
 
     return sceneContent;
 }

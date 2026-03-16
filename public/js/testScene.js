@@ -1,21 +1,93 @@
-// public/js/testScene.js
-import { Text } from 'pixi.js';
+/**
+ * Test Scene Factory
+ * Demonstration of the "Submarine View Model" and "Persistent Features" architecture.
+ * Displays live facts from the Submarine Feature rather than raw socket data.
+ */
 
-export function createTestScene(app) {
-  const titleText = new Text("Captain Sonar v2.0", {
-    fontFamily: "Arial",
-    fontSize: 64,
-    fill: "#00ff99",
-    stroke: { color: "#000000", width: 6 },
-    dropShadow: {
-      color: "#000000",
-      blur: 4,
-      angle: Math.PI / 6,
-      distance: 6
+import { Container, Text } from 'pixi.js';
+import Panel from '../../src/render/panel';
+import { Colors } from '../../src/core/uiStyle';
+
+export async function createTestScene(controller, ticker) {
+    const scene = new Container();
+    scene.label = 'testScene';
+
+    scene.layout = {
+        width: '100%',
+        height: '100%',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: Colors.background,
+        gap: 30
+    };
+
+    // ─────────── Display Panel ───────────
+    const panel = new Panel('control', {
+        label: 'logic_test_panel',
+        borderColor: Colors.primary,
+        padding: 30
+    });
+
+    const title = new Text({
+        text: 'REALTIME ENGINE TESTBED',
+        style: { fontFamily: 'Courier New', fontSize: 24, fill: Colors.primary, fontWeight: 'bold' }
+    });
+
+    const statusText = new Text({
+        text: 'Awaiting Submarine Facts...',
+        style: { fontFamily: 'Courier New', fontSize: 18, fill: Colors.active }
+    });
+
+    panel.addChild(title, statusText);
+    scene.addChild(panel);
+
+    // ─────────── Logical Integration ───────────
+
+    /**
+     * The Controller is injected with persistent features by the SceneManager.
+     * We subscribe to high-signal fact changes from the Submarine View Model.
+     */
+    controller.onFeaturesBound = () => {
+        const subFeature = controller.features.get('submarine');
+        if (!subFeature) return;
+        
+        // Listen for identity resolution (Who am I?)
+        subFeature.on('identity:resolved', ({ sub, role }) => {
+            console.log(`[TestScene] Identity Resolved: Sub ${sub._id} as ${role}`);
+            updateDisplay(sub, role);
+        });
+
+        // Listen for specific fact changes on the ownship sub
+        controller.subscribeToFeature('submarine', 'submarine:moved', () => {
+            updateDisplay(subFeature.getOwnship(), subFeature.getLocalRole());
+        });
+
+        controller.subscribeToFeature('submarine', 'submarine:stateChanged', () => {
+            updateDisplay(subFeature.getOwnship(), subFeature.getLocalRole());
+        });
+    };
+
+    // If already bound, trigger initial update
+    if (controller.features.has('submarine')) {
+        const subFeature = controller.features.get('submarine');
+        updateDisplay(subFeature.getOwnship(), subFeature.getLocalRole());
     }
-  });
-  titleText.anchor.set(0.5);
-  titleText.x = app.screen.width / 2;
-  titleText.y = 120;
-  app.stage.addChild(titleText);
+
+    function updateDisplay(sub, role) {
+        if (!sub) return;
+
+        const pos = sub.getPosition();
+        const health = sub.getHealth();
+        const status = sub.getStatusMessage();
+
+        statusText.text = `ROLE: ${role.toUpperCase()}
+SUB ID: ${sub._id}
+POSITION: ${pos.alphaNumeric} (${pos.row}, ${pos.col})
+HEALTH: ${health.current}/${health.max}
+LOGIC: ${status}
+MOVE GATING: ${sub.canMove() ? 'UNLOCKED' : 'LOCKED'}`;
+    }
+
+    return scene;
 }

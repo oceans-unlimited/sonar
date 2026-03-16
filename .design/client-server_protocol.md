@@ -11,9 +11,9 @@ The game may be slightly slower than it would be with an optimistic client--but 
 ## State Management
 
 State is managed separately across layers:
-- Global phase: LOBBY, LIVE, INTERRUPT, GAME_OVER (handled by gamePhaseManager.js).
-- Simulation clock: RUNNING or FROZEN (handled by simulationClock.js; only InterruptManager controls stop/start).
-- Per-submarine states: SURFACING, SUBMERGED, etc. (handled by SubmarineStateMachine.js; freezes own sub's movement but allows attacks, damage, broadcasts).
+- Global phase: LOBBY, LIVE, INTERRUPT, GAME_OVER (handled by `src/core/clock/gamePhaseManager.js`).
+- Simulation clock: RUNNING or FROZEN (handled by `src/core/clock/simulationClock.js`; only InterruptManager controls stop/start).
+- Per-submarine states: SURFACING, SUBMERGED, etc. (handled by `src/feature/submarine/SubmarineStateMachine.js`; freezes own sub's movement but allows attacks, damage, broadcasts).
 
 The protocol refactor aligns with InterruptManager (coordinates interrupts), PhaseManager (global phases), and per-sub FSM (SubmarineStateMachine) for accuracy.
 
@@ -145,7 +145,7 @@ Live Gameplay Loop:
   - Server validates; if triggers interrupt, InterruptManager requests in-game interrupt (e.g., TORPEDO_RESOLUTION); phase to INTERRUPT; clock freezes.
   - Server sends "interrupt_started" with type (e.g., TORPEDO_RESOLUTION), payload, and timer.
   - Clients display appropriate visuals (e.g., resolution overlay).
-  - After timer (InterruptTimers.js), interrupt auto-resolves; phase to LIVE; clock resumes.
+  - After timer (`src/feature/interrupt/InterruptTimers.js`), interrupt auto-resolves; phase to LIVE; clock resumes.
   - Server sends "interrupt_resolved" to all clients.
 
 * Surfacing (per-submarine).

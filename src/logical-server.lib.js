@@ -611,8 +611,9 @@ export class LogicalServer {
 
     this.state.phase = GlobalPhases.INTERRUPT;
     this.state.activeInterrupt = {
-      type: InterruptTypes.TORPEDO_RESOLUTION,
+      type: InterruptTypes.WEAPON_RESOLUTION,
       data: {
+        weaponType: 'torpedo',
         // So client knows whether it's their sub that did the launch.
         launchingSubId: sub.id,
         row: row,
@@ -679,8 +680,9 @@ export class LogicalServer {
 
     this.state.phase = GlobalPhases.INTERRUPT;
     this.state.activeInterrupt = {
-      type: InterruptTypes.MINE_TRIGGER_RESOLUTION,
+      type: InterruptTypes.WEAPON_RESOLUTION,
       data: {
+        weaponType: 'mine',
         // So client knows whether it's their sub that did the launch.
         launchingSubId: sub.id,
         row: row,

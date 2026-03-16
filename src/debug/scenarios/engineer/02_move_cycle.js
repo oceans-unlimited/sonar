@@ -3,6 +3,7 @@ import { createMockSubmarineState, SUBMARINE_STATES } from '../shared/engineMock
 export default {
     name: 'Engineer - Interactive Move Loop',
     description: 'Fully interactive loop: Captain Moves -> User Cross-off -> Submerge -> Repeat until board clear.',
+    playerId: 'player_eng',
     scene: 'engineer',
 
     // Initial State
@@ -37,9 +38,9 @@ export default {
                     ...Object.keys(dirData.frameSlots),
                     ...Object.keys(dirData.reactorSlots)
                 ];
-                
+
                 // If any slot is missing from crossedOutSlots, direction is valid
-                return allSlots.some(slotId => 
+                return allSlots.some(slotId =>
                     !crossedOutSlots.find(xo => xo.direction === d && xo.slotId === slotId)
                 );
             });
@@ -48,7 +49,7 @@ export default {
         // 2. The Game Loop
         while (director.isRunning) {
             const validDirs = getAvailableDirections();
-            
+
             if (validDirs.length === 0) {
                 log('🎉 All Systems Disabled! Simulation Complete.');
                 break;
@@ -64,8 +65,8 @@ export default {
             director.emit('state', createMockSubmarineState({
                 submarineState: SUBMARINE_STATES.MOVED,
                 submarineStateData: {
-                    MOVED: { 
-                        directionMoved: direction, 
+                    MOVED: {
+                        directionMoved: direction,
                         engineerCrossedOutSystem: false,
                         xoChargedGauge: false
                     }
@@ -93,13 +94,13 @@ export default {
             }
 
             crossedOutSlots.push({ direction: userAction.direction, slotId: userAction.slotId });
-            
+
             // E. Server: Confirm Cross-off
             director.emit('state', createMockSubmarineState({
                 submarineState: SUBMARINE_STATES.MOVED,
                 submarineStateData: {
-                    MOVED: { 
-                        directionMoved: direction, 
+                    MOVED: {
+                        directionMoved: direction,
                         engineerCrossedOutSystem: true,
                         xoChargedGauge: false
                     }

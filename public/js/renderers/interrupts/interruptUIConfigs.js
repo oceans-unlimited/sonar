@@ -69,9 +69,15 @@ export function getInterruptUIOptions(interrupt, isReady, playerRole) {
             options.showReadyIndicator = false; // Explicitly hide thumb
         }
     }
-    // TORPEDO_RESOLUTION & SCENARIO_ACTION (In-Game, Visual only)
-    else if (type === 'TORPEDO_RESOLUTION' || type === 'SCENARIO_ACTION') {
-        options.title = type === 'TORPEDO_RESOLUTION' ? "TORPEDO ENGAGEMENT" : "SCENARIO EVENT";
+    // WEAPON_RESOLUTION & SCENARIO_ACTION (In-Game, Visual only)
+    else if (type === 'WEAPON_RESOLUTION' || type === 'SCENARIO_ACTION') {
+        if (type === 'WEAPON_RESOLUTION') {
+            const data = interrupt.data || interrupt.payload || {};
+            const weaponType = (data.weaponType || 'TORPEDO').toUpperCase();
+            options.title = weaponType === 'MINE' ? "MINE DETONATION" : "TORPEDO ENGAGEMENT";
+        } else {
+            options.title = "SCENARIO EVENT";
+        }
         // Message usually comes from payload
     }
 

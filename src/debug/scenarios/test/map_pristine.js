@@ -2,6 +2,53 @@ export default {
     name: 'Map: Pristine Layout Test',
     scene: 'mapTest',
     description: 'A static test scenario to verify the rendering and layout scalability of the map system.',
+    playerId: 'player_co',
+    initialState: {
+        version: 1,
+        phase: 'LIVE',
+        submarines: [
+            {
+                id: 'A',
+                name: 'Sub A',
+                co: 'player_co',
+                xo: null,
+                sonar: null,
+                eng: null,
+                row: 7,
+                col: 7,
+                health: 4,
+                submarineState: 'SUBMERGED',
+                past_track: [],
+                mines: []
+            }
+        ],
+        board: [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0],
+            [0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+            [0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        ]
+    },
+    suggestedEvents: [
+        { label: 'Intent: NAVIGATE', event: 'REQUEST_NAVIGATE', data: { blocked: ['N', 'W'] } },
+        { label: 'Intent: TORPEDO', event: 'REQUEST_TORPEDO', data: {} },
+        { label: 'Intent: MINE_LAY', event: 'REQUEST_MINE_LAY', data: { blocked: ['N', 'NW'] } },
+        { label: 'Intent: ROW_SELECT', event: 'SET_INTENT', data: { intent: 'ROW_SELECT' } },
+        { label: 'Intent: COL_SELECT', event: 'SET_INTENT', data: { intent: 'COLUMN_SELECT' } },
+        { label: 'Intent: SECTOR_SELECT', event: 'SET_INTENT', data: { intent: 'SECTOR_SELECT' } },
+        { label: 'Center Ownship', event: 'CENTER_ON_OWNSHIP', data: {} }
+    ],
     timeline: [
         { type: 'server_event', event: 'SYS_STATUS', data: { status: 'online' }, delay: 100 }
     ],
@@ -31,36 +78,18 @@ export default {
                 return;
             }
 
-            let isMiniMap = false;
+            const mv = scene.mapView;
+            const viewBox = mv.viewBox;
 
-            const bindMapEvents = (container) => {
-                const mv = scene.mapView;
-                const viewBox = mv.viewBox;
+            // Listen for high-level map events
+            viewBox.on('map:clicked', (data) => {
+                log(`[MAP CLICK] Row: ${data.row}, Col: ${data.col}`);
+            });
 
-                // Listen for high-level map events
-                viewBox.on('map:clicked', (data) => {
-                    log(`[MAP CLICK] Row: ${data.row}, Col: ${data.col}`);
-                });
-
-                viewBox.on('map:zoomRequested', (data) => {
-                    const zDir = data.direction > 0 ? 'IN' : 'OUT';
-                    log(`[MAP ZOOM] ${zDir}`);
-                });
-
-                // Listen for raw pointer events on the grid
-                if (container) {
-                    container.on('pointerdown', (e) => {
-                        const local = container.toLocal(e.global);
-                        log(`[POINTER DOWN] x: ${Math.round(local.x)}, y: ${Math.round(local.y)}`);
-                    });
-                    container.on('pointerup', () => {
-                        log(`[POINTER UP]`);
-                    });
-                }
-            };
-
-            // Initial bind
-            bindMapEvents(scene.mapView.mapGrid.container);
+            viewBox.on('map:zoomRequested', (data) => {
+                const zDir = data.direction > 0 ? 'IN' : 'OUT';
+                log(`[MAP ZOOM] ${zDir}`);
+            });
 
             log('✅ Map Event Logging: ACTIVE');
         }, 500);

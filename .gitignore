@@ -62,6 +62,4 @@ Thumbs.db
 *.swo
 
 # Specific files
-GEMINI.md
 llms*.txt
-.agent/

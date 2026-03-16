@@ -50,7 +50,7 @@ export class DebugOverlay {
       font-family: 'Courier New', monospace;
       font-size: 14px;
       z-index: 9999;
-      min-width: 450px;
+      width: 320px;
       max-height: 85vh;
       overflow-y: auto;
       transition: all 0.3s ease;
@@ -85,7 +85,7 @@ export class DebugOverlay {
 
   render() {
     // Get the initial scene key to render scenario options correctly
-    const initialSceneKey = this.sceneManager.getAvailableScenes().find(scene => scene === 'test') || this.sceneManager.getAvailableScenes()[0];
+    const initialSceneKey = this.sceneManager.getAvailableScenes().find(scene => scene === 'conn') || this.sceneManager.getAvailableScenes()[0];
     this.currentSceneKey = initialSceneKey;
 
     this.panel.innerHTML = `
@@ -128,12 +128,25 @@ export class DebugOverlay {
           <select id="event-type-select" style="flex: 1; padding: 8px; background: #000; color: #00ff00; border: 1px solid #00ff00; border-radius: 4px; font-size: 14px;">
             <option value="state">state</option>
             <option value="cross_off_system">cross_off_system</option>
+            <option value="SONAR_PING">SONAR_PING</option>
+            <option value="REQUEST_NAVIGATE">REQUEST_NAVIGATE</option>
+            <option value="REQUEST_TORPEDO">REQUEST_TORPEDO</option>
+            <option value="REQUEST_MINE_LAY">REQUEST_MINE_LAY</option>
+            <option value="SET_INTENT">SET_INTENT</option>
+            <option value="CENTER_ON_OWNSHIP">CENTER_ON_OWNSHIP</option>
           </select>
           <button id="inject-event-btn" style="padding: 8px 15px; background: #440044; color: #ff00ff; border: 1px solid #ff00ff; border-radius: 4px; cursor: pointer; font-size: 14px;">
             Inject
           </button>
         </div>
         <textarea id="event-data-input" placeholder='{"key": "value"}' style="width: 100%; height: 80px; background: #000; color: #00ff00; border: 1px solid #003300; border-radius: 4px; font-family: monospace; font-size: 12px;"></textarea>
+      </div>
+
+      <div id="scenario-events-container" style="margin-bottom: 20px; display: none;">
+        <label style="display: block; margin-bottom: 8px; font-weight: bold;">Quick Actions:</label>
+        <div id="scenario-events-list" style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <!-- Scenario specific buttons will be injected here -->
+        </div>
       </div>
       
       <div id="current-scenario" style="margin-bottom: 20px; padding: 12px; background: #001100; border: 1px solid #00ff00; border-radius: 4px;">
@@ -224,8 +237,7 @@ export class DebugOverlay {
       const dataStr = document.getElementById('event-data-input').value;
       try {
         const data = dataStr ? JSON.parse(dataStr) : {};
-        this.director.injectEvent(type, data);
-        this.logEvent(`Manually Injected: ${type}`, '#ff00ff');
+        this.handleEventInjection(type, data);
       } catch (e) {
         this.logEvent(`Injection Error: ${e.message}`, '#ff0000');
       }
@@ -234,6 +246,24 @@ export class DebugOverlay {
     document.getElementById('clear-log-btn').addEventListener('click', () => {
       document.getElementById('event-log').innerHTML = '<div style="color: #666;">Log cleared</div>';
     });
+  }
+
+  /**
+   * Routes events based on whether they are server-driven or client-local.
+   */
+  handleEventInjection(type, data) {
+    const clientLocalIntents = ['SET_INTENT', 'CENTER_ON_OWNSHIP', 'REQUEST_NAVIGATE', 'REQUEST_TORPEDO', 'REQUEST_MINE_LAY'];
+    const controller = this.sceneManager.currentController;
+
+    if (clientLocalIntents.includes(type) && controller) {
+      // Route client-only actions directly to the controller
+      // No redundant log here, controller will log the resulting state change
+      controller.handleEvent(type, data);
+    } else {
+      // Route server-driven events through the mock socket (Director)
+      this.logEvent(`Injecting: ${type}`, '#ff00ff');
+      this.director.injectEvent(type, data);
+    }
   }
 
   async loadScenario(scenarioKey) {
@@ -258,6 +288,50 @@ export class DebugOverlay {
     await this.director.loadScenario(scenario);
     this.director.play();
     this.logEvent(`✓ Scenario loaded`, '#00ff00');
+
+    // Populate Suggested Events
+    this.updateScenarioEvents(scenario);
+  }
+
+  updateScenarioEvents(scenario) {
+    const container = document.getElementById('scenario-events-container');
+    const list = document.getElementById('scenario-events-list');
+
+    if (!scenario.suggestedEvents || scenario.suggestedEvents.length === 0) {
+      container.style.display = 'none';
+      return;
+    }
+
+    container.style.display = 'block';
+    list.innerHTML = '';
+
+    scenario.suggestedEvents.forEach(def => {
+      const btn = document.createElement('button');
+      btn.innerText = def.label;
+      btn.style.cssText = `
+        padding: 6px 8px;
+        background: #003344;
+        color: #00ffff;
+        border: 1px solid #00ffff;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 11px;
+        font-family: inherit;
+        flex: 1 1 130px;
+        max-width: 140px;
+        text-align: center;
+        transition: all 0.2s;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      `;
+      btn.onmouseenter = () => btn.style.background = '#004455';
+      btn.onmouseleave = () => btn.style.background = '#003344';
+      btn.addEventListener('click', () => {
+        this.handleEventInjection(def.event, def.data);
+      });
+      list.appendChild(btn);
+    });
   }
 
   logEvent(message, color = '#00ff00') {

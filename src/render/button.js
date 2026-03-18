@@ -29,6 +29,8 @@ export default class Button extends Container {
      * @param {string} [config.textLabel] - Text label
      * @param {boolean} [config.textOnly=false] - If true, background is hidden
      * @param {string} [config.canonicalLabel='system'] - Canonical label for the button
+     * @param {number|string} [config.width] - Explicit width for the background asset
+     * @param {number|string} [config.height] - Explicit height for the background asset
      */
     constructor(config = {}) {
         super();
@@ -39,7 +41,9 @@ export default class Button extends Container {
             profile = 'basic',
             textLabel,
             textOnly = false,
-            canonicalLabel = 'system'
+            canonicalLabel = 'system',
+            width,
+            height
         } = config;
 
         this.profile = profile.toLowerCase();
@@ -87,7 +91,7 @@ export default class Button extends Container {
         }
 
         // 3. Components
-        this._setupBackground(asset, color, textOnly || (profileConfig && profileConfig.textOnly));
+        this._setupBackground(asset, color, textOnly || (profileConfig && profileConfig.textOnly), width, height);
 
         if (textLabel) {
             this.setTextLabel(textLabel);
@@ -98,7 +102,7 @@ export default class Button extends Container {
         this.interactiveChildren = true;
     }
 
-    _setupBackground(asset, color, isHidden) {
+    _setupBackground(asset, color, isHidden, width, height) {
         if (!asset || isHidden) return;
 
         let texture = Assets.cache.get(asset);
@@ -108,8 +112,8 @@ export default class Button extends Container {
         background.tint = color;
 
         background.layout = {
-            width: 100,
-            height: 80,
+            width: width ?? 100,
+            height: height ?? 80,
             objectFit: 'contain',
         };
 
@@ -298,6 +302,15 @@ export default class Button extends Container {
 /**
  * Factory wrapper for Button class.
  * Ensures consistent object creation using the profile-driven architecture.
+ * @param {Object} config - The button definition
+ * @param {string} config.asset - The background texture alias
+ * @param {number} config.color - Hex color value
+ * @param {string} [config.profile='basic'] - Visual style profile
+ * @param {string} [config.textLabel] - Text label
+ * @param {boolean} [config.textOnly=false] - If true, background is hidden
+ * @param {string} [config.canonicalLabel='system'] - Canonical label for the button
+ * @param {number|string} [config.width] - Explicit width for the background asset
+ * @param {number|string} [config.height] - Explicit height for the background asset
  */
 export function createButtonFromDef(config) {
     return new Button(config);

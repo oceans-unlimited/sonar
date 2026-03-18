@@ -2,6 +2,8 @@ import { Container, Graphics } from 'pixi.js';
 import { MapViewArea } from './components/MapViewArea.js';
 import { MapConstants } from './mapConstants.js';
 import { MapUtils } from './mapUtils.js';
+import { MapController } from './mapController.js';
+
 
 export class MiniMap {
     constructor(ticker, layoutConfig = {}) {
@@ -30,10 +32,21 @@ export class MiniMap {
         const vb = this.mapView.viewBox;
         this.container.addChild(vb);
         vb.cursor = 'crosshair';
+
+        // --- EMBEDDED CONTROLLER ---
+        // Every map panel owns its own controller instance for UI logic
+        this.controller = new MapController();
+        this.controller.bindView(this.container); 
+        // Note: we bind to the container so the controller can access this.container.mapView
+        this.container.mapView = this.mapView;
     }
 
     destroy() {
+        if (this.controller) {
+            this.controller.destroy();
+        }
         this.mapView.destroy();
         this.container.destroy({ children: true });
     }
 }
+

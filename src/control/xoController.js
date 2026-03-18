@@ -7,6 +7,8 @@
 import { BaseController } from './baseController';
 import { SystemColors } from '../core/uiStyle';
 import { simulationClock } from '../core/clock/simulationClock';
+import { MapIntents } from '../feature/map/mapConstants';
+
 
 export class XOController extends BaseController {
     constructor() {
@@ -29,6 +31,10 @@ export class XOController extends BaseController {
             silence: 5,
             scenario: 5
         };
+        
+        this.droneSector = null;
+        this.isDroneActive = false;
+
 
         this.isInteractionLocked = false;
 
@@ -52,39 +58,56 @@ export class XOController extends BaseController {
                 this.registerVisual(`row_${key}`, row);
             });
         }
+
+        // Register MiniMap if present in view
+        if (view._miniMap) {
+            this.bindFeatures({ map: view._miniMap.controller });
+        }
     }
 
-    onGameStateUpdate(state) {
-        if (!this.socket) return;
-        const playerId = this.socket.playerId;
-        if (!playerId || !state?.submarines) return;
+    onFeaturesBound() {
+        super.onFeaturesBound();
+        console.log('[XOController] Features bound.');
 
-        // Canonical server-side logic for finding the player's submarine
-        const sub = state.submarines.find(s =>
-            s.co === playerId || s.xo === playerId || s.sonar === playerId || s.eng === playerId
-        );
+        const map = this.features.get('map');
+        if (map) {
+            // Set default intent to POSITION_SELECT (Tracking)
+            map.execute('SET_INTENT', { intent: MapIntents.POSITION_SELECT });
+            
+            // Listen for selection confirmations (for both tracking and drones)
+            this.subscribeToFeature('map', 'selectionConfirmed', (data) => this.handleMapSelection(data));
+        }
+    }
+
+
+    onGameStateUpdate(state) {
+        const subController = this.features.get('submarine');
+        const sub = subController?.getOwnship();
         if (!sub) return;
+
+        const actionGauges = sub.getGauges();
 
         // 1. Sync Levels
         Object.keys(this.subsystemLevels).forEach(key => {
-            if (sub.actionGauges && sub.actionGauges[key] !== undefined) {
-                this.subsystemLevels[key] = sub.actionGauges[key];
-                const row = this.visuals[`row_${key}`];
+            if (actionGauges[key] !== undefined) {
+                this.subsystemLevels[key] = actionGauges[key];
+                const row = this.visuals.get(`row_${key}`);
                 if (row && row.setGaugeLevel) row.setGaugeLevel(this.subsystemLevels[key]);
             }
         });
 
         // 2. Interaction State
         const isLive = state.phase === 'LIVE';
-        const isMoved = sub.submarineState === 'MOVED';
-        const hasCharged = isMoved && sub.submarineStateData?.MOVED?.xoChargedGauge;
+        const isMoved = sub.getState() === 'MOVED';
+        const movedData = sub.getStateData('MOVED');
+        const hasCharged = isMoved && movedData?.xoChargedGauge;
         const isClockRunning = simulationClock.isRunning();
 
         // Lock interaction if not in live phase, clock not running, already charged after move, or not in MOVED state during turn
         this.isInteractionLocked = !isLive || !isClockRunning || (isMoved && hasCharged) || (!isMoved);
 
         // Update all rows (interactive state)
-        Object.entries(this.visuals).forEach(([id, row]) => {
+        this.visuals.forEach((row, id) => {
             if (!id.startsWith('row_')) return;
             const key = id.replace('row_', '');
 
@@ -112,6 +135,16 @@ export class XOController extends BaseController {
         }
 
         console.log(`[XOController] Charging: ${key}`);
+        
+        // Specific workflow for Drone: trigger map selection
+        if (key === 'drone') {
+            const map = this.features.get('map');
+            if (map) {
+                this.isDroneActive = true;
+                map.execute('SET_INTENT', { intent: MapIntents.SECTOR_SELECT });
+            }
+        }
+
         this.socket.chargeGauge(key);
     }
 
@@ -119,7 +152,45 @@ export class XOController extends BaseController {
         if (this.subsystemLevels[key] < this.maxLevels[key]) return;
 
         console.log(`[XOController] Discharging: ${key}`);
-        // TODO: Emit discharge to server
-        this.socket.emit('discharge_gauge', key);
+        
+        // Specific payload for Drone: include stored sector
+        const payload = (key === 'drone' && this.droneSector) ? this.droneSector : null;
+        this.socket.emit('discharge_gauge', { key, payload });
+        
+        // Reset drone state after discharge if needed
+        if (key === 'drone') {
+            this.droneSector = null;
+            const droneRow = this.visuals['row_drone'];
+            if (droneRow) {
+                const sectorText = droneRow.getChildByLabel('droneSectorText');
+                if (sectorText) sectorText.text = "";
+            }
+        }
     }
+
+    handleMapSelection(data) {
+        if (this.isDroneActive) {
+            // Drone Sector Selection
+            if (data.sector !== undefined) {
+                this.droneSector = data.sector;
+                this.isDroneActive = false;
+
+                // Update UI display in Drone row
+                const droneRow = this.visuals['row_drone'];
+                if (droneRow) {
+                    const sectorText = droneRow.getChildByLabel('droneSectorText');
+                    if (sectorText) sectorText.text = `S${this.droneSector}`;
+                }
+
+                // Restore default tracking mode
+                const map = this.features.get('map');
+                if (map) map.execute('SET_INTENT', { intent: MapIntents.POSITION_SELECT });
+            }
+        } else {
+            // Default Tracking mode (SELECT_SQUARE)
+            // Visuals are handled internally by MapIntentBehavior for POSITION_SELECT
+            console.log(`[XOController] Tracking enemy at: ${data.row}, ${data.col}`);
+        }
+    }
+
 }

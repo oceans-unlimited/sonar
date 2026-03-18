@@ -26,7 +26,7 @@ function createPanelShell() {
     const panel = new LayoutContainer({
         label: 'interruptPanel',
         layout: {
-            width: 400,
+            width: '60%',
             height: 'auto',
             padding: 20,
             backgroundColor: 0x051505,
@@ -35,6 +35,7 @@ function createPanelShell() {
             borderWidth: 2,
             borderRadius: 8,
             flexDirection: 'column',
+            justifyContent: 'center',
             alignItems: 'center',
             gap: 15
         }

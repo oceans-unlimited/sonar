@@ -48,14 +48,12 @@ export class SurfaceController extends BaseController {
      * Emits the submerge command once the sub is fully repaired.
      */
     requestSubmerge() {
-        if (this.socket && this.lastState) {
-            const sub = this.lastState.submarines?.find(s => 
-                [s.co, s.xo, s.eng, s.sonar].includes(this.socket.playerId)
-            );
-            if (sub) {
-                console.log(`[SurfaceController] Requesting submerge for sub ${sub.id}`);
-                this.socket.emit('submerge', sub.id);
-            }
+        const subController = this.features.get('submarine');
+        const sub = subController?.getOwnship();
+        
+        if (this.socket && sub) {
+            console.log(`[SurfaceController] Requesting submerge for sub ${sub.getId()}`);
+            this.socket.emit('submerge', sub.getId());
         }
     }
 }

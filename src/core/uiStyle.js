@@ -14,6 +14,8 @@ export const Colors = {
     border: 0x116611,
     primary: 0x28ee28,
     active: 0xffffff,
+    secondary: 0x4a90e2,
+    surfaceActive: 0xffcc00, // Yellow target for nodes
 
     // Submarines
     subA: 0x00aaff,

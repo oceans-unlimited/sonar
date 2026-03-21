@@ -22,6 +22,7 @@ import damagePristine from './damage/pristine.js';
 import surfacePristine from './surface/pristine.js';
 import surfaceInteractive from './surface/interactive.js';
 import realtimeEngineLogic from './test/realtime_engine_logic.js';
+import lobbyPristine from './lobby/01_pristine.js';
 
 export const SCENARIO_REGISTRY = {
   'engineer_pristine': engineerPristine,
@@ -47,10 +48,14 @@ export const SCENARIO_REGISTRY = {
   'submarine_pristine': submarinePristine,
   'damage_pristine': damagePristine,
   'surface_pristine': surfacePristine,
-  'surface_interactive': surfaceInteractive
+  'surface_interactive': surfaceInteractive,
+  'lobby_pristine': lobbyPristine
 };
 
 export const SCENARIO_CATEGORIES = {
+  'Lobby': [
+    'lobby_pristine'
+  ],
   'Engineer - Basic': [
     'engineer_pristine',
     'engineer_move_cycle'

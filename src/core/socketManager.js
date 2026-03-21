@@ -38,6 +38,11 @@ class SocketManager extends EventEmitter {
         // Server assigns player ID
         this.socket.on('player_id', (id) => {
             this.playerId = id;
+
+            const logMsg = `[Socket] RECV: player_id | ${id}`;
+            console.log(logMsg);
+            if (typeof window !== 'undefined' && window.logEvent) window.logEvent(logMsg);
+
             this.emit('playerId', id);
 
             // Re-emit cached state so scenes can update now that playerId is known
@@ -71,6 +76,11 @@ class SocketManager extends EventEmitter {
     updateLastState(state) {
         this.lastState = state;
         const sub = state.submarines ? state.submarines[0] : null;
+
+        const logMsg = `[Socket] RECV: stateUpdate (Players: ${state.players?.length || 0})`;
+        console.log(logMsg);
+        if (typeof window !== 'undefined' && window.logEvent) window.logEvent(logMsg);
+
         if (sub) console.log(`[SocketManager] State Update: Sub at (${sub.row}, ${sub.col})`);
         this.emit('stateUpdate', state);
     }
@@ -96,6 +106,13 @@ class SocketManager extends EventEmitter {
         // Otherwise, treat as a socket emission
         if (this.socket) {
             if (event === 'DIRECTOR_CMD') console.error('CRITICAL: DIRECTOR_CMD Leaking to socket!');
+
+            const logMsg = `[Socket] EMIT: ${event} | ${JSON.stringify(args)}`;
+            console.log(logMsg);
+            if (typeof window !== 'undefined' && window.logEvent) {
+                window.logEvent(logMsg);
+            }
+
             this.socket.emit(event, ...args);
         } else {
             console.warn(`[SocketManager] Attempted to emit '${event}' without a socket!`);

@@ -70,6 +70,18 @@ export class BaseController extends EventEmitter {
     }
 
     /**
+     * Unregisters a button and cleans up its behavior.
+     * @param {string} id - Unique button identifier
+     */
+    unregisterButton(id) {
+        const api = this.buttons.get(id);
+        if (api && typeof api.destroy === 'function') {
+            api.destroy();
+        }
+        this.buttons.delete(id);
+    }
+
+    /**
      * Registers a non-interactive visual element (e.g. Panel, Container) 
      * for state-driven updates (color, visibility).
      * @param {string} id - Visual identifier
@@ -90,8 +102,10 @@ export class BaseController extends EventEmitter {
     handleEvent(eventType, payload) {
         const handler = this.handlers[eventType];
 
-        // Centralized Logging
-        const logMsg = `[Controller] Routing: ${eventType} | ID: ${payload?.id}`;
+        // Disambiguate between client-side-only events and controller intents
+        const prefix = payload?.isClientOnly ? '[Client]' : '[Controller]';
+        const logMsg = `${prefix} Routing: ${eventType} | ID: ${payload?.id || 'anonymous'}`;
+
         console.log(logMsg);
         if (window.logEvent) window.logEvent(logMsg);
 

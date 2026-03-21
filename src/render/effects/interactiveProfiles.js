@@ -24,7 +24,7 @@ export const PROFILES = {
         },
         [INTERACTIVE_STATES.ACTIVE]: (t) => {
             visuals.toggleOverlay(t, false);
-            // visuals.setTint(t, 0xFFFF00); // Yellow highlight example
+            visuals.setTint(t, t.activeColor || 0xFFFF00);
         }
     },
 
@@ -172,6 +172,26 @@ export const PROFILES = {
         [INTERACTIVE_STATES.ACTIVE]: (t) => {
             visuals.setOverlayAlpha(t, 0.2);
             visuals.toggleOverlay(t, true);
+        }
+    },
+    tag: {
+        [INTERACTIVE_STATES.IDLE]: (t) => {
+            visuals.setScale(t, 1);
+            visuals.setBackgroundAlpha(t, 0.6);
+        },
+        [INTERACTIVE_STATES.HOVER]: (t) => {
+            visuals.setBackgroundAlpha(t, 1);
+        },
+        [INTERACTIVE_STATES.PRESSED]: (t) => {
+            visuals.setScale(t, 0.9);
+        },
+        [INTERACTIVE_STATES.DISABLED]: (t) => {
+            visuals.setBackgroundAlpha(t, 0.2);
+            visuals.setScale(t, 1);
+        },
+        [INTERACTIVE_STATES.ACTIVE]: (t) => {
+            visuals.setScale(t, 1.2);
+            visuals.setBackgroundAlpha(t, 1);
         }
     }
 };

@@ -15,6 +15,14 @@ export const buttonBlockPatterns = {
         justifyContent: 'center',
         alignItems: 'stretch',
         gap: 12
+    },
+    stack: {
+        width: '100%',
+        height: 'auto',
+        flexDirection: 'column',
+        justifyContent: 'flex-start',
+        alignItems: 'stretch',
+        gap: 8
     }
 }
 
@@ -45,6 +53,15 @@ export const panelPatterns = {
         alignItems: 'center',
         padding: 17,
         gap: 17
+    },
+    lobby: {
+        maxWidth: '33%',
+        minWidth: '15%',
+        height: 'auto',
+        padding: 15,
+        flexDirection: 'column',
+        justifyContent: 'flex-start',
+        alignItems: 'flex-start'
     }
 }
 
@@ -56,13 +73,15 @@ export const cardPatterns = {
         borderRadius: 8
     },
     nameplate: {
-        width: '100%',
-        height: 50,
+        width: 200,
+        height: 60,
+        flexGrow: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'flex-start',
-        padding: 8,
-        borderRadius: 10
+        padding: 0,
+        gap: 0,
+        borderRadius: 12
     }
 }
 

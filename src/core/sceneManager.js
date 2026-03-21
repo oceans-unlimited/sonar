@@ -13,6 +13,7 @@ import { createConnScene } from '../scenes/connScene';
 import { createSubmarineTestScene } from '../scenes/submarineTestScene';
 import { createDamageTestScene } from '../scenes/damageTestScene';
 import { createSurfaceTestScene } from '../scenes/surfaceTestScene';
+import { createLobbyScene } from '../scenes/lobbyScene';
 
 // --- Controllers ---
 import { BaseController } from '../control/baseController';
@@ -26,6 +27,7 @@ import { SubmarineController } from '../feature/submarine/SubmarineController';
 import { DamageController } from '../feature/damage/DamageController';
 import { SurfaceController } from '../feature/surface/SurfaceController';
 import { SubmarineTestController } from '../control/SubmarineTestController';
+import { LobbyController } from '../control/lobbyController';
 
 // Services
 import { socketManager } from './socketManager.js';
@@ -50,6 +52,7 @@ export const CONTROLLER_MAP = {
     'submarineTest': SubmarineTestController,
     'damageTest': DamageController,
     'surfaceTest': SurfaceController,
+    'lobby': LobbyController,
 };
 
 export const SCENE_MAP = {
@@ -62,6 +65,7 @@ export const SCENE_MAP = {
     'submarineTest': createSubmarineTestScene,
     'damageTest': createDamageTestScene,
     'surfaceTest': createSurfaceTestScene,
+    'lobby': createLobbyScene,
 };
 
 // ─────────── Scene Manager Class ───────────
@@ -114,7 +118,7 @@ export class SceneManager {
 
     async init() {
         // Load the default scene by its key on startup. Change to speed up Director/Debug testing.
-        await this.loadScene('conn');
+        await this.loadScene('lobby');
     }
 
     /**

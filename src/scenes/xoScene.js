@@ -11,6 +11,8 @@ import { createButtonFromDef } from '../render/button';
 import { SystemColors, Fonts, Alphas } from '../core/uiStyle';
 import { wireButton } from '../behavior/buttonBehavior.js';
 import { InterruptOverlay } from '../feature/interrupt/InterruptOverlay.js';
+import { MiniMap } from '../feature/map/MiniMap.js';
+
 
 /**
  * @param {Object} controller - The active SceneController instance.
@@ -70,10 +72,10 @@ export async function createXOScene(controller, ticker) {
         });
 
         panel.layout = {
-            width: 'auto',
+            width: 250,
             height: 'auto',
             flexDirection: 'column',
-            gap: 20
+            gap: 15
         };
 
         panel.setAlpha(Alphas.faint);
@@ -83,6 +85,8 @@ export async function createXOScene(controller, ticker) {
             const systemBtn = createButtonFromDef({
                 asset: rowData.icon,
                 profile: 'basic',
+                width: 100,
+                height: 80,
                 color: col.color
             });
 
@@ -90,6 +94,8 @@ export async function createXOScene(controller, ticker) {
             const gaugeBtn = createButtonFromDef({
                 asset: rowData.frames[0] || 'four_gauge',
                 profile: 'basic',
+                width: 65,
+                height: 65,
                 color: col.color
             });
 
@@ -106,20 +112,45 @@ export async function createXOScene(controller, ticker) {
             statusText.label = 'statusText';
             statusText.visible = false;
             statusText.eventMode = 'none';
+
+            // Drone Sector Output (Only for Drone subsystem)
+            let sectorText = null;
+            if (rowData.key === 'drone') {
+                sectorText = new Text({
+                    text: "",
+                    style: {
+                        fontFamily: Fonts.primary,
+                        fontSize: 20,
+                        fontWeight: 'bold',
+                        fill: col.color
+                    }
+                });
+                sectorText.label = 'droneSectorText';
+                sectorText.layout = {
+                    marginLeft: 10,
+                    alignSelf: 'center'
+                };
+            }
+
             // Position status text roughly next to the buttons
+
             statusText.layout = {
                 marginLeft: 10,
                 alignSelf: 'center'
             };
 
             // 4. Create ButtonBlock
-            const row = new ButtonBlock([systemBtn, gaugeBtn, statusText], 'horizontal', {
+            const elements = [systemBtn, gaugeBtn, statusText];
+            if (sectorText) elements.push(sectorText);
+
+            const row = new ButtonBlock(elements, 'horizontal', {
                 label: `row_${rowData.key}`,
                 heading: rowData.label,
                 header: true,
                 line: true,
                 color: col.color
             });
+
 
             // 5. Standardized Wiring (ACTION Preset)
             const iconBehavior = wireButton(
@@ -172,6 +203,39 @@ export async function createXOScene(controller, ticker) {
 
         sceneContent.addChild(panel);
     });
+
+    // --- Navigation Panel (Mini Map) ---
+    const navPanel = new Panel('control', {
+        label: 'mapPanel',
+        headerText: 'Tracking',
+        showTab: true,
+        backgroundColor: SystemColors.xo,
+        borderColor: SystemColors.xo,
+        borderWidth: 4,
+    });
+
+    navPanel.layout = {
+        width: 'auto',
+        height: 'auto',
+        flexDirection: 'column'
+    };
+    navPanel.setAlpha(Alphas.faint);
+
+    const miniMap = new MiniMap(ticker, {
+        width: '100%',
+        height: '100%'
+    });
+    navPanel.addChild(miniMap.container);
+
+    sceneContent.addChild(navPanel);
+
+    // Register MiniMap's feature controller if bound
+    if (controller && miniMap.controller) {
+        // Register the whole miniMap object so the controller can find it
+        sceneContent._miniMap = miniMap;
+        controller.registerVisual('miniMap', miniMap.container);
+    }
+
 
     // --- Interrupt Overlay ---
     const interruptOverlay = new InterruptOverlay(ticker, 'xo');

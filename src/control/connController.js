@@ -47,23 +47,22 @@ export class ConnController extends BaseController {
     }
 
     onGameStateUpdate(state) {
-        if (!state || !this.socket) return;
+        if (!state) return;
 
-        const playerId = this.socket.playerId;
-        const sub = state.submarines?.find(s =>
-            s.co === playerId || s.xo === playerId || s.sonar === playerId || s.eng === playerId
-        );
-
+        const subController = this.features.get('submarine');
+        const sub = subController?.getOwnship();
         if (!sub) return;
 
         // Cache position for internal logic
-        this._lastPos = { row: sub.row, col: sub.col };
-        console.log(`[ConnController] State Update: Sub at (${sub.row}, ${sub.col})`);
+        const pos = sub.getPosition();
+        this._lastPos = { row: pos.row, col: pos.col };
+        console.log(`[ConnController] State Update: Sub at (${pos.row}, ${pos.col})`);
 
         // Handle START_POSITIONS interrupt
         if (state.phase === GlobalPhases.INTERRUPT && state.activeInterrupt?.type === 'START_POSITIONS') {
-            const hasChosen = state.activeInterrupt.data?.submarineIdsWithStartPositionChosen?.includes(sub.id);
-            if (!hasChosen && sub.co === playerId) {
+            const hasChosen = state.activeInterrupt.data?.submarineIdsWithStartPositionChosen?.includes(sub.getId());
+            const playerId = this.socket?.playerId;
+            if (!hasChosen && sub.isOwnship(playerId) && sub.getRole(playerId) === 'co') {
                 console.log('[ConnController] Requesting Initial Position Selection');
                 this.map?.execute('SET_INTENT', { intent: 'POSITION_SELECT' });
             }
@@ -78,13 +77,12 @@ export class ConnController extends BaseController {
      */
     updateHelmUI(state, sub) {
         const isLive = state.phase === GlobalPhases.LIVE;
-        const isSubmerged = sub.submarineState === SubmarineStates.SUBMERGED;
+        const isSubmerged = sub.getState() === SubmarineStates.SUBMERGED;
 
-        const possibleMoves = MapUtils.getPossibleMoves({ row: sub.row, col: sub.col }, false);
-        const validMoves = MapUtils.filterInvalidMoves(state, sub, possibleMoves);
+        const validMoves = sub.getValidMoves(state);
 
         ['N', 'S', 'E', 'W'].forEach(dir => {
-            const btn = this.buttons[`helm_${dir.toLowerCase()}`];
+            const btn = this.buttons.get(`helm_${dir.toLowerCase()}`);
             if (!btn) return;
 
             if (!isLive || !isSubmerged) {
@@ -99,8 +97,7 @@ export class ConnController extends BaseController {
 
     getNavigationBlocked(state, sub) {
         const directions = ['N', 'S', 'E', 'W'];
-        const possibleMoves = MapUtils.getPossibleMoves({ row: sub.row, col: sub.col }, false);
-        const validMoves = MapUtils.filterInvalidMoves(state, sub, possibleMoves);
+        const validMoves = sub.getValidMoves(state);
         const validDirections = validMoves.map(m => m.direction);
 
         return directions.filter(dir => !validDirections.includes(dir));
@@ -108,19 +105,19 @@ export class ConnController extends BaseController {
 
     getMineBlocked(state, sub) {
         const directions = ['N', 'S', 'E', 'W', 'NE', 'NW', 'SE', 'SW'];
-        const rowDeltas = { N: -1, S: 1, E: 0, W: 0, NE: -1, NW: -1, SE: 1, SW: 1 };
+        const rowDeltas = { N: -1, S: 1, E: 0, W: 0, NE: -1, NW: -1, SE: 1, SW: -1 };
         const colDeltas = { N: 0, S: 0, E: 1, W: -1, NE: 1, NW: -1, SE: 1, SW: -1 };
 
-        return directions.filter(dir => {
-            const r = sub.row + rowDeltas[dir];
-            const c = sub.col + colDeltas[dir];
+        const pos = sub.getPosition();
 
-            // Re-using logic from MapUtils.filterInvalidMoves but for 8 directions
+        return directions.filter(dir => {
+            const r = pos.row + rowDeltas[dir];
+            const c = pos.col + colDeltas[dir];
+
+            // Re-using logic from MapUtils but routed through SubmarineState
             if (r < 0 || r >= 15 || c < 0 || c >= 15) return true;
             if (state.board[r][c] !== 0) return true;
-            const inTrack = sub.past_track?.some(pos => pos.row === r && pos.col === c);
-            const isMine = sub.mines?.some(pos => pos.row === r && pos.col === c);
-            return inTrack || isMine;
+            return sub.isInPastTrack(r, c) || sub.hasMineAt(r, c);
         });
     }
 
@@ -138,7 +135,8 @@ export class ConnController extends BaseController {
 
     requestMine(data = {}) {
         if (this.lastState && this.map) {
-            const sub = this.lastState.submarines.find(s => s.id === this.map.ownSubId);
+            const subController = this.features.get('submarine');
+            const sub = subController?.getOwnship();
             const blocked = data.blocked || (sub ? this.getMineBlocked(this.lastState, sub) : []);
             this.map.execute('MINE_LAY', { ...data, blocked });
         }
@@ -146,7 +144,8 @@ export class ConnController extends BaseController {
 
     requestNavigate(data = {}) {
         if (this.lastState && this.map) {
-            const sub = this.lastState.submarines.find(s => s.id === this.map.ownSubId);
+            const subController = this.features.get('submarine');
+            const sub = subController?.getOwnship();
             const blocked = data.blocked || (sub ? this.getNavigationBlocked(this.lastState, sub) : []);
             this.map.execute('NAVIGATE', { ...data, blocked });
         }

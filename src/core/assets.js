@@ -67,7 +67,15 @@ const ASSET_LIST = {
     reactorTag: 'assets/ui/reactor_tag.svg',
     panelTab: 'assets/ui/panel_tab.svg',
     // Sprite Sheets
-    gauges: 'assets/sprites/gauges-sprite.json'
+    gauges: 'assets/sprites/gauges-sprite.json',
+    // Surfacing Mini-Game
+    surfacing_node: 'assets/ui/surfacing_node.svg',
+    surfacing_straight: 'assets/ui/surfacing_straight.svg',
+    surfacing_curve: 'assets/ui/surfacing_curve.svg',
+    surfacing_elbow: 'assets/ui/surfacing_elbow.svg',
+    // Raster paths
+    surface_path_01: 'assets/surface/surface_path_01.png',
+    surface_mask_01: 'assets/surface/surface_mask_01.png'
 };
 
 

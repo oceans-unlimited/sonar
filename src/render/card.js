@@ -1,8 +1,9 @@
 import { LayoutContainer } from '@pixi/layout/components';
 import { cardPatterns } from './layouts';
 import { cascadeColor } from './util/colorOps';
-import { Sprite, Text, Assets } from 'pixi.js';
-import { SYSTEM_ASSETS, Fonts } from '../core/uiStyle.js';
+import { Sprite, Text, Assets, Container } from 'pixi.js';
+import { SYSTEM_ASSETS, Fonts, Colors, Alphas } from '../core/uiStyle.js';
+import { createButtonFromDef } from './button';
 
 /**
  * Card is a flexible LayoutContainer for grouping related UI elements.
@@ -46,8 +47,6 @@ export default class Card extends LayoutContainer {
      */
     setTint(color) {
         this.layout = { backgroundColor: color };
-        // Cascade to specific children if needed (e.g., icons or specific labels)
-        cascadeColor(this, color);
     }
 
     /**
@@ -126,6 +125,99 @@ export class SystemStatusCard extends Card {
             this.statusLabel.text = 'OFFLINE';
             this.statusLabel.style.fill = this.systemColor;
             this.icon.tint = this.systemColor;
+        }
+    }
+}
+
+/**
+ * Player Nameplate Card
+ * Patterned after the nameplate demo in testScene.js.
+ */
+export class PlayerNamePlate extends Card {
+    constructor(playerConfig = {}) {
+        super('nameplate', {
+            label: `player_card_${playerConfig.id || 'empty'}`,
+            backgroundColor: Colors.background,
+            borderColor: Colors.border,
+            borderWidth: 1,
+            gap: 10
+        });
+
+        this.playerId = playerConfig.id;
+        this.playerName = playerConfig.name || 'Unknown';
+
+        // 1. Name Text (Left Side, pushes others right)
+        this.nameText = new Text({
+            text: this.playerName.toUpperCase(),
+            style: {
+                fontFamily: Fonts.primary,
+                fontSize: 28,
+                fontWeight: 'bold',
+                fill: Colors.text
+            }
+        });
+        this.nameText.label = 'nameText';
+        this.nameText.layout = { maxWidth: '87%' };
+        this.addChild(this.nameText);
+
+        // 2. Ready Indicator (thumb button)
+        this.readyIcon = createButtonFromDef({
+            asset: 'thumb',
+            color: Colors.dim,
+            profile: 'basic',
+            canonicalLabel: 'readyToggle',
+            height: 30,
+        });
+        this.readyIcon.layout = { position: 'absolute', right: 0, top: 0 };
+        this.readyIcon.visible = false;
+        this.addChild(this.readyIcon);
+
+        // 3. Vacate Button (circuit tag)
+        this.vacateBtn = createButtonFromDef({
+            asset: 'grid_tag',
+            color: 0xFFFFFF,
+            profile: 'tag',
+            canonicalLabel: 'vacate',
+            height: 22,
+        });
+        this.vacateBtn.setAlpha(Alphas.overlay);
+        this.vacateBtn.layout = { position: 'absolute', right: 0, bottom: 0 };
+        this.vacateBtn.visible = false;
+        this.addChild(this.vacateBtn);
+    }
+
+    setReady(isReady) {
+        this.readyIcon.visible = true;
+        this.readyIcon.setTint(isReady ? Colors.success : Colors.dim);
+    }
+
+    setVacateVisible(isVisible) {
+        this.vacateBtn.visible = isVisible;
+    }
+
+    updateStyle(isAssigned, subColor, isSelf, roleColor = null) {
+        if (!isAssigned) {
+            this.setBorderColor(Colors.border);
+            this.setTint(Colors.background);
+            this.nameText.style.fill = Colors.text;
+            this.readyIcon.visible = false;
+            this.vacateBtn.visible = false;
+        } else {
+            if (isSelf) {
+                // Self: Sub color solid background
+                this.setBorderColor(subColor);
+                this.setTint(subColor);
+                // Inherit role color if assigned to a sub
+                this.nameText.style.fill = roleColor || Colors.background;
+                this.nameText.style.fontWeight = 'bold';
+            } else {
+                // Other: Sub color border
+                this.setBorderColor(subColor);
+                this.setTint(Colors.background);
+                // Inherit role color if assigned to a sub; default to subColor if no roleColor
+                this.nameText.style.fill = roleColor || subColor;
+                this.nameText.style.fontWeight = 'normal';
+            }
         }
     }
 }

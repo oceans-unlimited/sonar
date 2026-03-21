@@ -45,7 +45,6 @@ export async function createConnScene(controller, ticker) {
     sceneContent.mapView = mapPanel.mapView;
 
     // --- 2. Initialize Map Feature ---
-    // As per user request, register the map as a 'feature' with the controller.
     const mapController = new MapController();
     mapController.bindSocket(socketManager);
     mapController.bindView(sceneContent);

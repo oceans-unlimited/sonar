@@ -38,14 +38,14 @@ export default class ButtonBlock extends Container {
         }
 
         // 3. Render Button Content
-        this.buttonRow = this.createContentRow(chosenPattern);
+        this.createContentRow(chosenPattern);
     }
 
     createHeader(headingText, color, showLine) {
-        const headerContainer = new Container({
+        this.headerContainer = new Container({
             label: 'headerContainer'
         });
-        headerContainer.layout = {
+        this.headerContainer.layout = {
             width: '100%',
             height: 'auto',
             flexDirection: 'column',
@@ -73,7 +73,7 @@ export default class ButtonBlock extends Container {
             marginLeft: 5,
             marginTop: 5
         };
-        headerContainer.addChild(text);
+        this.headerContainer.addChild(text);
 
         // Separator Line
         if (showLine) {
@@ -90,24 +90,56 @@ export default class ButtonBlock extends Container {
                 height: 2,
                 marginTop: 2
             };
-            headerContainer.addChild(graphics);
+            this.headerContainer.addChild(graphics);
         }
 
-        this.addChild(headerContainer);
+        this.addChild(this.headerContainer);
     }
 
     createContentRow(pattern) {
-        const buttonRow = new LayoutContainer();
-        buttonRow.label = 'buttonRow';
+        this.buttonRow = new LayoutContainer();
+        this.buttonRow.label = 'buttonRow';
 
         // Inherit the requested pattern (horizontal/vertical) for the buttons themselves
-        buttonRow.layout = {
+        this.buttonRow.layout = {
             ...pattern,
         };
 
-        this.buttons.forEach(btn => buttonRow.addChild(btn));
-        this.addChild(buttonRow);
-        return buttonRow;
+        this.buttons.forEach(btn => this.buttonRow.addChild(btn));
+        this.addChild(this.buttonRow);
+    }
+
+    /**
+     * Appends a child to the content (buttonRow).
+     * @param {import('pixi.js').DisplayObject} child 
+     */
+    addContent(child) {
+        if (!child || child.parent === this.buttonRow) return;
+        this.buttonRow.addChild(child);
+    }
+
+    /**
+     * Removes a child from the content (buttonRow) without destroying it.
+     * @param {import('pixi.js').DisplayObject} child 
+     */
+    removeContent(child) {
+        if (!child || child.parent !== this.buttonRow) return;
+        this.buttonRow.removeChild(child);
+    }
+
+    /**
+     * Toggles visibility of a child in the content row by label.
+     * @param {string} label 
+     * @param {boolean} isVisible 
+     */
+    toggleContentVisibility(label, isVisible) {
+        const child = this.buttonRow.getChildByLabel(label);
+        if (child) {
+            child.visible = isVisible;
+            if (child.layout) {
+                child.layout.display = isVisible ? 'flex' : 'none';
+            }
+        }
     }
 
     /**

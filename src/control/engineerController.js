@@ -32,24 +32,21 @@ export class EngineerController extends BaseController {
     }
 
     onGameStateUpdate(state) {
-        if (!this.socket) return;
-        const playerId = this.socket.playerId;
-        if (!playerId || !state?.submarines) return;
-
-        // Canonical server-side logic for finding the player's submarine
-        const sub = state.submarines.find(s =>
-            s.co === playerId || s.xo === playerId || s.sonar === playerId || s.eng === playerId
-        );
+        const subController = this.features.get('submarine');
+        const sub = subController?.getOwnship();
         if (!sub) return;
 
+        const engineLayout = sub.getEngineLayout();
+        if (!engineLayout) return;
+
         // If view hasn't been populated yet, do it now
-        if (this.view && !this.view._populated && sub.engineLayout) {
+        if (this.view && !this.view._populated && engineLayout.directions) {
             console.log('[EngineerController] Populating view with layout');
-            this.view.populate(sub.engineLayout);
+            this.view.populate(engineLayout);
             this.view._populated = true;
         }
 
-        this.engineState = sub.engineLayout;
+        this.engineState = engineLayout;
         this.updateEngineView(state, sub);
     }
 
@@ -66,14 +63,16 @@ export class EngineerController extends BaseController {
     /**
      * Syncs the visual state of all buttons with the game state.
      * @param {object} state - The full game state
-     * @param {object} sub - The player's submarine
+     * @param {object} sub - The player's submarine (SubmarineState instance)
      */
     updateEngineView(state, sub) {
         if (!this.engineState) return;
 
         // Canonical submarine state checks (referencing SubmarineStates in constants.js)
-        const canInteract = sub.submarineState === 'MOVED';
+        const canInteract = sub.getState() === 'MOVED';
         this.isInteractionLocked = !canInteract;
+
+        const crossedOutSlots = this.engineState.crossedOutSlots || [];
 
         // 1. Process Frame Slots (Circuits)
         for (const [direction, dirData] of Object.entries(this.engineState.directions || {})) {
@@ -83,7 +82,7 @@ export class EngineerController extends BaseController {
                 if (!ctrl) continue;
 
                 // Check if this specific slot is in the crossed out list
-                const isCrossed = (this.engineState.crossedOutSlots || []).some(
+                const isCrossed = crossedOutSlots.some(
                     xo => xo.direction === direction && xo.slotId === slotId
                 );
 
@@ -105,7 +104,7 @@ export class EngineerController extends BaseController {
                 const ctrl = this.buttons.get(buttonId);
                 if (!ctrl) continue;
 
-                const isCrossed = (this.engineState.crossedOutSlots || []).some(
+                const isCrossed = crossedOutSlots.some(
                     xo => xo.direction === direction && xo.slotId === slotId
                 );
 
@@ -129,7 +128,7 @@ export class EngineerController extends BaseController {
             detection: true
         };
 
-        (sub.engineLayout.crossedOutSlots || []).forEach(slot => {
+        crossedOutSlots.forEach(slot => {
             const dirData = this.engineState.directions[slot.direction];
             if (!dirData) return;
             const systemName = dirData.frameSlots[slot.slotId] || dirData.reactorSlots[slot.slotId];

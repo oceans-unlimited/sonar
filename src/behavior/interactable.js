@@ -53,9 +53,9 @@ export function createInteractable(target, onStateChange) {
     };
 
     // --- Wire Up ---
-    // target.eventMode = 'static';
-    // target.cursor = 'pointer';
-    // target.interactive = true;
+    target.eventMode = 'static';
+    target.cursor = 'pointer';
+    target.interactive = true;
 
     target.on('pointerover', onPointerOver);
     target.on('pointerout', onPointerOut);

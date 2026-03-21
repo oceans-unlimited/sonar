@@ -1,23 +1,24 @@
 import { Container, Sprite, Graphics, Text, Assets, NineSliceSprite } from 'pixi.js';
 import { LayoutContainer } from '@pixi/layout/components';
-import { scaleToHeight, scaleByMinDimension } from './util/scaling'
-import { Fonts, Colors } from '../core/uiStyle';
+import { sizeToHeight, sizeFromHeight, sizeFromWidth } from './util/scaling'
+import { Fonts, Colors, Alphas } from '../core/uiStyle';
 import { buttonPatterns, tagPatterns } from './layouts';
 
 const PROFILES = {
-    basic: { overlay: false },
-    frame: { frameTexture: 'buttonFrame', overlay: true, slice: 20 },
+    basic: { overlay: false, inset: 0 },
+    frame: { frameTexture: 'buttonFrame', overlay: true, slice: 20, inset: 5 },
     circuit: {
         frameTexture: 'circuitFrame',
         overlay: true,
         tagTexture: 'gridTag',
         frameColor: 0xcccccc,
         tagColor: 0xcccccc,
-        slice: 25
+        slice: 25,
+        inset: 8
     },
-    reactor: { tagTexture: 'reactorTag' },
-    info: { overlay: true },
-    text: { textOnly: true }
+    reactor: { tagTexture: 'reactorTag', inset: 0 },
+    info: { overlay: true, inset: 0 },
+    text: { textOnly: true, inset: 0 }
 };
 
 export default class Button extends Container {
@@ -29,6 +30,8 @@ export default class Button extends Container {
      * @param {string} [config.textLabel] - Text label
      * @param {boolean} [config.textOnly=false] - If true, background is hidden
      * @param {string} [config.canonicalLabel='system'] - Canonical label for the button
+     * @param {number|string} [config.width] - Explicit width for the background asset
+     * @param {number|string} [config.height] - Explicit height for the background asset
      */
     constructor(config = {}) {
         super();
@@ -39,25 +42,57 @@ export default class Button extends Container {
             profile = 'basic',
             textLabel,
             textOnly = false,
-            canonicalLabel = 'system'
+            canonicalLabel = 'system',
+            width,
+            height,
+            constraint = 'height', // AUTHORITATIVE: 'height' | 'width'
+            targetSize = 80,       // DEFAULT: authoritative dimension value
         } = config;
 
         this.profile = profile.toLowerCase();
-        const profileConfig = PROFILES[this.profile];
-        const layoutPattern = buttonPatterns[this.profile];
-        this.interactive = true;
-        this.interactiveChildren = true;
-        this.cursor = 'pointer';
+        const profileConfig = PROFILES[this.profile] || PROFILES.basic;
+        const layoutPattern = buttonPatterns[this.profile] || {};
 
-        this.layout = layoutPattern ? {
-            minWidth: 44,
-            minHeight: 44,
-            ...layoutPattern,
-            alignItems: 'center',
-            justifyContent: 'center'
-        } : { width: 'auto', height: 'auto', minWidth: 44, minHeight: 44 };
-        this.label = canonicalLabel;
-        this.initialColor = color;
+        // Single Source of Truth: Button Container owns size
+        const texture = Assets.cache.get(asset);
+        if (texture) {
+            this._aspectRatio = texture.width / texture.height;
+            const inset = profileConfig.inset || 0;
+
+            // Effective size for the internal asset (excluding frame insets)
+            const effectiveSize = (width || height || targetSize) - (inset * 2);
+            const activeConstraint = width ? 'width' : (height ? 'height' : constraint);
+
+            if (activeConstraint === 'height') {
+                const size = sizeFromHeight({ texture }, effectiveSize);
+                this.layout = {
+                    ...layoutPattern,
+                    width: size.width + (inset * 2),
+                    height: size.height + (inset * 2),
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                };
+            } else {
+                const size = sizeFromWidth({ texture }, effectiveSize);
+                this.layout = {
+                    ...layoutPattern,
+                    width: size.width + (inset * 2),
+                    height: size.height + (inset * 2),
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                };
+            }
+        } else {
+            this.layout = {
+                ...layoutPattern,
+                width: width || 'intrinsic',
+                height: height || 'intrinsic',
+                alignItems: 'center',
+                justifyContent: 'center'
+            };
+        }
+
+        this.interactive = true;
 
         // 1. Content Container - This will host icons/background and respect parent padding
         this.content = new Container();
@@ -87,7 +122,7 @@ export default class Button extends Container {
         }
 
         // 3. Components
-        this._setupBackground(asset, color, textOnly || (profileConfig && profileConfig.textOnly));
+        this._setupBackground(asset, color, textOnly || (profileConfig && profileConfig.textOnly), width, height);
 
         if (textLabel) {
             this.setTextLabel(textLabel);
@@ -101,15 +136,15 @@ export default class Button extends Container {
     _setupBackground(asset, color, isHidden) {
         if (!asset || isHidden) return;
 
-        let texture = Assets.cache.get(asset);
-
+        const texture = Assets.cache.get(asset);
         const background = new Sprite(texture);
         background.label = 'btnBackground';
         background.tint = color;
 
+        // Background is a pure fill element
         background.layout = {
-            width: 100,
-            height: 80,
+            width: '100%',
+            height: '100%',
             objectFit: 'contain',
         };
 
@@ -290,6 +325,11 @@ export default class Button extends Container {
         if (tag) tag.tint = color;
     }
 
+    setAlpha(alpha) {
+        this.alpha = alpha;
+        return this;
+    }
+
     destroy(options) {
         super.destroy(options);
     }
@@ -298,6 +338,17 @@ export default class Button extends Container {
 /**
  * Factory wrapper for Button class.
  * Ensures consistent object creation using the profile-driven architecture.
+ * @param {Object} config - The button definition
+ * @param {string} config.asset - The background texture alias
+ * @param {number} config.color - Hex color value
+ * @param {string} [config.profile='basic'] - Visual style profile
+ * @param {string} [config.textLabel] - Text label
+ * @param {boolean} [config.textOnly=false] - If true, background is hidden
+ * @param {string} [config.canonicalLabel='system'] - Canonical label for the button
+ * @param {number|string} [config.width] - Explicit width (forces 'width' constraint)
+ * @param {number|string} [config.height] - Explicit height (forces 'height' constraint)
+ * @param {'width'|'height'} [config.constraint] - Baseline dimension to calculate against
+ * @param {number} [config.targetSize] - The Size value for the constraint dimension
  */
 export function createButtonFromDef(config) {
     return new Button(config);

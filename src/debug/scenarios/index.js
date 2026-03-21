@@ -20,7 +20,9 @@ import connInterruptWeapon from './conn/03_interrupt_weapon.js';
 import submarinePristine from './submarine/pristine.js';
 import damagePristine from './damage/pristine.js';
 import surfacePristine from './surface/pristine.js';
+import surfaceInteractive from './surface/interactive.js';
 import realtimeEngineLogic from './test/realtime_engine_logic.js';
+import lobbyPristine from './lobby/01_pristine.js';
 
 export const SCENARIO_REGISTRY = {
   'engineer_pristine': engineerPristine,
@@ -45,10 +47,15 @@ export const SCENARIO_REGISTRY = {
   'conn_interrupt_weapon': connInterruptWeapon,
   'submarine_pristine': submarinePristine,
   'damage_pristine': damagePristine,
-  'surface_pristine': surfacePristine
+  'surface_pristine': surfacePristine,
+  'surface_interactive': surfaceInteractive,
+  'lobby_pristine': lobbyPristine
 };
 
 export const SCENARIO_CATEGORIES = {
+  'Lobby': [
+    'lobby_pristine'
+  ],
   'Engineer - Basic': [
     'engineer_pristine',
     'engineer_move_cycle'
@@ -80,7 +87,8 @@ export const SCENARIO_CATEGORIES = {
     'xo_interrupt_weapon'
   ],
   'Surface Feature': [
-    'surface_pristine'
+    'surface_pristine',
+    'surface_interactive'
   ],
   'Test Bed': [
     'test_color_ops',

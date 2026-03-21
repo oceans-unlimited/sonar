@@ -85,7 +85,7 @@ export class DebugOverlay {
 
   render() {
     // Get the initial scene key to render scenario options correctly
-    const initialSceneKey = this.sceneManager.getAvailableScenes().find(scene => scene === 'conn') || this.sceneManager.getAvailableScenes()[0];
+    const initialSceneKey = this.sceneManager.getAvailableScenes().find(scene => scene === 'lobby') || this.sceneManager.getAvailableScenes()[0];
     this.currentSceneKey = initialSceneKey;
 
     this.panel.innerHTML = `

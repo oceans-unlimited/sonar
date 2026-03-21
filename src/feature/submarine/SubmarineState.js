@@ -149,14 +149,58 @@ export class SubmarineState extends EventEmitter {
         return this._data.actionGauges.silence === 0 && this._previousState === 'SUBMERGED';
     }
 
+    // ─────────── Logical Map Queries ───────────
+
+    /**
+     * @param {number} row 
+     * @param {number} col 
+     * @returns {boolean} True if the given coordinates are in the sub's past track.
+     */
+    isInPastTrack(row, col) {
+        return (this._data.past_track || []).some(pos => pos.row === row && pos.col === col);
+    }
+
+    /**
+     * @param {number} row 
+     * @param {number} col 
+     * @returns {boolean} True if there is a mine at the given coordinates.
+     */
+    hasMineAt(row, col) {
+        return (this._data.mines || []).some(pos => pos.row === row && pos.col === col);
+    }
+
+    /**
+     * Returns all valid directional moves from the current position.
+     * @param {object} gameState - Global game state for board collision checks.
+     * @returns {object[]} Array of { direction, row, col }
+     */
+    getValidMoves(gameState) {
+        if (!gameState) return [];
+        const currentPos = { row: this._data.row, col: this._data.col };
+        const possibleMoves = MapUtils.getPossibleMoves(currentPos, false);
+        return MapUtils.filterInvalidMoves(gameState, this._data, possibleMoves);
+    }
+
+    /**
+     * @param {string} direction - N, S, E, W
+     * @param {object} gameState - Global game state.
+     * @returns {boolean}
+     */
+    isValidMove(direction, gameState) {
+        const validMoves = this.getValidMoves(gameState);
+        return validMoves.some(m => m.direction === direction);
+    }
+
     // ─────────── Formatted Getters (The "Facts") ───────────
 
     getPosition() {
+        const row = this._data.row;
+        const col = this._data.col;
         return {
-            row: this._data.row,
-            col: this._data.col,
-            sector: this._data.sector,
-            alphaNumeric: MapUtils.toAlphaNumeric(this._data.row, this._data.col)
+            row,
+            col,
+            sector: MapUtils.getSector(row, col),
+            alphaNumeric: MapUtils.toAlphaNumeric(row, col)
         };
     }
 
@@ -193,6 +237,26 @@ export class SubmarineState extends EventEmitter {
 
     getState() {
         return this._data.submarineState;
+    }
+
+    getId() {
+        return this._data.id;
+    }
+
+    getEngineLayout() {
+        return this._data.engineLayout || {};
+    }
+
+    getGauges() {
+        return this._data.actionGauges || {};
+    }
+
+    getMines() {
+        return this._data.mines || [];
+    }
+
+    getStateData(stateKey) {
+        return this._data.submarineStateData[stateKey] || null;
     }
 
     getStatusMessage() {

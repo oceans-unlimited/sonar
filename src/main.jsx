@@ -7,6 +7,7 @@
 import { Application } from 'pixi.js';
 import '@pixi/layout';
 import '@pixi/layout/devtools';
+import { io } from 'socket.io-client';
 import { SceneManager } from './core/sceneManager';
 import { socketManager } from './core/socketManager';
 import { assetManager } from './core/assets';
@@ -58,8 +59,10 @@ import { assetManager } from './core/assets';
         overlay.mount();
     } else {
         // 5. Production Mode — bind real socket
+        console.log('io is', typeof io);
         if (typeof io !== 'undefined') {
             socketManager.bindSocket(io());
+            console.log('🚀 SOCKET CONNECTED');
         }
     }
 

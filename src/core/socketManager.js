@@ -83,7 +83,8 @@ class SocketManager extends EventEmitter {
 
         if (sub) console.log(`[SocketManager] State Update: Sub at (${sub.row}, ${sub.col})`);
         this.emit('stateUpdate', state);
-    }
+        console.log('State: ', state);      
+     }
 
     // ─────────── Outbound Methods ───────────
 
@@ -124,10 +125,11 @@ class SocketManager extends EventEmitter {
     // Actually PIXI.EventEmitter has .on().
 
     changeName(name) {
-        this.emit('change_name', name);
+        this.socket.emit('change_name', name);
     }
 
     selectRole(subId, role) {
+        console.log('SubId and Role in selectRole:', subId, role);
         const roleAlias = (r) => {
             if (!r) return r;
             const key = String(r).toLowerCase();
@@ -138,23 +140,23 @@ class SocketManager extends EventEmitter {
             return r;
         };
         let subIndex = this.lastState?.submarines?.findIndex(sub => sub.id === subId);
-        this.emit('select_role', { submarine: subIndex, role: roleAlias(role) });
+        this.socket.emit('select_role', { submarine: subIndex, role: roleAlias(role) });
     }
 
-    leaveRole() { this.emit('leave_role'); }
-    ready() { this.emit('ready'); }
-    notReady() { this.emit('not_ready'); }
+    leaveRole() { this.socket.emit('leave_role'); }
+    ready() { this.socket.emit('ready'); console.log('READY'); }
+    notReady() { this.socket.emit('not_ready'); console.log('NOT READY'); }
     pushButton(buttonData) { this.emit('button_pushed', buttonData); }
-    chargeGauge(gauge) { this.emit('charge_gauge', gauge); }
+    chargeGauge(gauge) { this.socket.emit('charge_gauge', gauge); }
     crossOffSystem(direction, slotId) {
-        this.emit('cross_off_system', { direction, slotId });
+        this.socket.emit('cross_off_system', { direction, slotId });
     }
     readyInterrupt() { this.emit('ready_interrupt'); }
     requestPause() { this.emit('request_pause'); }
     submitSonarResponse(response) { this.emit('submit_sonar_response', response); }
-    move(direction) { this.emit('move', direction); }
+    move(direction) { this.socket.emit('move', direction); }
     chooseInitialPosition(row, column) {
-        this.emit('choose_initial_position', { row, column });
+        this.socket.emit('choose_initial_position', { row, column });
     }
 }
 

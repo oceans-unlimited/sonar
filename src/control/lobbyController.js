@@ -7,7 +7,7 @@ export class LobbyController extends BaseController {
     constructor() {
         super();
         this.views = null;
-        this.playerCards = new Map(); // Maps playerId to PlayerNamePlate instance
+        this.playerToNameplate = new Map(); // playerId → nameplate instance
         this.behaviors = {
             subNames: { A: null, B: null },
             playerName: null
@@ -41,9 +41,107 @@ export class LobbyController extends BaseController {
 
     destroy() {
         console.log("[LobbyController] Destroying...");
-        this.playerCards.forEach(card => card.destroy());
-        this.playerCards.clear();
+        this.playerToNameplate.clear();
         super.destroy();
+    }
+
+    /**
+     * Get or create nameplate for a player
+     * Reuses existing nameplate if player already mapped, else grabs from pool
+     */
+    _getOrCreateNameplate(playerId) {
+        // Check if player already has a nameplate
+        if (this.playerToNameplate.has(playerId)) {
+            return this.playerToNameplate.get(playerId);
+        }
+
+        // Get next available (hidden) nameplate from pool
+        const nameplatePool = this.views?.nameplatePool || [];
+        let nameplate = nameplatePool.find(n => !n.visible);
+
+        if (!nameplate) {
+            console.warn(`[LobbyController] Nameplate pool exhausted, creating new instance`);
+            nameplate = new PlayerNamePlate({});
+        }
+
+        return nameplate;
+    }
+
+    /**
+     * Update nameplate data without re-wiring
+     */
+    _updateNameplateData(nameplate, playerData) {
+        nameplate.playerId = playerData.id;
+        nameplate.playerName = playerData.name;
+        nameplate.nameText.text = playerData.name.toUpperCase();
+        nameplate.label = `player_card_${playerData.id}`;
+    }
+
+    /**
+     * Wire interactive buttons (ready + vacate) for self only
+     */
+    _wireInteractiveButtons(nameplate, playerData, state, selfPlayerId) {
+        const isSelf = playerData.id === selfPlayerId;
+        if (!isSelf) {
+            // Hide interactive buttons for other players
+            nameplate.readyIcon.visible = true; // Show as read-only indicator
+            nameplate.vacateBtn.visible = false; // Hide vacate for others
+            return;
+        }
+
+        // Wire ready button for self
+        const readyApi = wireButton(nameplate.readyIcon, {
+            id: `ready_${playerData.id}`,
+            onPress: () => {
+                console.log(`[LobbyController] Toggling Ready for player ${playerData.id}`);
+                const amIAssigned = state.submarines.some(sub => 
+                    ['co', 'xo', 'sonar', 'eng'].some(role => sub[role] === selfPlayerId)
+                );
+                if (amIAssigned) {
+                    this.handleEvent('TOGGLE_READY', { id: `ready_${playerData.id}` });
+                } else {
+                    console.warn('[LobbyController] Cannot toggle ready: not assigned to role');
+                }
+            }
+        });
+        this.registerButton(readyApi.id, readyApi);
+
+        // Wire vacate button for self
+        const vacateApi = wireButton(nameplate.vacateBtn, {
+            id: `vacate_${playerData.id}`,
+            profile: 'tag',
+            onPress: () => {
+                console.log(`[LobbyController] Vacating role for player ${playerData.id}`);
+                this.handleEvent('VACATE', { id: `vacate_${playerData.id}` });
+            }
+        });
+        this.registerButton(vacateApi.id, vacateApi);
+    }
+
+    /**
+     * Reset nameplate to unrendered state (for disconnects)
+     */
+    _resetNameplate(nameplate, playerId) {
+        console.log(`[LobbyController] Resetting nameplate for ${playerId}`);
+        
+        // Hide and unassign
+        nameplate.visible = false;
+        nameplate.playerId = null;
+        nameplate.playerName = 'Unknown';
+        nameplate.nameText.text = 'Empty';
+        
+        // Unregister buttons
+        this.unregisterButton(`ready_${playerId}`);
+        this.unregisterButton(`vacate_${playerId}`);
+        
+        // Remove from parent containers
+        if (nameplate.parent) {
+            nameplate.parent.removeChild(nameplate);
+        }
+        
+        // Remove mapping
+        this.playerToNameplate.delete(playerId);
+        this.unregisterVisual(`nameplate_${playerId}`);
     }
 
     onGameStateUpdate(state) {
@@ -59,126 +157,107 @@ export class LobbyController extends BaseController {
             }
         });
 
-        // 1. Reconcile Players (Create cards for new players, delete disconnected)
-        const currentIds = new Set(state.players.map(p => p.id));
-        
-        // Remove old
-        for (const [id, card] of this.playerCards.entries()) {
-            if (!currentIds.has(id)) {
-                this.unregisterButton(`ready_${id}`);
-                this.unregisterButton(`vacate_${id}`);
-                card.destroy();
-                this.playerCards.delete(id);
+        // 1. **HANDLE DISCONNECTS: Remove players no longer in state**
+        const currentPlayerIds = new Set(state.players.map(p => p.id));
+        for (const [playerId, nameplate] of this.playerToNameplate.entries()) {
+            if (!currentPlayerIds.has(playerId)) {
+                console.log(`[LobbyController] Player ${playerId} disconnected`);
+                this._resetNameplate(nameplate, playerId);
             }
         }
 
-        // Add or grab existing
-        const activeCards = [];
-        state.players.forEach(playerData => {
-            let card = this.playerCards.get(playerData.id);
-            if (!card) {
-                card = new PlayerNamePlate(playerData);
-                const isSelf = playerData.id === selfPlayerId;
-
-                // Wire Buttons for Self interaction
-                if (isSelf) {
-                    const readyApi = wireButton(card.readyIcon, {
-                        id: `ready_${playerData.id}`,
-                        onPress: () => {
-                            // Can't toggle ready if not assigned
-                            const amIAssigned = state.submarines.some(sub => 
-                                ['co', 'xo', 'sonar', 'eng'].some(role => sub[role] === selfPlayerId)
-                            );
-                            if (amIAssigned) {
-                                this.handleEvent('TOGGLE_READY', { id: `ready_${playerData.id}` });
-                            }
-                        }
-                    });
-                    this.registerButton(readyApi.id, readyApi);
-
-                    const vacateApi = wireButton(card.vacateBtn, {
-                        id: `vacate_${playerData.id}`,
-                        profile: 'tag',
-                        onPress: () => {
-                            this.handleEvent('VACATE', { id: `vacate_${playerData.id}` });
-                        }
-                    });
-                    this.registerButton(vacateApi.id, vacateApi);
-                }
-
-                this.playerCards.set(playerData.id, card);
-                
-                // Register as visual for color control and effects
-                this.registerVisual(card.label, card);
+        // 2. **MAP players array to nameplates and positions**
+        const activeNameplates = [];
+        
+        state.players.forEach((playerData) => {
+            // Get or create nameplate for this player
+            let nameplate = this._getOrCreateNameplate(playerData.id);
+            
+            // First-time assignment: wire buttons and register
+            if (!this.playerToNameplate.has(playerData.id)) {
+                console.log(`[LobbyController] New/reconnected player: ${playerData.name} (${playerData.id})`);
+                this._updateNameplateData(nameplate, playerData);
+                this._wireInteractiveButtons(nameplate, playerData, state, selfPlayerId);
+                this.playerToNameplate.set(playerData.id, nameplate);
+                this.registerVisual(`nameplate_${playerData.id}`, nameplate);
+            } else {
+                // Existing player: just update data
+                this._updateNameplateData(nameplate, playerData);
             }
 
-            // Sync mechanical ready states
+            // Show nameplate
+            nameplate.visible = true;
+            activeNameplates.push({ data: playerData, nameplate });
+        });
+
+        // 3. **SYNC READY STATE for all visible nameplates**
+        activeNameplates.forEach(({ data: playerData, nameplate }) => {
+            const isSelf = playerData.id === selfPlayerId;
             const isReady = state.ready.includes(playerData.id);
+            
+            // Update ready indicator
             const readyApi = this.buttons.get(`ready_${playerData.id}`);
             if (readyApi) {
                 readyApi.setActive(isReady);
-                card.readyIcon.visible = true; // Ensure visible for self
+                nameplate.readyIcon.visible = true;
             } else {
-                card.setReady(isReady);
+                // For other players, show read-only ready state
+                nameplate.setReady(isReady);
+                nameplate.readyIcon.visible = true;
             }
-            activeCards.push({ data: playerData, card });
         });
 
-        // Track who ends up assigned so we can dump the rest into unassigned
+        // Track assigned vs unassigned
         const assignedIds = new Set();
 
-        // 2. Mount assigned cards into their exact Submarine slots
+        // 4. **POSITION: Mount assigned players into submarine role slots**
         state.submarines.forEach((subState, i) => {
             const subId = i === 0 ? 'A' : 'B';
             const subColor = i === 0 ? Colors.subA : Colors.subB;
-            
-            // Map the internal roles to the UI slots
             const roles = ['co', 'xo', 'sonar', 'eng'];
+
             roles.forEach(roleId => {
                 const playerId = subState[roleId];
                 const slotView = this.views.roleSlots[subId][roleId];
                 if (!slotView) return;
 
-                // Clear whatever old card was in this slot (it's a ButtonBlock, second child is the placeholder/card)
                 const slotContainer = slotView.slotContainer;
-                // ButtonBlock elements: [button, content]
-                // We want to replace or update the content
-                
+
                 if (playerId) {
-                    const cardData = activeCards.find(c => c.data.id === playerId);
-                    if (cardData) {
-                        const card = cardData.card;
+                    const nameplateData = activeNameplates.find(n => n.data.id === playerId);
+                    if (nameplateData) {
+                        const nameplate = nameplateData.nameplate;
                         const isSelf = playerId === selfPlayerId;
 
-                        // Use new ButtonBlock methods for cleaner card placement
-                        slotContainer.addContent(card);
+                        // Place in role slot
+                        slotContainer.addContent(nameplate);
                         slotContainer.toggleContentVisibility('placeholderText', false);
 
                         const roleColor = slotView.roleColor;
-                        card.updateStyle(true, subColor, isSelf, roleColor);
-                        card.setVacateVisible(isSelf);
-                        card.visible = true;
+                        nameplate.updateStyle(true, subColor, isSelf, roleColor);
+                        nameplate.setVacateVisible(isSelf);
 
                         assignedIds.add(playerId);
                     }
                 } else {
+                    // No player assigned to this role
                     slotContainer.toggleContentVisibility('placeholderText', true);
                 }
             });
         });
 
-        // 3. Mount all others into Unassigned Green Column
+        // 5. **POSITION: Mount unassigned players to unassigned panel**
         const unassignedPanel = this.views.unassigned;
         
-        activeCards.filter(c => !assignedIds.has(c.data.id))
+        activeNameplates
+            .filter(n => !assignedIds.has(n.data.id))
             .sort((a, b) => (a.data.connectionOrder || 0) - (b.data.connectionOrder || 0))
-            .forEach(({ card }) => {
-                unassignedPanel.addContent(card);
-                card.updateStyle(false, Colors.border, false); // Standard unassigned style
-                card.visible = true;
+            .forEach(({ nameplate }) => {
+                unassignedPanel.addContent(nameplate);
+                nameplate.updateStyle(false, Colors.border, false);
             });
 
-        // 4. Update Editing Permissions
+        // 6. Update Editing Permissions
         this._updateEditingPermissions(state, selfPlayerId);
     }
 

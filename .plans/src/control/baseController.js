@@ -117,7 +117,9 @@ export class BaseController {
     }
 
     handleGameState(state) {
+        console.log('lastState', this.lastState);
         this.lastState = state;
+        console.log('State: ', state);
         // Pass state to current scene controller's hook
         this.onGameStateUpdate(state);
     }

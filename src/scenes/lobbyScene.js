@@ -5,6 +5,7 @@ import ButtonBlock from '../render/buttonBlock.js';
 import { createButtonFromDef } from '../render/button.js';
 import { wireButton } from '../behavior/buttonBehavior.js';
 import { attachTextEditBehavior } from '../behavior/textEditBehavior.js';
+import { PlayerNamePlate } from '../render/card.js';
 
 /**
  * Lobby Scene Factory
@@ -30,7 +31,8 @@ export async function createLobbyScene(controller, ticker) {
         subB: null,
         unassigned: null,
         subNames: { A: null, B: null },
-        roleSlots: { A: {}, B: {} }
+        roleSlots: { A: {}, B: {} },
+        nameplatePool: []
     };
 
     // 1. Player Name (Absolutely positioned in upper left)
@@ -160,6 +162,38 @@ export async function createLobbyScene(controller, ticker) {
 
     // 4. Controller Bindings
     controller.setViews(views);
+
+    // 5. Pre-render 8 nameplates with wired behaviors
+    for (let i = 0; i < 8; i++) {
+        const nameplate = new PlayerNamePlate({});
+        nameplate.visible = false; // Hidden until client connects
+        
+        // Wire ready button behavior
+        const readyBehavior = wireButton(nameplate.readyIcon, {
+            id: `ready_pool_${i}`,
+            onPress: () => controller.handleEvent('TOGGLE_READY', { 
+                plateIndex: i, 
+                id: `ready_pool_${i}` 
+            })
+        });
+        controller.registerButton(readyBehavior.id, readyBehavior);
+        
+        // Wire vacate button behavior  
+        const vacateBehavior = wireButton(nameplate.vacateBtn, {
+            id: `vacate_pool_${i}`,
+            profile: 'tag',
+            onPress: () => controller.handleEvent('VACATE', { 
+                plateIndex: i, 
+                id: `vacate_pool_${i}` 
+            })
+        });
+        controller.registerButton(vacateBehavior.id, vacateBehavior);
+        
+        // Initially attach to unassigned panel (hidden)
+        views.unassigned.addChild(nameplate);
+        views.nameplatePool.push(nameplate);
+        controller.registerVisual(`nameplate_pool_${i}`, nameplate);
+    }
 
     // Attach Text Behaviors
     controller.behaviors.subNames.A = attachTextEditBehavior(views.subNames.A, {

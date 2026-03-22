@@ -19,6 +19,7 @@ export function createAndRunServer(/**@type {LogicalServer} */ logicalServer, po
   // Define server-side logic for web socket connections.
   ioServer.on("connection", (socket) => {
     // Use persistent playerId if provided (e.g., from localStorage on Pi/Client), else fallback to socket.id
+    console.log('CONNECTION POINT');
     const playerId = socket.handshake.auth?.playerId || socket.id;
 
     socket.on("disconnect", () => {

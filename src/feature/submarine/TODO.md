@@ -18,16 +18,16 @@ This list tracks the implementation of the Submarine Feature as the canonical "D
     - [x] Define the canonical legal transition map.
 
 ## Phase 2: Refactoring & Integration
-- [ ] **Refactor `SubmarineController.js` (The Facade)**
-    - [ ] Transform into the safe interface/bridge for Scene Controllers.
-- [ ] **Update `src/core/sceneManager.js`**
-    - [ ] Instantiate `Submarine` feature during app initialization.
-    - [ ] Inject feature registry into all scene controllers.
+- [x] **Refactor `SubmarineController.js` (The Facade)**
+    - [x] Transform into the safe interface/bridge for Scene Controllers.
+- [x] **Update `src/core/sceneManager.js`**
+    - [x] Instantiate `Submarine` feature during app initialization.
+    - [x] Inject feature registry into all scene controllers.
 - [ ] **Update Scene Controllers**
-    - [ ] Migrate `ConnController`, `EngineerController`, and `XOController` to listen to the Submarine Feature instead of the raw socket.
+    - [ ] Migrate `ConnController`, `EngineerController`, and `XOController` to listen to the Submarine Feature instead of the raw socket. (Eng/XO migrated)
 
 ## Phase 3: Validation & Rules
 - [ ] **Create `surfacingRules.js`**
     - [ ] Implement pure functions for track erasure and sector calculation.
-- [ ] **Create `game_loop_sim.js` (Scenario)**
-    - [ ] Automate a full movement cycle to verify gating logic (`canMove()`).
+- [x] **Create `game_loop_sim.js` (Scenario)**
+    - [x] Automate a full movement cycle to verify gating logic (`canMove()`). (Eng/XO Move Loops implemented)

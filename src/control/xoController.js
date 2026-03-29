@@ -40,8 +40,7 @@ export class XOController extends BaseController {
 
         // --- Handler Map ---
         this.handlers = {
-            'CHARGE_SUBSYSTEM': (d) => this.handleCharge(d),
-            'DISCHARGE_SUBSYSTEM': (d) => this.handleDischarge(d),
+            'SUBSYSTEM_ACTION': (d) => this.handleSubsystemAction(d),
             'DIRECTOR_CMD': (d) => this.handleDirectorCmd(d),
         };
     }
@@ -77,17 +76,44 @@ export class XOController extends BaseController {
             // Listen for selection confirmations (for both tracking and drones)
             this.subscribeToFeature('map', 'selectionConfirmed', (data) => this.handleMapSelection(data));
         }
-    }
 
-
-    onGameStateUpdate(state) {
+        // Initial Sync
         const subController = this.features.get('submarine');
         const sub = subController?.getOwnship();
-        if (!sub) return;
+        if (sub) {
+            this._syncWithSubmarine(sub);
+        }
 
+        // Handle identity resolution
+        this.subscribeToFeature('submarine', 'identity:resolved', ({ sub }) => {
+            console.log('[XOController] Identity resolved. Performing sync.');
+            this._syncWithSubmarine(sub);
+        });
+
+        // Subscribe to state changes (Locking/Unlocking UI)
+        this.subscribeToFeature('submarine', 'sub:stateChanged', ({ state }) => {
+            console.log(`[XOController] State changed: ${state}`);
+            const sub = this.features.get('submarine')?.getOwnship();
+            if (sub) this._updateInteractionState(this.lastState, sub);
+        });
+
+        // Subscribe to gauge updates
+        this.subscribeToFeature('submarine', 'sub:updated', (data) => {
+            const sub = this.features.get('submarine')?.getOwnship();
+            if (sub) {
+                this._syncLevels(sub);
+                this._updateInteractionState(this.lastState, sub);
+            }
+        });
+    }
+
+    _syncWithSubmarine(sub) {
+        this._syncLevels(sub);
+        this._updateInteractionState(this.lastState, sub);
+    }
+
+    _syncLevels(sub) {
         const actionGauges = sub.getGauges();
-
-        // 1. Sync Levels
         Object.keys(this.subsystemLevels).forEach(key => {
             if (actionGauges[key] !== undefined) {
                 this.subsystemLevels[key] = actionGauges[key];
@@ -95,6 +121,10 @@ export class XOController extends BaseController {
                 if (row && row.setGaugeLevel) row.setGaugeLevel(this.subsystemLevels[key]);
             }
         });
+    }
+
+    _updateInteractionState(state, sub) {
+        if (!state) return;
 
         // 2. Interaction State
         const isLive = state.phase === 'LIVE';
@@ -112,25 +142,51 @@ export class XOController extends BaseController {
             const key = id.replace('row_', '');
 
             const isFull = this.subsystemLevels[key] >= this.maxLevels[key];
+            
+            // Interaction logic:
+            // 1. Can charge if interaction is NOT locked and gauge is NOT full.
+            // 2. Can discharge if phase is LIVE and gauge IS full (independent of MOVED state).
             const canCharge = !this.isInteractionLocked && !isFull;
             const canDischarge = isLive && isFull;
 
+            const isInteractive = canCharge || canDischarge;
+
             if (row.setInteractiveState) {
-                row.setInteractiveState(canCharge || canDischarge);
+                row.setInteractiveState(isInteractive);
+            }
+            
+            // Pulse the row if it's ready to discharge
+            if (row.setActive) {
+                row.setActive(canDischarge);
             }
         });
     }
 
+    onGameStateUpdate(state) {
+        // We only cache the state for reference in logic.
+        // View updates are now driven by feature events.
+        super.onGameStateUpdate(state);
+    }
+
     // ─────────── Handlers ───────────
+
+    /**
+     * Entry point for all subsystem interactions (clicks on linked icon/gauge rows).
+     * Decides whether to charge or discharge based on current levels and state.
+     */
+    handleSubsystemAction({ key }) {
+        const isFull = this.subsystemLevels[key] >= this.maxLevels[key];
+
+        if (isFull) {
+            this.handleDischarge({ key });
+        } else {
+            this.handleCharge({ key });
+        }
+    }
 
     handleCharge({ key }) {
         if (this.isInteractionLocked) {
-            console.warn('[XOController] Interaction locked.');
-            return;
-        }
-
-        if (this.subsystemLevels[key] >= this.maxLevels[key]) {
-            console.warn(`[XOController] Subsystem ${key} already full.`);
+            console.warn(`[XOController] Charge interaction locked for ${key}.`);
             return;
         }
 
@@ -149,7 +205,11 @@ export class XOController extends BaseController {
     }
 
     handleDischarge({ key }) {
-        if (this.subsystemLevels[key] < this.maxLevels[key]) return;
+        // Double check phase
+        if (this.lastState?.phase !== 'LIVE') {
+            console.warn(`[XOController] Cannot discharge ${key} outside of LIVE phase.`);
+            return;
+        }
 
         console.log(`[XOController] Discharging: ${key}`);
         
@@ -160,7 +220,7 @@ export class XOController extends BaseController {
         // Reset drone state after discharge if needed
         if (key === 'drone') {
             this.droneSector = null;
-            const droneRow = this.visuals['row_drone'];
+            const droneRow = this.visuals.get('row_drone');
             if (droneRow) {
                 const sectorText = droneRow.getChildByLabel('droneSectorText');
                 if (sectorText) sectorText.text = "";

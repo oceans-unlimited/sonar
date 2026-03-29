@@ -100,6 +100,7 @@ The submarine feature exists precisely to normalize server data. Bypassing it le
 | `sub:damaged` | `SubmarineState` | `{ current, max, percent, isCritical }` |
 | `sub:stateChanged` | `SubmarineState` | `{ state, previous }` |
 | `sub:updated` | `SubmarineState` | Full `_data` object |
+| `sub:engineUpdated` | `SubmarineState` | `{ layout, previousCount, newCount, wasReset }` |
 | `submarine:moved` | `submarine` (feature) | `{ id, row, col, ... }` |
 | `submarine:allUpdated` | `submarine` (feature) | `Map<id, SubmarineState>` |
 | `identity:resolved` | `submarine` (feature) | `{ sub, role }` |

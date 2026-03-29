@@ -38,11 +38,12 @@ This cycle tracks the flow of information from the Captain's move to the Enginee
 | **1. Movement Initiation** | Captain | `move` (Emit) | **Payload:** `direction` (e.g., `'N'`) |
 | **2. State Transition** | Server | `SubmarineStates.MOVED` | **Server Logic:** Updates sub coordinates and track. Sets `submarineState` to `MOVED`. |
 | **3. Global Sync** | Server | `state` (Broadcast) | **Payload:** Full `state` object. `sub.submarineState === 'MOVED'`, `sub.submarineStateData.MOVED.directionMoved === 'N'`. |
-| **4. Interaction Lock** | Engineer (Client) | `updateEngineView` | **Local Logic:** <br> - **LOCKED (IDLE)**: Wrong direction buttons are visible but non-interactive.<br> - **READY (ACTIVE)**: Correct direction buttons pulse/highlight and accept clicks.<br> - **DONE (DISABLED)**: Already crossed-off buttons appear dimmed/crossed-out. |
+| **4. Interaction Lock** | Engineer (Client) | `sub:stateChanged` | **Local Logic:** <br> - **LOCKED (IDLE)**: Wrong direction buttons are visible but non-interactive.<br> - **READY (ACTIVE)**: Correct direction buttons pulse/highlight and accept clicks.<br> - **DONE (DISABLED)**: Already crossed-off buttons appear dimmed/crossed-out. |
 | **5. Deactivate (CrossOut) System** | Engineer | `cross_off_system` (Emit) | **Payload:** `{ direction: 'N', slotId: 'slot01' }` |
 | **6. Verification** | Server | `logicalServer.crossOffSystem` | **Server Logic:** Validates the move, updates `crossedOutSlots`, sets `engineerCrossedOutSystem = true`. |
-| **7. Cycle Resolution** | Server | `SubmarineStates.SUBMERGED` | **Server Logic:** If `xoChargedGauge` is also `true`, state reverts to `SUBMERGED`. |
-| **8. Final Sync** | Server | `state` (Broadcast) | **Payload:** Full `state` object. `sub.submarineState === 'SUBMERGED'`. |
+| **7. Round-trip Sync** | Submarine Feature | `sub:engineUpdated` | **Local Logic:** <br> - UI reflects the server-confirmed `crossedOutSlots`.<br> - Heuristic breakdown detection triggers atmosphere messages. |
+| **8. Cycle Resolution** | Server | `SubmarineStates.SUBMERGED` | **Server Logic:** If `xoChargedGauge` is also `true`, state reverts to `SUBMERGED`. |
+| **9. Final Sync** | Submarine Feature | `sub:stateChanged` | **Local Logic:** Interactions locked. |
 
 ---
 

@@ -55,10 +55,13 @@ The First Officer's state is primarily managed within the `submarine` object in 
 
 ## 4. Subsystem Management (Local Logic)
 
-The `XOController` manages visual feedback based on the global state:
-*   **Charging Logic**: Gauges can ONLY be charged when the sub is in the `POST_MOVEMENT` state.
-*   **Discharge Readiness**: When a gauge reaches its max level, the UI triggers a "Pulse" and "Glow" effect to notify the crew that the system is ready.
-*   **Clock Sync**: Gauges and interactions are disabled if the `simulationClock` is paused or the game phase is not `LIVE`.
+The `XOController` manages visual feedback based on the high-signal events from the Submarine feature:
+*   **Initial Sync**: Uses `identity:resolved` to populate and sync levels when the ownship is identified.
+*   **Interaction State**: Uses `sub:stateChanged` to lock/unlock charging logic based on the submarine state (e.g. `MOVED` vs `SUBMERGED`).
+*   **Gauge Sync**: Uses `sub:updated` to refresh level visuals whenever the server broadcasts state changes.
+*   **Charging Logic**: Gauges can ONLY be charged when the sub is in the `MOVED` state and `xoChargedGauge` is false.
+*   **Discharge Readiness**: When a gauge reaches its max level, the UI triggers a "Pulse" and "Glow" effect (via `setActive(true)`) to notify the crew that the system is ready. Discharging is allowed in any `LIVE` phase state if the gauge is full.
+*   **Clock Sync**: Interactions are disabled if the `simulationClock` is paused or the game phase is not `LIVE`.
 
 ---
 

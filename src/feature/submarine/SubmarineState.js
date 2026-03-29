@@ -62,6 +62,8 @@ export class SubmarineState extends EventEmitter {
         const oldPos = { row: this._data.row, col: this._data.col };
         const oldHealth = this._data.health;
         const oldSubState = this._data.submarineState;
+        const oldEngineLayout = this._data.engineLayout || {};
+        const oldCrossedOut = oldEngineLayout.crossedOutSlots || [];
 
         // 1. Deep Update (Partial)
         // We manually map key fields to ensure schema stability
@@ -72,8 +74,15 @@ export class SubmarineState extends EventEmitter {
             submarineStateData: {
                 ...this._data.submarineStateData,
                 ...(newData.submarineStateData || {})
+            },
+            engineLayout: {
+                ...this._data.engineLayout,
+                ...(newData.engineLayout || {})
             }
         };
+
+        const newEngineLayout = this._data.engineLayout;
+        const newCrossedOut = newEngineLayout.crossedOutSlots || [];
 
         // 2. Position History Tracking
         // If position changed, log it to persistent history
@@ -92,6 +101,16 @@ export class SubmarineState extends EventEmitter {
             this.emit('sub:stateChanged', {
                 state: this._data.submarineState,
                 previous: oldSubState
+            });
+        }
+
+        // Check for engine updates (specifically crossedOutSlots)
+        if (JSON.stringify(oldCrossedOut) !== JSON.stringify(newCrossedOut)) {
+            this.emit('sub:engineUpdated', {
+                layout: newEngineLayout,
+                previousCount: oldCrossedOut.length,
+                newCount: newCrossedOut.length,
+                wasReset: oldCrossedOut.length > 0 && newCrossedOut.length === 0
             });
         }
 

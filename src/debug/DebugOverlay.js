@@ -1,4 +1,5 @@
 import { SCENARIO_REGISTRY, SCENARIO_CATEGORIES } from './scenarios/index.js';
+import { submarine } from '../feature/submarine/submarine.js';
 
 export class DebugOverlay {
   constructor(director, sceneManager) {
@@ -269,6 +270,9 @@ export class DebugOverlay {
   async loadScenario(scenarioKey) {
     const scenario = SCENARIO_REGISTRY[scenarioKey];
     if (!scenario) return;
+
+    // Reset persistent features to ensure clean state resolution
+    submarine.reset();
 
     this.logEvent(`Loading: ${scenario.name}`, '#ffffff');
     document.getElementById('scenario-name').textContent = scenario.name;

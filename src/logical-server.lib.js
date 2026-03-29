@@ -14,7 +14,7 @@ export class LogicalServer {
     phase: GlobalPhases.LOBBY,
     /**@type {{type: string, payload: {}, data: {}}} */
     activeInterrupt: null, // { type, payload, data }
-    /**@type {{id: string, name: string, connectionOrder: number, ready: boolean}[]} */
+    /**@type {{id: string, name: string, connectionOrder: number}[]} */
     players: [],
     adminId: null,
     submarines: [this.createSubmarine('A'), this.createSubmarine('B')],
@@ -95,7 +95,6 @@ export class LogicalServer {
       id: playerId,
       name: playerName,
       connectionOrder: Date.now(),
-      ready: false,
     });
 
     if (!this.state.adminId) this.state.adminId = playerId;

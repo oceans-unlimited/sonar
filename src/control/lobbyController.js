@@ -148,6 +148,34 @@ export class LobbyController extends BaseController {
         if (!state || !this.views) return;
         const selfPlayerId = this.socket ? this.socket.playerId : null;
         
+        // Handle Scene Transition from Lobby
+        if (state.phase !== 'LOBBY' && selfPlayerId) {
+            let myRole = null;
+            state.submarines.forEach(sub => {
+                ['co', 'xo', 'sonar', 'eng'].forEach(role => {
+                    if (sub[role] === selfPlayerId) myRole = role;
+                });
+            });
+
+            const roleToScene = {
+                'co': 'conn',
+                'xo': 'xo',
+                'eng': 'engineer',
+                'sonar': 'teletype'
+            };
+            
+            if (myRole && roleToScene[myRole]) {
+                const targetScene = roleToScene[myRole];
+                if (typeof this.onSceneChange === 'function') {
+                    console.log(`[LobbyController] Transitioning to ${targetScene} scene for role ${myRole}`);
+                    this.onSceneChange(targetScene);
+                    return;
+                }
+            } else if (!myRole) {
+                console.log(`[LobbyController] Did not transition out of lobby: player is unassigned.`);
+            }
+        }
+
         // 0. Update submarine names
         state.submarines.forEach((subState, i) => {
             const subId = i === 0 ? 'A' : 'B';

@@ -14,6 +14,7 @@ import { createSubmarineTestScene } from '../scenes/submarineTestScene';
 import { createDamageTestScene } from '../scenes/damageTestScene';
 import { createSurfaceTestScene } from '../scenes/surfaceTestScene';
 import { createLobbyScene } from '../scenes/lobbyScene';
+import { createSonarScene } from '../scenes/sonarScene';
 
 // --- Controllers ---
 import { BaseController } from '../control/baseController';
@@ -28,6 +29,7 @@ import { DamageController } from '../feature/damage/DamageController';
 import { SurfaceController } from '../feature/surface/SurfaceController';
 import { SubmarineTestController } from '../control/SubmarineTestController';
 import { LobbyController } from '../control/lobbyController';
+import { SonarController } from '../control/sonarController';
 
 // Services
 import { socketManager } from './socketManager.js';
@@ -53,6 +55,7 @@ export const CONTROLLER_MAP = {
     'damageTest': DamageController,
     'surfaceTest': SurfaceController,
     'lobby': LobbyController,
+    'sonar': SonarController,
 };
 
 export const SCENE_MAP = {
@@ -66,6 +69,7 @@ export const SCENE_MAP = {
     'damageTest': createDamageTestScene,
     'surfaceTest': createSurfaceTestScene,
     'lobby': createLobbyScene,
+    'sonar': createSonarScene,
 };
 
 // ─────────── Scene Manager Class ───────────

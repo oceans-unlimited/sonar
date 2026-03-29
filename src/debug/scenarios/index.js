@@ -23,6 +23,7 @@ import surfacePristine from './surface/pristine.js';
 import surfaceInteractive from './surface/interactive.js';
 import realtimeEngineLogic from './test/realtime_engine_logic.js';
 import lobbyPristine from './lobby/01_pristine.js';
+import sonarPristine from './sonar/01_pristine.js';
 
 export const SCENARIO_REGISTRY = {
   'engineer_pristine': engineerPristine,
@@ -49,7 +50,8 @@ export const SCENARIO_REGISTRY = {
   'damage_pristine': damagePristine,
   'surface_pristine': surfacePristine,
   'surface_interactive': surfaceInteractive,
-  'lobby_pristine': lobbyPristine
+  'lobby_pristine': lobbyPristine,
+  'sonar_pristine': sonarPristine
 };
 
 export const SCENARIO_CATEGORIES = {
@@ -99,5 +101,8 @@ export const SCENARIO_CATEGORIES = {
   ],
   'TELETYPE': [
     'teletype_pristine'
+  ],
+  'Sonar (Acoustics)': [
+    'sonar_pristine'
   ]
 };

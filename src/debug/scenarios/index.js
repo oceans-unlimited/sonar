@@ -8,6 +8,7 @@ import engineerInterruptDamage from './engineer/08_interrupt_damage.js';
 import xoPristine from './xo/01_pristine.js';
 import xoInterruptPause from './xo/02_interrupt_pause.js';
 import xoInterruptWeapon from './xo/03_interrupt_weapon.js';
+import xoMoveCycle from './xo/04_move_cycle.js';
 import testColorOps from './test/color_ops.js';
 import testMapPristine from './test/map_pristine.js';
 import testMapMovement from './test/map_movement.js';
@@ -36,6 +37,7 @@ export const SCENARIO_REGISTRY = {
   'xo_pristine': xoPristine,
   'xo_interrupt_pause': xoInterruptPause,
   'xo_interrupt_weapon': xoInterruptWeapon,
+  'xo_move_cycle': xoMoveCycle,
   'test_color_ops': testColorOps,
   'test_realtime_engine_logic': realtimeEngineLogic,
   'test_map_pristine': testMapPristine,
@@ -68,7 +70,8 @@ export const SCENARIO_CATEGORIES = {
     'engineer_reactor_critical'
   ],
   'First Officer (XO)': [
-    'xo_pristine'
+    'xo_pristine',
+    'xo_move_cycle'
   ],
   'Captain (Conn)': [
     'conn_pristine',

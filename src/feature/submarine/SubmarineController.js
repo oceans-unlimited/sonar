@@ -11,6 +11,17 @@ export class SubmarineController extends BaseController {
     constructor() {
         super();
         this._feature = submarine;
+
+        // Proxy ownship events to this controller instance
+        this._feature.on('identity:resolved', ({ sub, role }) => {
+            this.emit('identity:resolved', { sub, role });
+
+            sub.on('sub:moved', (d) => this.emit('sub:moved', d));
+            sub.on('sub:damaged', (d) => this.emit('sub:damaged', d));
+            sub.on('sub:stateChanged', (d) => this.emit('sub:stateChanged', d));
+            sub.on('sub:updated', (d) => this.emit('sub:updated', d));
+            sub.on('sub:engineUpdated', (d) => this.emit('sub:engineUpdated', d));
+        });
     }
 
     /**

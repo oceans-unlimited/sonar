@@ -26,16 +26,55 @@ export class EngineerController extends BaseController {
 
     // ─────────── Lifecycle ───────────
 
-    onViewBound(view) {
-        super.onViewBound(view);
-        console.log('[EngineerController] View bound.');
-    }
+    onFeaturesBound() {
+        super.onFeaturesBound();
+        console.log('[EngineerController] Features bound.');
 
-    onGameStateUpdate(state) {
+        // Initial Sync
         const subController = this.features.get('submarine');
         const sub = subController?.getOwnship();
-        if (!sub) return;
+        if (sub) {
+            this._syncWithSubmarine(sub);
+        }
 
+        // Handle delayed identity resolution (common in Director mode scenarios)
+        this.subscribeToFeature('submarine', 'identity:resolved', ({ sub }) => {
+            console.log('[EngineerController] Identity resolved. Performing sync.');
+            this._syncWithSubmarine(sub);
+        });
+
+        // Subscribe to high-signal feature events
+        this.subscribeToFeature('submarine', 'sub:stateChanged', ({ state }) => {
+            console.log(`[EngineerController] State changed: ${state}`);
+            const sub = this.features.get('submarine')?.getOwnship();
+            if (sub) this.updateEngineView(this.lastState, sub);
+        });
+
+        this.subscribeToFeature('submarine', 'sub:engineUpdated', (data) => {
+            console.log('[EngineerController] Engine updated');
+            const sub = this.features.get('submarine')?.getOwnship();
+            if (sub) {
+                this.engineState = sub.getEngineLayout();
+                this.updateEngineView(this.lastState, sub);
+
+                // Breakdown Feedback (triggered when newCount is 0 after a reset)
+                if (data.wasReset) {
+                    // Note: Thresholds are set to account for server-side processing where the final slot 
+                    // causes an immediate reset, so the client only sees the jump from the previous state.
+                    if (data.previousCount >= 5) {
+                        // 5 -> 0 transition: Cardinal or Reactor breakdown
+                        this.pushAtmosphereMessage('>>> CRITICAL FAILURE: SYSTEMS OVERLOAD <<<');
+                        this.pushAtmosphereMessage('>>> EMERGENCY BOARD RESET COMPLETE <<<');
+                    } else if (data.previousCount >= 3) {
+                        // 3 -> 0 transition: Likely a circuit completion (4 slots)
+                        this.pushAtmosphereMessage('>>> CIRCUIT REPAIRED: SYSTEMS RESET <<<');
+                    }
+                }
+            }
+        });
+    }
+
+    _syncWithSubmarine(sub) {
         const engineLayout = sub.getEngineLayout();
         if (!engineLayout) return;
 
@@ -47,7 +86,13 @@ export class EngineerController extends BaseController {
         }
 
         this.engineState = engineLayout;
-        this.updateEngineView(state, sub);
+        this.updateEngineView(this.lastState, sub);
+    }
+
+    onGameStateUpdate(state) {
+        // We no longer trigger view updates from the raw state here.
+        // We only cache the state for reference in updateEngineView.
+        super.onGameStateUpdate(state);
     }
 
     // ─────────── View Updates ───────────
@@ -70,12 +115,17 @@ export class EngineerController extends BaseController {
 
         // Canonical submarine state checks (referencing SubmarineStates in constants.js)
         const canInteract = sub.getState() === 'MOVED';
+        const movedData = sub.getStateData('MOVED');
+        const activeDirection = movedData?.directionMoved; // 'N', 'E', 'S', 'W'
+        
         this.isInteractionLocked = !canInteract;
 
         const crossedOutSlots = this.engineState.crossedOutSlots || [];
 
         // 1. Process Frame Slots (Circuits)
         for (const [direction, dirData] of Object.entries(this.engineState.directions || {})) {
+            const isDirectionActive = canInteract && direction === activeDirection;
+
             for (const [slotId, _] of Object.entries(dirData.frameSlots || {})) {
                 const buttonId = `${direction}:${slotId}`;
                 const ctrl = this.buttons.get(buttonId);
@@ -89,7 +139,7 @@ export class EngineerController extends BaseController {
                 if (isCrossed) {
                     ctrl.setEnabled(false);
                     ctrl.setActive(false);
-                } else if (canInteract) {
+                } else if (isDirectionActive) {
                     ctrl.setEnabled(true);
                     ctrl.setActive(true);
                 } else {
@@ -111,7 +161,7 @@ export class EngineerController extends BaseController {
                 if (isCrossed) {
                     ctrl.setEnabled(false);
                     ctrl.setActive(false);
-                } else if (canInteract) {
+                } else if (isDirectionActive) {
                     ctrl.setEnabled(true);
                     ctrl.setActive(true);
                 } else {
@@ -152,16 +202,21 @@ export class EngineerController extends BaseController {
         directions.forEach(dir => {
             const visual = this.visuals.get(dir);
             if (visual && visual.setTint) {
-                // Determine if this direction is "active" (has at least one un-crossed slot)
-                const dirData = this.engineState.directions[dir];
-                const allSlots = { ...dirData.reactorSlots, ...dirData.frameSlots };
-                const isAnyActive = Object.keys(allSlots).some(slotId => {
-                    return !(this.engineState.crossedOutSlots || []).some(
-                        xo => xo.direction === dir && xo.slotId === slotId
-                    );
-                });
+                // Highlight the active direction if in MOVED state, otherwise dim
+                if (canInteract && dir === activeDirection) {
+                    visual.setTint(Colors.roleCaptain); // Yellow highlight for the move direction
+                } else {
+                    // Normal state: active (has slots) or disabled (empty)
+                    const dirData = this.engineState.directions[dir];
+                    const allSlots = { ...dirData.reactorSlots, ...dirData.frameSlots };
+                    const hasSlotsLeft = Object.keys(allSlots).some(slotId => {
+                        return !(this.engineState.crossedOutSlots || []).some(
+                            xo => xo.direction === dir && xo.slotId === slotId
+                        );
+                    });
 
-                visual.setTint(isAnyActive ? Colors.active : 0x555555);
+                    visual.setTint(hasSlotsLeft ? Colors.active : 0x555555);
+                }
             }
         });
     }

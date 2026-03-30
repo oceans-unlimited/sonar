@@ -81,7 +81,7 @@ export async function createXOScene(controller, ticker) {
         panel.setAlpha(Alphas.faint);
 
         col.rows.forEach(rowData => {
-            // 1. Create Subsystem Button (Icon)
+            // 1. Create Subsystem Button (Icon) - Visual Only
             const systemBtn = createButtonFromDef({
                 asset: rowData.icon,
                 profile: 'basic',
@@ -89,8 +89,10 @@ export async function createXOScene(controller, ticker) {
                 height: 80,
                 color: col.color
             });
+            systemBtn.eventMode = 'none';
+            systemBtn.interactive = false;
 
-            // 2. Create Gauge Button
+            // 2. Create Gauge Button - Visual Only
             const gaugeBtn = createButtonFromDef({
                 asset: rowData.frames[0] || 'four_gauge',
                 profile: 'basic',
@@ -98,6 +100,8 @@ export async function createXOScene(controller, ticker) {
                 height: 65,
                 color: col.color
             });
+            gaugeBtn.eventMode = 'none';
+            gaugeBtn.interactive = false;
 
             // 4. Status Text
             const statusText = new Text({
@@ -152,22 +156,15 @@ export async function createXOScene(controller, ticker) {
             });
 
 
-            // 5. Standardized Wiring (ACTION Preset)
-            const iconBehavior = wireButton(
-                systemBtn, {
-                id: `${rowData.key}_system`,
-                profile: 'basic',
-                onPress: () => controller.handleEvent('CHARGE_SUBSYSTEM', { id: `${rowData.key}_system`, key: rowData.key })
+            // 5. Linked Block Wiring
+            // We wire the 'buttonRow' (the container holding the buttons) as a single block
+            const rowBehavior = wireButton(
+                row.buttonRow, {
+                id: `row_${rowData.key}_behavior`,
+                profile: 'block',
+                onPress: () => controller.handleEvent('SUBSYSTEM_ACTION', { id: `row_${rowData.key}`, key: rowData.key })
             });
-            controller.registerButton(iconBehavior.id, iconBehavior);
-
-            const gaugeBehavior = wireButton(
-                gaugeBtn, {
-                id: `${rowData.key}_gauge`,
-                profile: 'basic',
-                onPress: () => controller.handleEvent('CHARGE_SUBSYSTEM', { id: `${rowData.key}_gauge`, key: rowData.key })
-            });
-            controller.registerButton(gaugeBehavior.id, gaugeBehavior);
+            controller.registerButton(rowBehavior.id, rowBehavior);
 
             // Add lifecycle methods to row for controller compatibility
             row.setGaugeLevel = (level) => {
@@ -180,9 +177,12 @@ export async function createXOScene(controller, ticker) {
             };
 
             row.setInteractiveState = (canInteract) => {
-                iconBehavior.setEnabled(canInteract);
-                gaugeBehavior.setEnabled(canInteract);
+                rowBehavior.setEnabled(canInteract);
                 row.alpha = canInteract ? 1.0 : 0.6;
+            };
+
+            row.setActive = (isActive) => {
+                rowBehavior.setActive(isActive);
             };
 
             // Custom setTint for cascading

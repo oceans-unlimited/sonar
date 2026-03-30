@@ -71,10 +71,12 @@ export class Director extends EventEmitter {
      * Start executing the timeline.
      */
     play() {
-        if (!this.timeline.length) return;
         this.isRunning = true;
         this.isPaused = false;
-        this._executeNext();
+        
+        if (this.timeline.length > 0) {
+            this._executeNext();
+        }
     }
 
     /**
@@ -94,7 +96,10 @@ export class Director extends EventEmitter {
     resume() {
         if (!this.isPaused) return;
         this.isPaused = false;
-        this._executeNext();
+        
+        if (this.timeline.length > 0) {
+            this._executeNext();
+        }
     }
 
     /**
@@ -118,7 +123,8 @@ export class Director extends EventEmitter {
             this.timerId = null;
         }
         if (this.currentScenario?.initialState) {
-            this.emit('state', this.currentScenario.initialState);
+            // Re-emit initial state but use injectEvent to ensure lastState is cached
+            this.injectEvent('state', this.currentScenario.initialState);
         }
     }
 
@@ -129,7 +135,7 @@ export class Director extends EventEmitter {
      */
     injectEvent(eventName, data) {
         console.log(`[Director] Injecting: ${eventName}`, data);
-        if (eventName === 'state') {
+        if (eventName === 'state' || eventName === 'stateUpdate') {
             this.lastState = data;
         }
         this.emit(eventName, data);
@@ -161,11 +167,15 @@ export class Director extends EventEmitter {
     _executeNext() {
         if (this.isPaused) return;
 
-        if (this.timelineIndex >= this.timeline.length) {
+        // Only auto-end if we have a timeline and it's finished
+        if (this.timeline.length > 0 && this.timelineIndex >= this.timeline.length) {
             this.isRunning = false;
             console.log(`[Director] Timeline complete.`);
             return;
         }
+
+        // If no timeline, nothing to do here
+        if (this.timeline.length === 0) return;
 
         const step = this.timeline[this.timelineIndex++];
 

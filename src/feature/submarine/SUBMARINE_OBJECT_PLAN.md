@@ -71,7 +71,8 @@ SubmarineState
 1. **Submarine** (the feature) calls `sub.update(rawSubData)`.
 2. **SubmarineState** (the instance) identifies that `row` changed.
 3. **SubmarineState** emits `sub:moved` via EventEmitter.
-4. **MapController** (via registration) hears the event and instructs the **MapViewArea** to update.
+4. **SubmarineState** identifies that `crossedOutSlots` changed and emits `sub:engineUpdated`.
+5. **MapController** or **EngineerController** (via registration) hears the event and instructs the View to update.
 
 ## 4. Dependencies
 - **[realtime_engine.md](../../.design/realtime_engine.md)**: Global communication chain.

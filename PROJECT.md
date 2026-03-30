@@ -89,5 +89,53 @@
 
 ---
 
-*This planning session established a solid foundation for the Game Message Engine, defining a modular, extensible system that integrates seamlessly with existing architecture.*</content>
+## Session: Event-Driven Station Refactoring & Interactive Move Loops
+**Date:** March 28, 2026
+**Objective:** Decouple role-based stations from raw socket state and implement interactive testing scenarios.
+
+### 🎯 **Session Goals**
+- **Architecture**: Migrate Engineer and XO stations to the Submarine feature's high-signal event system.
+- **Interactivity**: Implement "Linked Button" behavior for XO subsystems.
+- **Testing**: Create closed-loop interactive move cycle scenarios for Director Mode.
+- **Robustness**: Fix race conditions in identity resolution during scenario loading.
+
+### 🏗️ **Implementation Overview**
+
+#### **1. Submarine Feature Enhancements (`src/feature/submarine/`)**
+- **`SubmarineState.js`**: Added `sub:engineUpdated` event with breakdown detection (monitors `crossedOutSlots`).
+- **`SubmarineController.js`**: Now proxies ownship events (`sub:moved`, `sub:damaged`, `sub:stateChanged`, `sub:updated`, `sub:engineUpdated`) and `identity:resolved`.
+- **Identity Sync**: Ensured `identity:resolved` is emitted immediately upon discovery or re-sync.
+
+#### **2. Station Refactoring**
+- **Engineer Station**:
+  - Subscribed to `sub:stateChanged` and `sub:engineUpdated`.
+  - Implemented context-aware highlighting (only the active move direction is interactive).
+  - Added atmosphere messages for system breakdowns and circuit repairs.
+- **XO Station**:
+  - Consolidated charge/discharge logic into `SUBSYSTEM_ACTION`.
+  - Implemented **Linked Buttons**: Subsystem icon and gauge are now a single interactive block.
+  - Decoupled discharge interaction from the movement interaction lock.
+
+#### **3. Debug & Scenario Tools**
+- **`Director.js`**: Improved lifecycle to support dynamic `run()` loops in scenarios without static timelines.
+- **`DebugOverlay.js`**: Added automatic `submarine.reset()` on scenario load to prevent state leakage.
+- **New Scenarios**:
+  - `engineer/02_move_cycle.js`: Interactive move-cross-submerge loop.
+  - `xo/04_move_cycle.js`: Interactive move-charge-submerge loop.
+
+### ✅ **Features Delivered**
+- **Decoupled Logic**: Stations are now strictly reactive to normalized vessel state.
+- **Linked UI**: XO subsystem rows provide unified visual feedback and interaction.
+- **Immersive Feedback**: Engineer station provides teletype logs for system status changes.
+- **Reliable Testing**: Interactive loops allow for rapid verification of station gating logic.
+
+### 📊 **Session Metrics**
+- **Key Files Modified**: `SubmarineState.js`, `SubmarineController.js`, `EngineerController.js`, `XOController.js`, `xoScene.js`.
+- **New Scenarios**: 2 interactive loops.
+- **Fixes**: Resolved race conditions in Director Mode identity resolution.
+
+---
+
+*This session significantly advanced the project's architectural maturity, moving role-specific logic into a clean, event-driven model and providing robust tools for functional verification.*
+</content>
 <parameter name="filePath">/home/seth/Documents/Coding/sonar/PROJECT.md

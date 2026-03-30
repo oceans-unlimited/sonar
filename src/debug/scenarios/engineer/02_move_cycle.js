@@ -62,17 +62,21 @@ export default {
 
             // B. Server: Move Sub
             log(`⚠️ STATE: MOVED (${direction}). Waiting for Engineer...`);
-            director.emit('state', createMockSubmarineState({
-                submarineState: SUBMARINE_STATES.MOVED,
-                submarineStateData: {
-                    MOVED: {
-                        directionMoved: direction,
-                        engineerCrossedOutSystem: false,
-                        xoChargedGauge: false
-                    }
-                },
-                engineLayout: { crossedOutSlots: [...crossedOutSlots] }
-            }));
+            director.emit('state', {
+                version: Date.now(),
+                phase: 'LIVE',
+                submarines: [createMockSubmarineState({
+                    submarineState: SUBMARINE_STATES.MOVED,
+                    submarineStateData: {
+                        MOVED: {
+                            directionMoved: direction,
+                            engineerCrossedOutSystem: false,
+                            xoChargedGauge: false
+                        }
+                    },
+                    engineLayout: { crossedOutSlots: [...crossedOutSlots] }
+                })]
+            });
 
             // C. Wait for User Input
             const userAction = await new Promise((resolve) => {
@@ -96,26 +100,34 @@ export default {
             crossedOutSlots.push({ direction: userAction.direction, slotId: userAction.slotId });
 
             // E. Server: Confirm Cross-off
-            director.emit('state', createMockSubmarineState({
-                submarineState: SUBMARINE_STATES.MOVED,
-                submarineStateData: {
-                    MOVED: {
-                        directionMoved: direction,
-                        engineerCrossedOutSystem: true,
-                        xoChargedGauge: false
-                    }
-                },
-                engineLayout: { crossedOutSlots: [...crossedOutSlots] }
-            }));
+            director.emit('state', {
+                version: Date.now(),
+                phase: 'LIVE',
+                submarines: [createMockSubmarineState({
+                    submarineState: SUBMARINE_STATES.MOVED,
+                    submarineStateData: {
+                        MOVED: {
+                            directionMoved: direction,
+                            engineerCrossedOutSystem: true,
+                            xoChargedGauge: false
+                        }
+                    },
+                    engineLayout: { crossedOutSlots: [...crossedOutSlots] }
+                })]
+            });
 
             await delay(1500);
 
             // F. Server: Submerge
             log('🌊 Diving... Cycle Complete.');
-            director.emit('state', createMockSubmarineState({
-                submarineState: SUBMARINE_STATES.SUBMERGED,
-                engineLayout: { crossedOutSlots: [...crossedOutSlots] }
-            }));
+            director.emit('state', {
+                version: Date.now(),
+                phase: 'LIVE',
+                submarines: [createMockSubmarineState({
+                    submarineState: SUBMARINE_STATES.SUBMERGED,
+                    engineLayout: { crossedOutSlots: [...crossedOutSlots] }
+                })]
+            });
 
             await delay(2000);
         }

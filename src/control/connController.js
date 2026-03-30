@@ -38,7 +38,7 @@ export class ConnController extends BaseController {
         console.log('[ConnController] Features bound.');
 
         // Internal alias for cleaner access to map feature
-        this.map = this.features.map;
+        this.map = this.features.get('map');
 
         // Set up specific callback for map selection confirmed
         if (this.map) {

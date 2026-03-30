@@ -105,6 +105,7 @@ export class MapController extends BaseController {
 
     setIntent(intent) {
         if (this.view?.mapView) {
+            console.log(`[MapController] Setting intent: ${intent}`);
             this.view.mapView.setIntent(intent);
         }
     }
@@ -287,6 +288,7 @@ export class MapController extends BaseController {
             return;
         }
 
+        console.log('[MapController] Map clicked with no actionable intent. Emitting squareSelected for generic handling.', squareData);
         this.emit('squareSelected', squareData);
     }
 }

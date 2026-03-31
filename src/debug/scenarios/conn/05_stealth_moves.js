@@ -4,17 +4,17 @@ import { createMockSubmarineState, SUBMARINE_STATES, PLAYER_ROLES } from '../sha
 const BOARD = Array(15).fill(0).map(() => Array(15).fill(0));
 
 /**
- * Conn - Interactive Move Loop
- * Simulates the full movement cycle: Captain Move -> Engineer delay -> XO delay -> Submerge.
- * This scenario allows testing the helm UI and navigation state feedback.
+ * Conn - Stealth Moves
+ * Tests the silence (stealth) system: move up to 4 spaces in a straight line.
+ * Silence gauge is pre-charged to 5 (fully charged).
+ * Captain toggles Silent Running, then clicks a stealth-valid destination.
  */
 export default {
-    name: 'Conn - Interactive Move Loop',
-    description: 'Fully interactive loop: You move -> Engineer Crosses-off -> XO Charges -> Submerge -> Repeat.',
+    name: 'Conn - Stealth Moves',
+    description: 'Silence system fully charged. Toggle Silent Running and navigate up to 4 spaces.',
     playerId: PLAYER_ROLES.CO,
     scene: 'conn',
 
-    // Initial State
     initialState: {
         version: Date.now(),
         phase: 'LIVE',
@@ -23,55 +23,68 @@ export default {
             submarineState: SUBMARINE_STATES.SUBMERGED,
             row: 7,
             col: 7,
-            past_track: []
+            past_track: [],
+            actionGauges: { mine: 0, torpedo: 0, drone: 0, sonar: 0, silence: 5 }
         })]
     },
 
     /**
      * Dynamic scenario logic
-     * @param {import('../../Director').Director} director 
+     * @param {import('../../Director').Director} director
      */
     run: async (director) => {
         const log = (msg) => window.dispatchEvent(new CustomEvent('director:ui_trigger', { detail: { action: 'log', message: msg } }));
         const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-        log('🚀 Conn Interactive Move Loop Started');
+        log('🤫 Stealth Moves Scenario Started');
+        log('   Silence gauge: FULLY CHARGED (5/5)');
+        log('   Toggle "Silent Running" then click a destination up to 4 squares away.');
 
-        // Ensure clock is running so interaction isn't locked
         simulationClock.start();
 
         // Local state for the sub
         let subData = {
             row: 7,
             col: 7,
-            past_track: []
+            past_track: [],
+            silenceGauge: 5
         };
 
-        // The Game Loop
+        const rowDeltas = { N: -1, S: 1, E: 0, W: 0 };
+        const colDeltas = { N: 0, S: 0, E: 1, W: -1 };
+
+        // The Game Loop — listens for silence events (stealth moves)
         while (director.isRunning) {
-            // A. Wait for Captain Move
-            log('🕹️ Awaiting helm order...');
-            const direction = await new Promise((resolve) => {
-                const handler = (dir) => {
-                    director.off('move', handler);
-                    resolve(dir);
+            log('🕹️ Awaiting stealth movement or standard helm order...');
+
+            // Listen for either standard move or silence move
+            const moveResult = await new Promise((resolve) => {
+                const moveHandler = (dir) => {
+                    director.off('move', moveHandler);
+                    director.off('silence', silenceHandler);
+                    resolve({ type: 'standard', direction: dir, spaces: 1 });
                 };
-                director.on('move', handler);
+                const silenceHandler = ({ direction, spaces }) => {
+                    director.off('move', moveHandler);
+                    director.off('silence', silenceHandler);
+                    resolve({ type: 'stealth', direction, spaces });
+                };
+                director.on('move', moveHandler);
+                director.on('silence', silenceHandler);
             });
 
-            log(`📢 HELM: Moving ${getDirName(direction)}...`);
-            
-            const rowDeltas = { N: -1, S: 1, E: 0, W: 0 };
-            const colDeltas = { N: 0, S: 0, E: 1, W: -1 };
+            const { type, direction, spaces } = moveResult;
 
-            // Logic Update: Move position IMMEDIATELY to provide visual feedback
-            subData.past_track.push({ row: subData.row, col: subData.col });
-            subData.row += rowDeltas[direction];
-            subData.col += colDeltas[direction];
+            if (type === 'stealth') {
+                log(`🤫 SILENCE: Moving ${spaces} spaces ${getDirName(direction)} (stealth)`);
 
-            console.log(`[Director] Submarine state transitioned to MOVED. New Position: (${subData.row}, ${subData.col})`);
+                // Consume silence gauge
+                subData.silenceGauge = 0;
+            } else {
+                log(`📢 HELM: Moving ${getDirName(direction)} (standard)`);
+            }
 
-            // B. Transition to MOVED (Engineer/XO Pending)
+            // B. Transition to MOVED
             log(`⚠️ STATE: MOVED. Waiting for Engineer...`);
             director.injectEvent('state', {
                 version: Date.now(),
@@ -82,6 +95,7 @@ export default {
                     row: subData.row,
                     col: subData.col,
                     past_track: [...subData.past_track],
+                    actionGauges: { mine: 0, torpedo: 0, drone: 0, sonar: 0, silence: subData.silenceGauge },
                     submarineStateData: {
                         MOVED: {
                             directionMoved: direction,
@@ -92,10 +106,10 @@ export default {
                 })]
             });
 
-            await delay(2000);
+            await delay(1500);
 
-            // C. Simulating Engineer Cross-off
-            log(`🔧 ENGINEER: System disabled. Waiting for XO...`);
+            // C. Engineer cross-off
+            log(`🔧 ENGINEER: System disabled.`);
             director.injectEvent('state', {
                 version: Date.now(),
                 phase: 'LIVE',
@@ -105,6 +119,7 @@ export default {
                     row: subData.row,
                     col: subData.col,
                     past_track: [...subData.past_track],
+                    actionGauges: { mine: 0, torpedo: 0, drone: 0, sonar: 0, silence: subData.silenceGauge },
                     submarineStateData: {
                         MOVED: {
                             directionMoved: direction,
@@ -115,10 +130,10 @@ export default {
                 })]
             });
 
-            await delay(2000);
+            await delay(1500);
 
-            // D. Simulating XO Charge
-            log(`⚡ XO: Gauge charged. Ready to submerge.`);
+            // D. XO charge
+            log(`⚡ XO: Gauge charged.`);
             director.injectEvent('state', {
                 version: Date.now(),
                 phase: 'LIVE',
@@ -128,6 +143,7 @@ export default {
                     row: subData.row,
                     col: subData.col,
                     past_track: [...subData.past_track],
+                    actionGauges: { mine: 0, torpedo: 0, drone: 0, sonar: 0, silence: subData.silenceGauge },
                     submarineStateData: {
                         MOVED: {
                             directionMoved: direction,
@@ -138,10 +154,20 @@ export default {
                 })]
             });
 
-            await delay(1500);
+            await delay(1000);
 
-            // E. Finalize Move (Submerge)
-            log(`🌊 Diving... Position finalized at ${subData.row}, ${subData.col}`);
+            // E. Finalize Move (add all intermediate positions to past_track)
+            for (let s = 0; s < spaces; s++) {
+                subData.past_track.push({ row: subData.row, col: subData.col });
+                subData.row += rowDeltas[direction];
+                subData.col += colDeltas[direction];
+            }
+
+            log(`🌊 Diving... Position updated to (${subData.row}, ${subData.col})`);
+            if (type === 'stealth') {
+                log(`   Silence gauge consumed: 0/5`);
+            }
+
             director.injectEvent('state', {
                 version: Date.now(),
                 phase: 'LIVE',
@@ -150,7 +176,8 @@ export default {
                     submarineState: SUBMARINE_STATES.SUBMERGED,
                     row: subData.row,
                     col: subData.col,
-                    past_track: [...subData.past_track]
+                    past_track: [...subData.past_track],
+                    actionGauges: { mine: 0, torpedo: 0, drone: 0, sonar: 0, silence: subData.silenceGauge }
                 })]
             });
 

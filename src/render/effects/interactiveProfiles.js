@@ -20,7 +20,8 @@ export const PROFILES = {
             visuals.setOverlayAlpha(t, 0.7);
         },
         [INTERACTIVE_STATES.DISABLED]: (t) => {
-            visuals.setBackgroundAlpha(t, 0.5);
+            visuals.setBackgroundAlpha(t, 0.3);
+            visuals.toggleOverlay(t, false);
         },
         [INTERACTIVE_STATES.ACTIVE]: (t) => {
             visuals.toggleOverlay(t, false);
@@ -44,7 +45,7 @@ export const PROFILES = {
             visuals.setOverlayAlpha(t, 0.7); // Higher alpha for press
         },
         [INTERACTIVE_STATES.DISABLED]: (t) => {
-            visuals.setBackgroundAlpha(t, 0.5);
+            visuals.setBackgroundAlpha(t, 0.3);
             visuals.toggleOverlay(t, false);
         },
         [INTERACTIVE_STATES.ACTIVE]: (t) => {
@@ -72,7 +73,7 @@ export const PROFILES = {
         },
         [INTERACTIVE_STATES.DISABLED]: (t) => {
             // DONE/CROSSED OUT STATE
-            visuals.setBackgroundAlpha(t, 0.4);
+            visuals.setBackgroundAlpha(t, 0.3);
             visuals.toggleTag(t, true); // Show 'X' or tag
             visuals.setScale(t, 1);
         },
@@ -100,7 +101,7 @@ export const PROFILES = {
         },
         [INTERACTIVE_STATES.DISABLED]: (t) => {
             // DONE/CROSSED OUT STATE
-            visuals.setBackgroundAlpha(t, 0.5);
+            visuals.setBackgroundAlpha(t, 0.3);
             visuals.toggleTag(t, true);
         },
         [INTERACTIVE_STATES.ACTIVE]: (t) => {
@@ -143,7 +144,7 @@ export const PROFILES = {
             visuals.setScale(t, 0.98);
         },
         [INTERACTIVE_STATES.DISABLED]: (t) => {
-            visuals.setBackgroundAlpha(t, 0.6);
+            visuals.setBackgroundAlpha(t, 0.3);
             visuals.setScale(t, 1);
         },
         [INTERACTIVE_STATES.ACTIVE]: (t) => {

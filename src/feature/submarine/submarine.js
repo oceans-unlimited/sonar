@@ -54,11 +54,6 @@ class Submarine extends EventEmitter {
     handleStateUpdate(fullState) {
         if (!fullState) return;
 
-        // Track changes to emit later
-        const movements = [];
-        const damageChanges = [];
-        const stateChanges = [];
-
         // 1. Submarine Updates
         if (fullState.submarines) {
             const playerId = socketManager.playerId;
@@ -71,10 +66,13 @@ class Submarine extends EventEmitter {
                     sub.setMapManager(mapManager);
                     this._submarines.set(subData.id, sub);
                     
-                    // Internal listeners to catch changes during update
-                    sub.on('sub:moved', (d) => movements.push({ id: subData.id, ...d }));
-                    sub.on('sub:damaged', (d) => damageChanges.push({ id: subData.id, ...d }));
-                    sub.on('sub:stateChanged', (d) => stateChanges.push({ id: subData.id, ...d }));
+                    // Permanent event proxies — emit directly on the Submarine singleton.
+                    // These persist for the life of the SubmarineState and avoid the stale
+                    // closure issue of capturing per-call local arrays.
+                    const id = subData.id;
+                    sub.on('sub:moved', (d) => this.emit('submarine:moved', { id, ...d }));
+                    sub.on('sub:damaged', (d) => this.emit('submarine:damaged', { id, ...d }));
+                    sub.on('sub:stateChanged', (d) => this.emit('submarine:stateChanged', { id, ...d }));
                 }
 
                 sub.update(subData);
@@ -93,11 +91,7 @@ class Submarine extends EventEmitter {
             this._syncMinesToMap();
         }
 
-        // 5. Emit events AFTER Map Sync
-        movements.forEach(m => this.emit('submarine:moved', m));
-        damageChanges.forEach(d => this.emit('submarine:damaged', d));
-        stateChanges.forEach(s => this.emit('submarine:stateChanged', s));
-
+        // 5. Broadcast bulk update (used by MapController for unconditional refresh)
         this.emit('submarine:allUpdated', this._submarines);
     }
 

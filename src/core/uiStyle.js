@@ -61,6 +61,8 @@ export const Layout = {
 
 // ──────────────────────── System Colors ────────────────────────
 // Mapping of system asset names (used in engine UI) to a canonical color value.
+// Subsystem buttons (e.g. silence, surface, drone) inherit the color of their
+// parent system. For example, "silence" is a vessel subsystem → uses vessel yellow.
 export const SystemColors = {
     vessel: 0xffcc00,    // yellow
     weapons: 0xe74c3c,   // red

@@ -66,6 +66,7 @@ export class BaseController extends EventEmitter {
      * @param {object} controlAPI - The return value of wireButton()
      */
     registerButton(id, api) {
+        console.log(`[BaseController] Registering button: ${id}`);
         this.buttons.set(id, api);
     }
 

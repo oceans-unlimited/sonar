@@ -72,6 +72,7 @@ export function createInteractable(target, onStateChange) {
     };
 
     const setEnabled = (isEnabled) => {
+        console.log(`[Interactable] setEnabled(${isEnabled}) on ${target.label || 'object'}`);
         enabled = isEnabled;
         target.cursor = enabled ? 'pointer' : 'default';
         if (!enabled) {

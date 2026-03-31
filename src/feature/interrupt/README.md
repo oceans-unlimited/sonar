@@ -107,6 +107,8 @@ Example: `SONAR_PING` with role `co` renders a Captain response form; all other 
 | `PLAYER_DISCONNECT` | Player drops connection | Yes |
 | `SCENARIO_ACTION` | Scenario-specific event | No |
 
+> **Note**: A "Validate Moves" process must immediately follow the selection of a starting position. This ensures legal moves are available and highlighted for the Captain as soon as the game enters the LIVE phase.
+
 ## Key Rules
 
 - **Interrupts are server-driven**: `InterruptController` emits socket events only. It never calls `interruptManager.requestInterrupt()` directly. All interrupt state changes flow through `SceneManager._setupStateSync()`.

@@ -61,6 +61,7 @@ Current work:
   - Add `InterruptOverlay` to engineer and XO scenes.
 - [x] **Submarine Singleton Consumption**: Audit role-based scenes to use the `SubmarineController` facade instead of raw server state. (All major roles migrated)
 - [ ] **Director Scenarios**: Fix engineer interrupt scenarios (format + registration), create interrupt scenarios for Captain and XO roles.
+- [ ] **Post-Start Validation**: Implement a "Validate Moves" process immediately following the selection of a starting position (START_POSITIONS) to ensure legal moves are immediately available.
 
 ---
 

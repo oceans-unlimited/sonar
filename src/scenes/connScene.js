@@ -5,7 +5,7 @@ import { createButtonFromDef } from '../render/button';
 import { wireButton } from '../behavior/buttonBehavior';
 import { createMapPanel } from '../feature/map/mapRenderer';
 import { MapController } from '../feature/map/mapController';
-import { Colors } from '../core/uiStyle';
+import { Colors, SystemColors } from '../core/uiStyle';
 import { socketManager } from '../core/socketManager';
 import { InterruptOverlay } from '../feature/interrupt/InterruptOverlay';
 
@@ -32,8 +32,6 @@ export async function createConnScene(controller, ticker) {
     };
 
     // --- 1. Map Panel (Left) ---
-    // The Map occupies the majority of the screen space.
-    // We pass the persistent Map feature (controller) to ensure it stays synchronized.
     const mapController = controller.features.get('map');
     const mapPanel = createMapPanel(ticker, '100%', '100%', {
         backgroundColor: 0x0a1f0a,
@@ -60,7 +58,7 @@ export async function createConnScene(controller, ticker) {
     controlsSidebar.layout.flexGrow = 0;
     controlsSidebar.layout.flexShrink = 0;
 
-    // --- 4. Helm Controls ---
+    // --- 3. Helm Controls ---
     const helmDirections = [
         { id: 'w', label: 'W', rot: Math.PI },
         { id: 'n', label: 'N', rot: -Math.PI / 2 },
@@ -79,7 +77,6 @@ export async function createConnScene(controller, ticker) {
 
         // Rotate the arrow to face the correct direction
         const bg = btn.content?.getChildByLabel("btnBackground");
-        console.log('background: ', bg);
         if (bg) bg.rotation = dir.rot;
 
         const behavior = wireButton(btn, {
@@ -88,12 +85,10 @@ export async function createConnScene(controller, ticker) {
         });
 
         controller.registerButton(behavior.id, behavior);
+        console.log(`[ConnScene] Registered button: ${behavior.id}`);
         return btn;
     });
 
-    // Helm layout: Grid-like 3x3 pattern using ButtonBlock
-    // For now, we'll put them in a vertical block or simple grid if layout allows.
-    // ButtonBlock supports 'horizontal' and 'vertical' patterns.
     const helmBlock = new ButtonBlock(helmButtons, 'horizontal', {
         label: 'helm_controls',
         heading: 'Helm',
@@ -104,8 +99,33 @@ export async function createConnScene(controller, ticker) {
 
     controlsSidebar.addChild(helmBlock);
 
-    // --- 5. Stub Additional Panels ---
-    // Recreate the general feel of the control panel with placeholders
+    // --- 4. Silent Running Toggle ---
+    // Vessel subsystem: uses SystemColors.vessel (yellow)
+    const silentBtn = createButtonFromDef({
+        asset: 'vessel',
+        textLabel: 'Silent Running',
+        color: SystemColors.vessel,
+        profile: 'basic',
+        canonicalLabel: 'silent_running'
+    });
+
+    const silentBehavior = wireButton(silentBtn, {
+        id: 'silent_running',
+        onPress: () => controller.handleEvent('TOGGLE_STEALTH')
+    });
+    controller.registerButton(silentBehavior.id, silentBehavior);
+
+    const silentBlock = new ButtonBlock([silentBtn], 'horizontal', {
+        label: 'stealth_controls',
+        heading: 'Vessel Systems',
+        header: true,
+        line: true,
+        color: SystemColors.vessel
+    });
+
+    controlsSidebar.addChild(silentBlock);
+
+    // --- 5. Weapons Stub ---
     const weaponsBlock = new ButtonBlock([], 'horizontal', {
         label: 'weapons_stub',
         heading: 'Weapons System',
@@ -117,7 +137,7 @@ export async function createConnScene(controller, ticker) {
 
     sceneContent.addChild(controlsSidebar);
 
-    // --- 6. Interrupt Overlay ---
+    // --- 7. Interrupt Overlay ---
     const interruptOverlay = new InterruptOverlay(ticker, 'co');
     sceneContent.addChild(interruptOverlay);
 

@@ -115,8 +115,18 @@ export class MapBehaviors {
             const coords = this.getGridCoords(e.global);
             if (coords) {
                 this.mapViewArea.viewBox.emit('map:hovered', coords);
+
+                // Set pointer cursor when hovering an active overlay (valid move target)
+                const key = `${coords.row}-${coords.col}`;
+                const hasOverlay = this.mapViewArea.overlays.activeOverlays.has(key);
+                if (this.mapViewArea.mapGrid.container) {
+                    this.mapViewArea.mapGrid.container.cursor = hasOverlay ? 'pointer' : 'grab';
+                }
             } else {
                 this.mapViewArea.viewBox.emit('map:hoveredOut');
+                if (this.mapViewArea.mapGrid.container) {
+                    this.mapViewArea.mapGrid.container.cursor = 'grab';
+                }
             }
             return;
         }

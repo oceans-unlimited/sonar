@@ -50,6 +50,7 @@ export default class Button extends Container {
         } = config;
 
         this.profile = profile.toLowerCase();
+        this.canonicalLabel = canonicalLabel;
         const profileConfig = PROFILES[this.profile] || PROFILES.basic;
         const layoutPattern = buttonPatterns[this.profile] || {};
 

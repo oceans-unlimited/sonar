@@ -22,6 +22,12 @@ export class SubmarineController extends BaseController {
             sub.on('sub:updated', (d) => this.emit('sub:updated', d));
             sub.on('sub:engineUpdated', (d) => this.emit('sub:engineUpdated', d));
         });
+
+        // Proxy global events that are not ownship-specific
+        this._feature.on('submarine:moved', (d) => this.emit('submarine:moved', d));
+        this._feature.on('submarine:damaged', (d) => this.emit('submarine:damaged', d));
+        this._feature.on('submarine:stateChanged', (d) => this.emit('submarine:stateChanged', d));
+        this._feature.on('submarine:allUpdated', (d) => this.emit('submarine:allUpdated', d));
     }
 
     /**

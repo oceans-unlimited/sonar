@@ -17,6 +17,8 @@ export class MapController extends BaseController {
 
         // Logical state cache
         this._lastPos = null;
+        this._lastHasChosen = false;
+        this._lastIsStartPositions = false;
         this.ownSubId = null;
         this.role = null;
 
@@ -169,6 +171,11 @@ export class MapController extends BaseController {
 
         if (!ownship || !role) return;
 
+        // NEW: Clear overlays if not submerged
+        if (ownship.getState() !== 'SUBMERGED' && mv.currentIntent === MapIntents.NAVIGATE) {
+            mv.overlays.clearAllOverlays();
+        }
+
         const pos = ownship.getPosition();
         const { row, col } = pos;
         
@@ -182,33 +189,31 @@ export class MapController extends BaseController {
         });
 
         if (row !== undefined && col !== undefined) {
-            if (!this._lastPos || this._lastPos.row !== row || this._lastPos.col !== col) {
+            const posChanged = !this._lastPos || this._lastPos.row !== row || this._lastPos.col !== col;
+            const tintChanged = this._lastHasChosen !== hasChosen || this._lastIsStartPositions !== isStartPositions;
+
+            if (posChanged) {
                 const isInitial = !this._lastPos;
                 this._lastPos = { row, col };
 
                 this.logDirectorAction(`POS UPDATE: (${row}, ${col})`);
 
-                // 1. Update ownship position
-                mv.setOwnShipPosition(row, col, false, false);
+                const animate = (role === 'co' && !isInitial && !isStartPositions);
 
-                // 2. Auto-center logic (Captain only)
-                if (role === 'co') {
-                    mv.centerOn(row, col, !isInitial);
-                }
+                // 1. Update ownship position and center (Captain only)
+                mv.setOwnShipPosition(row, col, animate, role === 'co');
             }
 
-            // Apply contextual tinting based on start position phase
-            if (isStartPositions) {
-                if (hasChosen) {
-                    mv.setOwnshipTint(SystemColors.detection);
-                    mv.setOwnShipPosition(row, col, false, true);
+            if (posChanged || tintChanged) {
+                this._lastHasChosen = hasChosen;
+                this._lastIsStartPositions = isStartPositions;
+
+                // Apply contextual tinting based on start position phase
+                if (isStartPositions) {
+                    mv.setOwnshipTint(hasChosen ? SystemColors.detection : Colors.text);
                 } else {
                     mv.setOwnshipTint(Colors.text);
-                    mv.setOwnShipPosition(row, col, false, false);
                 }
-            } else {
-                mv.setOwnshipTint(Colors.text);
-                mv.setOwnShipPosition(row, col, false, true);
             }
         }
 

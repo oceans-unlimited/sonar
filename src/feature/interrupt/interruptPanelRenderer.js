@@ -113,11 +113,20 @@ function buildWeaponResolutionPanel(interrupt) {
     return panel;
 }
 
-function buildStartPositionsPanel(interrupt) {
+// START_POSITIONS: Captain only gets Ready button
+function buildStartPositionsCaptainPanel(interrupt) {
     const panel = createPanelShell();
     panel.addChild(createTitle('SELECT POSITION'));
-    panel.addChild(createMessage(interrupt.payload?.message || 'Captains selecting starting positions.'));
+    panel.addChild(createMessage(interrupt.payload?.message || 'Select your starting position on the map.'));
     panel.addChild(createReadyButton());
+    return panel;
+}
+
+// START_POSITIONS: Non-captain roles see waiting message only
+function buildStartPositionsCrewPanel(interrupt) {
+    const panel = createPanelShell();
+    panel.addChild(createTitle('AWAITING CAPTAINS'));
+    panel.addChild(createMessage('Captains are selecting starting positions...'));
     return panel;
 }
 
@@ -179,12 +188,13 @@ function buildDefaultPanel(interrupt) {
 const PANEL_BUILDERS = {
     // Role-specific overrides (type:role)
     'SONAR_PING:co': buildSonarPingCaptainPanel,
+    'START_POSITIONS:co': buildStartPositionsCaptainPanel,
 
     // Type defaults
     'PAUSE': buildPausePanel,
     'WEAPON_RESOLUTION': buildWeaponResolutionPanel,
     'SONAR_PING': buildSonarPingCrewPanel,
-    'START_POSITIONS': buildStartPositionsPanel,
+    'START_POSITIONS': buildStartPositionsCrewPanel,
     'PLAYER_DISCONNECT': buildPlayerDisconnectPanel,
     'SCENARIO_ACTION': buildScenarioActionPanel,
 };

@@ -63,6 +63,7 @@ export class Director extends EventEmitter {
 
         // Execute dynamic run logic if provided
         if (typeof scenario.run === 'function') {
+            this.isRunning = true;
             scenario.run(this);
         }
     }

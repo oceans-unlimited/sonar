@@ -178,6 +178,8 @@ export class SubmarineState extends EventEmitter {
     }
 
     getValidMoves(isStealth = false) {
+        if (this.getState() !== 'SUBMERGED') return [];
+
         const directions = ['N', 'S', 'E', 'W'];
         const validMoves = [];
         const maxRange = isStealth ? 4 : 1;
@@ -197,14 +199,8 @@ export class SubmarineState extends EventEmitter {
     }
 
     isValidMove(direction, distance = 1) {
-        const opposite = { N: 'S', S: 'N', E: 'W', W: 'E' };
-        
-        const lastMove = this._data.submarineStateData?.MOVED?.directionMoved || 
-                         this._data.submarineStateData?.POST_MOVEMENT?.directionMoved;
-        if (lastMove && lastMove !== ' ' && direction === opposite[lastMove]) {
-            return false;
-        }
-
+        // U-turns are naturally prevented by past_track containing the previous position.
+        // No need to separately track last move direction.
         for (let d = 1; d <= distance; d++) {
             const target = this._getTargetCoords(direction, d);
 

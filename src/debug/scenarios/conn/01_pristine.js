@@ -5,7 +5,7 @@
  */
 
 import { simulationClock } from '../../../core/clock/simulationClock';
-import { PLAYER_ROLES } from '../shared/engineMockData.js';
+import { createMockSubmarineState, SUBMARINE_STATES, PLAYER_ROLES } from '../shared/engineMockData.js';
 
 export default {
     name: "Conn - Pristine",
@@ -15,22 +15,13 @@ export default {
         phase: 'LIVE',
         board: Array(15).fill(0).map(() => Array(15).fill(0)), // Simple 15x15 water board
         submarines: [
-            {
+            createMockSubmarineState({
                 id: 'player_sub',
-                co: PLAYER_ROLES.CO,
-                xo: PLAYER_ROLES.XO,
-                eng: PLAYER_ROLES.ENG,
-                sonar: PLAYER_ROLES.SONAR,
-                submarineState: 'SUBMERGED',
+                submarineState: SUBMARINE_STATES.SUBMERGED,
                 row: 7,
                 col: 7,
-                pastTrack: [],
-                submarineStateData: {
-                    POST_MOVEMENT: {
-                        directionMoved: ' '
-                    }
-                }
-            }
+                past_track: []
+            })
         ]
     },
 
@@ -47,10 +38,10 @@ export default {
         simulationClock.start();
 
         // Local state tracking
-        let state = {
+        let subData = {
             row: 7,
             col: 7,
-            pastTrack: []
+            past_track: []
         };
 
         // Listen for movement events from the controller/socket
@@ -60,37 +51,33 @@ export default {
             const rowDeltas = { N: -1, S: 1, E: 0, W: 0 };
             const colDeltas = { N: 0, S: 0, E: 1, W: -1 };
 
-            const newRow = state.row + rowDeltas[direction];
-            const newCol = state.col + colDeltas[direction];
+            // Simulate immediate move for pristine testing
+            subData.past_track.push({ row: subData.row, col: subData.col });
+            subData.row += rowDeltas[direction];
+            subData.col += colDeltas[direction];
 
-            // In this pristine scenario, we just blindly accept the move for testing visuals
-            state.pastTrack.push({ row: state.row, col: state.col });
-            state.row = newRow;
-            state.col = newCol;
-
-            log(`📍 New Position: ${state.row}, ${state.col}`);
+            log(`📍 New Position: ${subData.row}, ${subData.col}`);
 
             // Re-emit updated state to client
             director.injectEvent('state', {
+                version: Date.now(),
                 phase: 'LIVE',
                 board: Array(15).fill(0).map(() => Array(15).fill(0)),
                 submarines: [
-                    {
+                    createMockSubmarineState({
                         id: 'player_sub',
-                        co: PLAYER_ROLES.CO,
-                        xo: PLAYER_ROLES.XO,
-                        eng: PLAYER_ROLES.ENG,
-                        sonar: PLAYER_ROLES.SONAR,
-                        submarineState: 'SUBMERGED',
-                        row: state.row,
-                        col: state.col,
-                        pastTrack: [...state.pastTrack],
+                        submarineState: SUBMARINE_STATES.SUBMERGED,
+                        row: subData.row,
+                        col: subData.col,
+                        past_track: [...subData.past_track],
                         submarineStateData: {
-                            POST_MOVEMENT: {
-                                directionMoved: direction
+                            MOVED: {
+                                directionMoved: direction,
+                                engineerCrossedOutSystem: true,
+                                xoChargedGauge: true
                             }
                         }
-                    }
+                    })
                 ]
             });
         });

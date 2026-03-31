@@ -8,7 +8,7 @@ This list tracks the implementation of the Submarine Feature as the canonical "D
     - [x] Add transition validation logic (SUBMERGED -> MOVED, etc.).
     - [x] Implement data normalization (ingesting raw server JSON).
     - [x] Add computed logic: `canMove()`, `canFire()`, `isSurfaced()`.
-    - [ ] Implement map queries: `getSquareData()`, `isInPastTrack()`, `isValidMove()`.
+    - [x] Implement map queries: `getSquareData()`, `isInPastTrack()`, `isValidMove()`.
 - [x] **Create `submarine.js` (The Persistent Service)**
     - [x] Implement singleton to manage the life of submarine states.
     - [x] Subscribe to `socketManager` for `stateUpdate` events.
@@ -23,8 +23,9 @@ This list tracks the implementation of the Submarine Feature as the canonical "D
 - [x] **Update `src/core/sceneManager.js`**
     - [x] Instantiate `Submarine` feature during app initialization.
     - [x] Inject feature registry into all scene controllers.
-- [ ] **Update Scene Controllers**
-    - [ ] Migrate `ConnController`, `EngineerController`, and `XOController` to listen to the Submarine Feature instead of the raw socket. (Eng/XO migrated)
+- [x] Update Scene Controllers
+    - [x] Migrate `ConnController`, `EngineerController`, and `XOController` to listen to the Submarine Feature instead of the raw socket. (All roles migrated)
+
 
 ## Phase 3: Validation & Rules
 - [ ] **Create `surfacingRules.js`**

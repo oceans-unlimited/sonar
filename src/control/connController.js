@@ -79,7 +79,8 @@ export class ConnController extends BaseController {
         const isLive = state.phase === GlobalPhases.LIVE;
         const isSubmerged = sub.getState() === SubmarineStates.SUBMERGED;
 
-        const validMoves = sub.getValidMoves(state);
+        // SubmarineState.getValidMoves now takes isStealth boolean, not state
+        const validMoves = sub.getValidMoves(false);
 
         ['N', 'S', 'E', 'W'].forEach(dir => {
             const btn = this.buttons.get(`helm_${dir.toLowerCase()}`);
@@ -97,7 +98,7 @@ export class ConnController extends BaseController {
 
     getNavigationBlocked(state, sub) {
         const directions = ['N', 'S', 'E', 'W'];
-        const validMoves = sub.getValidMoves(state);
+        const validMoves = sub.getValidMoves(false);
         const validDirections = validMoves.map(m => m.direction);
 
         return directions.filter(dir => !validDirections.includes(dir));

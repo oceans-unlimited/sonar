@@ -159,7 +159,7 @@ export const MapUtils = {
     /**
      * Gets comprehensive data about a square for intent menu decisions
      * @param {object} coords - { row, col }
-     * @param {object} ownship - Current submarine position { row, col, pastTrack, mines }
+     * @param {import('../submarine/SubmarineState').SubmarineState} ownship - Current submarine instance
      * @param {object} terrain - 2D array of terrain data
      * @param {object} waypoints - Current waypoints { current: {row, col}, ... }
      * @param {object} targets - Current targets { torpedo: {row, col}, ... }
@@ -173,17 +173,19 @@ export const MapUtils = {
         const isValidCoords = row >= 0 && row < 15 && col >= 0 && col < 15;
 
         let terrainType = 'UNKNOWN';
-        if (isValidCoords && terrain && terrain[row] && terrain[row][col]) {
+        if (isValidCoords && terrain && terrain[row] && terrain[row][col] !== undefined) {
             // Support both object {type} and raw integer terrain
             const raw = terrain[row][col];
             terrainType = (typeof raw === 'object') ? (raw.type || 'WATER') : (raw === 0 ? 'WATER' : 'LAND');
         }
 
-        // Check various conditions
-        const isOwnMine = ownship?.mines?.some(mine => mine.row === row && mine.col === col) || false;
-        const isInPastTrack = ownship?.past_track?.some(track => track.row === row && track.col === col) || false;
+        // Use SubmarineState public API
+        const isOwnMine = ownship ? ownship.hasMineAt(row, col) : false;
+        const isInPastTrack = ownship ? ownship.isInPastTrack(row, col) : false;
         const isCurrentWaypoint = waypoints?.current?.row === row && waypoints?.current?.col === col;
         const isCurrentTarget = targets?.torpedo?.row === row && targets?.torpedo?.col === col;
+
+        const ownPos = ownship ? ownship.getPosition() : null;
 
         return {
             coords: { row, col },
@@ -196,7 +198,7 @@ export const MapUtils = {
             isCurrentTarget,
             // Additional computed data
             alphaNumeric: this.toAlphaNumeric(row, col),
-            range: ownship ? this.getRange(ownship, coords) : 0
+            range: ownPos ? this.getRange(ownPos, coords) : 0
         };
     },
 

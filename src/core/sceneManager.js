@@ -84,22 +84,31 @@ export class SceneManager {
         // These live for the duration of the application lifecycle.
         this.features = {
             submarine: new SubmarineController(),
-            interrupt: interruptController
+            interrupt: interruptController,
+            map: new MapController()
         };
 
         // Bind persistent features to the transport layer
         Object.values(this.features).forEach(f => f.bindSocket(socketManager));
+
+        // Cross-bind persistent features so they can access each other
+        Object.values(this.features).forEach(f => f.bindFeatures(this.features));
 
         this._setupStateSync();
     }
 
     _setupStateSync() {
         socketManager.on('stateUpdate', (state) => {
+            // 1. Static/Global Map Sync (Terrain & Context)
+            if (state.board) {
+                mapManager.setTerrain(state.board);
+            }
             if (state.phase) {
+                mapManager.setContext(state.phase, state.activeInterrupt);
                 gamePhaseManager.setPhase(GamePhases[state.phase] || state.phase);
             }
 
-            // Sync active interrupt
+            // 2. Sync active interrupt
             const serverInterrupt = state.activeInterrupt;
             const clientInterrupt = interruptManager.getActiveInterrupt();
 

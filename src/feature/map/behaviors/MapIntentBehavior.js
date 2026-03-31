@@ -1,6 +1,7 @@
 import { MapIntents, MapConstants } from '../mapConstants.js';
 import { Colors, SystemColors, Alphas } from '../../../core/uiStyle.js';
 import { MapUtils } from '../mapUtils.js';
+import { mapManager } from '../mapManager.js';
 
 /**
  * MapIntentBehavior
@@ -85,11 +86,8 @@ export class MapIntentBehavior {
         const alpha = Alphas.dim;
         const color = stealth ? yellow : blue;
 
-        // Use global game state from controller if available, otherwise fallback to ownship context
-        const state = this.mapViewArea.viewBox.parent?.controller?.lastState;
-        
-        const possibleMoves = MapUtils.getPossibleMoves(ownship, stealth);
-        const validMoves = state ? MapUtils.filterInvalidMoves(state, ownship, possibleMoves) : possibleMoves;
+        // The SubmarineState now handles all move validation internally
+        const validMoves = ownship.getValidMoves(stealth);
 
         validMoves.forEach(move => {
             this.overlays.setGridOverlay(move.row, move.col, color, alpha);
@@ -158,6 +156,7 @@ export class MapIntentBehavior {
 
         const { row, col } = data;
         const { ownship, isDroneQuery } = this.context;
+        const ownPos = ownship ? ownship.getPosition() : null;
 
         switch (this.currentIntent) {
             case MapIntents.TORPEDO:
@@ -175,14 +174,14 @@ export class MapIntentBehavior {
             case MapIntents.ROW_SELECT:
                 // ROW highlighting allows both highlighting and selection of LAND squares
                 this.overlays.clearAllOverlays();
-                const rowColor = (ownship && row === ownship.row) ? Colors.roleXO : 0xFF00FF;
+                const rowColor = (ownPos && row === ownPos.row) ? Colors.roleXO : 0xFF00FF;
                 this.overlays.highlightGridRange(row, col, 'row', rowColor, Alphas.dim);
                 break;
 
             case MapIntents.COLUMN_SELECT:
                 // COLUMN highlighting allows both highlighting and selection of LAND squares
                 this.overlays.clearAllOverlays();
-                const colColor = (ownship && col === ownship.col) ? Colors.roleXO : 0xFF00FF;
+                const colColor = (ownPos && col === ownPos.col) ? Colors.roleXO : 0xFF00FF;
                 this.overlays.highlightGridRange(row, col, 'col', colColor, Alphas.dim);
                 break;
 
@@ -192,8 +191,8 @@ export class MapIntentBehavior {
                 let sectorColor = 0xFF00FF; // Default Magenta
                 if (isDroneQuery) {
                     sectorColor = SystemColors.detection;
-                } else if (ownship) {
-                    const ownSector = MapUtils.getSector(ownship.row, ownship.col);
+                } else if (ownPos) {
+                    const ownSector = ownPos.sector;
                     const targetSector = MapUtils.getSector(row, col);
                     if (ownSector === targetSector) sectorColor = Colors.roleXO;
                 }
@@ -203,12 +202,8 @@ export class MapIntentBehavior {
     }
 
     _isLand(r, c) {
-        const state = this.mapViewArea.viewBox.parent?.controller?.lastState;
-        if (!state || !state.board) return false;
-        const terrain = state.board[r]?.[c];
-        // Support both object {type} and raw integer terrain (0=WATER, 1=LAND)
-        if (typeof terrain === 'object') return terrain.type === 'LAND' || terrain === 1;
-        return terrain !== 0;
+        // Use the authoritative spatial database
+        return mapManager.getSpatialObstacles({ row: r, col: c }) === 'BLOCKED_BY_TERRAIN';
     }
 
     _isValid(r, c) {

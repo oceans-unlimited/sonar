@@ -1,11 +1,13 @@
 import { EventEmitter } from 'pixi.js';
 import { SubmarineState } from './SubmarineState.js';
 import { socketManager } from '../../core/socketManager.js';
+import { mapManager } from '../map/mapManager.js';
 
 /**
  * Submarine Feature
  * Persistent application-level service that manages the life of SubmarineState instances.
- * Listens to the socket and provides normalized data access to the rest of the application.
+ * Primary listener for socket state updates.
+ * Orchestrates data sync to MapManager.
  */
 class Submarine extends EventEmitter {
     constructor() {
@@ -17,105 +19,109 @@ class Submarine extends EventEmitter {
         this._init();
     }
 
-    /**
-     * Initializes the socket subscription.
-     */
     _init() {
-        // Listen for standard state updates from the server
+        // Primary state listener
         socketManager.on('stateUpdate', (state) => this.handleStateUpdate(state));
         
-        // Listen for player ID assignment to resolve "Who am I?"
         socketManager.on('playerId', () => {
             if (socketManager.lastState) {
                 this.handleStateUpdate(socketManager.lastState);
             }
         });
-    }
 
-    /**
-     * Orchestrates the update of all submarine instances.
-     * Identifies and caches the "ownship" based on the local playerId.
-     * @param {object} fullState - The global game state snapshot.
-     */
-    handleStateUpdate(fullState) {
-        if (!fullState || !fullState.submarines) return;
+        socketManager.on('SONAR_PING', (data) => {
+            mapManager.handleEnemyPing(data);
+        });
 
-        const playerId = socketManager.playerId;
-
-        fullState.submarines.forEach(subData => {
-            let sub = this._submarines.get(subData.id);
-
-            // 1. Create instance if it doesn't exist
-            if (!sub) {
-                sub = new SubmarineState(subData.id);
-                this._submarines.set(subData.id, sub);
-                console.log(`[SubmarineFeature] Registered Sub ${subData.id}`);
-
-                // 1.1. Event Bubbling: Relay state events to the feature level
-                sub.on('sub:moved', (data) => this.emit('submarine:moved', { id: subData.id, ...data }));
-                sub.on('sub:damaged', (data) => this.emit('submarine:damaged', { id: subData.id, ...data }));
-                sub.on('sub:stateChanged', (data) => this.emit('submarine:stateChanged', { id: subData.id, ...data }));
-            }
-
-            // 2. Update the state object
-            sub.update(subData);
-
-            // 3. Resolve Identity Cache (Search Once)
-            if (playerId && sub.isOwnship(playerId)) {
-                if (this._ownship !== sub) {
-                    this._ownship = sub;
-                    this._localRole = sub.getRole(playerId);
-                    console.log(`[SubmarineFeature] Ownship Identity Resolved: Sub ${subData.id} as ${this._localRole}`);
-                    this.emit('identity:resolved', { sub, role: this._localRole });
-                }
+        socketManager.on('mine_deployed', (data) => {
+            const sub = this.getSub(data.subId);
+            if (sub) {
+                sub.addMine(data.row, data.col);
+                this._syncMinesToMap();
+                this.emit('submarine:allUpdated', this._submarines);
             }
         });
+
+        socketManager.on('submarine_moved', (data) => {
+            const sub = this.getSub(data.id);
+            if (sub) {
+                sub.update({ row: data.row, col: data.col });
+                this.emit('submarine:moved', { id: data.id, row: data.row, col: data.col });
+            }
+        });
+    }
+
+    handleStateUpdate(fullState) {
+        if (!fullState) return;
+
+        // Track changes to emit later
+        const movements = [];
+        const damageChanges = [];
+        const stateChanges = [];
+
+        // 1. Submarine Updates
+        if (fullState.submarines) {
+            const playerId = socketManager.playerId;
+
+            fullState.submarines.forEach(subData => {
+                let sub = this._submarines.get(subData.id);
+
+                if (!sub) {
+                    sub = new SubmarineState(subData.id);
+                    sub.setMapManager(mapManager);
+                    this._submarines.set(subData.id, sub);
+                    
+                    // Internal listeners to catch changes during update
+                    sub.on('sub:moved', (d) => movements.push({ id: subData.id, ...d }));
+                    sub.on('sub:damaged', (d) => damageChanges.push({ id: subData.id, ...d }));
+                    sub.on('sub:stateChanged', (d) => stateChanges.push({ id: subData.id, ...d }));
+                }
+
+                sub.update(subData);
+
+                // Resolve Identity
+                if (playerId && sub.isOwnship(playerId)) {
+                    if (this._ownship !== sub) {
+                        this._ownship = sub;
+                        this._localRole = sub.getRole(playerId);
+                        this.emit('identity:resolved', { sub, role: this._localRole });
+                    }
+                }
+            });
+
+            // 4. Global Mine Sync
+            this._syncMinesToMap();
+        }
+
+        // 5. Emit events AFTER Map Sync
+        movements.forEach(m => this.emit('submarine:moved', m));
+        damageChanges.forEach(d => this.emit('submarine:damaged', d));
+        stateChanges.forEach(s => this.emit('submarine:stateChanged', s));
 
         this.emit('submarine:allUpdated', this._submarines);
     }
 
-    /**
-     * Returns the SubmarineState object for the local player.
-     * @returns {SubmarineState|null}
-     */
-    getOwnship() {
-        return this._ownship;
+    _syncMinesToMap() {
+        const allMines = [];
+        this._submarines.forEach(sub => {
+            sub.getMines().forEach(m => {
+                allMines.push({ ...m, subId: sub.getId() });
+            });
+        });
+        mapManager.syncMines(allMines);
     }
 
-    /**
-     * Returns the role key for the local player.
-     * @returns {string|null}
-     */
-    getLocalRole() {
-        return this._localRole;
-    }
+    getOwnship() { return this._ownship; }
+    getLocalRole() { return this._localRole; }
+    getSub(id) { return this._submarines.get(id) || null; }
+    getAllSubmarines() { return this._submarines; }
 
-    /**
-     * Returns a specific submarine by ID.
-     * @param {string} id 
-     * @returns {SubmarineState|null}
-     */
-    getSub(id) {
-        return this._submarines.get(id) || null;
-    }
-
-    /**
-     * Returns all registered submarines.
-     * @returns {Map<string, SubmarineState>}
-     */
-    getAllSubmarines() {
-        return this._submarines;
-    }
-
-    /**
-     * Reset the feature state (useful for system resets/test reloads).
-     */
     reset() {
         this._submarines.clear();
         this._ownship = null;
         this._localRole = null;
+        mapManager.reset();
     }
 }
 
-// Export as a singleton
 export const submarine = new Submarine();

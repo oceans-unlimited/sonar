@@ -16,6 +16,7 @@ import testMapSelect from './test/mapSelect.js';
 import teletypePristine from './teletype/01_pristine.js';
 import connPristine from './conn/01_pristine.js';
 import connStartPositions from './conn/01_start_positions.js';
+import connMoveCycle from './conn/04_move_cycle.js';
 import connInterruptPause from './conn/02_interrupt_pause.js';
 import connInterruptWeapon from './conn/03_interrupt_weapon.js';
 import submarinePristine from './submarine/pristine.js';
@@ -46,6 +47,7 @@ export const SCENARIO_REGISTRY = {
   'teletype_pristine': teletypePristine,
   'conn_pristine': connPristine,
   'conn_start_positions': connStartPositions,
+  'conn_move_cycle': connMoveCycle,
   'conn_interrupt_pause': connInterruptPause,
   'conn_interrupt_weapon': connInterruptWeapon,
   'submarine_pristine': submarinePristine,
@@ -75,7 +77,8 @@ export const SCENARIO_CATEGORIES = {
   ],
   'Captain (Conn)': [
     'conn_pristine',
-    'conn_start_positions'
+    'conn_start_positions',
+    'conn_move_cycle'
   ],
   'Submarine Feature': [
     'submarine_pristine'

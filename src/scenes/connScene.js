@@ -33,29 +33,19 @@ export async function createConnScene(controller, ticker) {
 
     // --- 1. Map Panel (Left) ---
     // The Map occupies the majority of the screen space.
+    // We pass the persistent Map feature (controller) to ensure it stays synchronized.
+    const mapController = controller.features.get('map');
     const mapPanel = createMapPanel(ticker, '100%', '100%', {
-        // flexGrow: 1,
         backgroundColor: 0x0a1f0a,
         borderRadius: 0,
         margin: 0
-    });
+    }, mapController);
     sceneContent.addChild(mapPanel);
 
     // Provide a reference for the controller to find the mapView area
     sceneContent.mapView = mapPanel.mapView;
 
-    // --- 2. Initialize Map Feature ---
-    const mapController = new MapController();
-    mapController.bindSocket(socketManager);
-    mapController.bindView(sceneContent);
-
-    // Inject the feature into the primary controller
-    // Note: Interrupt and Submarine features are automatically injected by SceneManager.
-    controller.bindFeatures({
-        map: mapController
-    });
-
-    // --- 3. Control Panel (Right Sidebar) ---
+    // --- 2. Control Panel (Right Sidebar) ---
     const controlsSidebar = new Panel('control', {
         label: 'controlsSidebar',
         borderColor: Colors.primary,
@@ -93,8 +83,8 @@ export async function createConnScene(controller, ticker) {
         if (bg) bg.rotation = dir.rot;
 
         const behavior = wireButton(btn, {
-            id: `helm_${dir.id}`,
-            onPress: () => controller.handleEvent('MOVE_HELM', { direction: dir.canonicalLabel })
+            id: btn.canonicalLabel,
+            onPress: () => controller.handleEvent('MOVE_HELM', { direction: dir.id.toUpperCase() })
         });
 
         controller.registerButton(behavior.id, behavior);

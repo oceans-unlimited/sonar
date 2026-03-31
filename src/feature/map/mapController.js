@@ -3,12 +3,11 @@ import { MapConstants, MapStates, MapIntents } from './mapConstants';
 import { Colors, SystemColors } from '../../core/uiStyle.js';
 import { MapUtils } from './mapUtils.js';
 import { mapManager } from './mapManager.js';
-import { submarine } from '../submarine/submarine.js';
 
 /**
  * MapController
  * Scene-level view-broker for Map features. 
- * Consumes data from the global mapManager and submarine singletons.
+ * Consumes data from the global mapManager (Spatial DB) and submarine features.
  * Handles UI intent (NAVIGATE, TORPEDO) and filters views based on local role context.
  */
 export class MapController extends BaseController {
@@ -49,36 +48,40 @@ export class MapController extends BaseController {
     }
 
     _initMapSubscriptions() {
-        // --- 1. Terrain loaded ---
-        mapManager.on('map:terrainLoaded', (board) => {
-            // Handled passively by views fetching terrain, or explicit trigger here if needed
-        });
-
-        // --- 2. Identity / Role Updated (Filters) ---
-        mapManager.on('map:identityUpdated', ({ sub, role }) => {
-            this.ownSubId = sub._id;
-            this.role = role;
+        // --- 1. Static Spatial Data (from Database) ---
+        mapManager.on('map:terrainLoaded', () => {
             this.refreshVisuals();
         });
 
-        // --- 3. Positional Updates ---
-        mapManager.on('map:ownshipMoved', (event) => {
-            this.refreshVisuals();
-        });
-
-        // --- 4. Context/Interrupts Updated ---
         mapManager.on('map:contextUpdated', () => {
             this.handleContextualVisuals();
             this.refreshVisuals();
         });
 
-        // --- 5. Enemy Sonar Pings ---
-        submarine.on('submarine:pinged', (data) => {
-            // Wait, Submarine features tracks this now globally
-            // map:enemyPinged is how mapManager exposes it.
-        });
         mapManager.on('map:enemyPinged', (data) => {
             this.handleSonarPing(data);
+        });
+    }
+
+    /**
+     * Bind to the persistent Submarine feature for live position data.
+     */
+    onFeaturesBound() {
+        this.subscribeToFeature('submarine', 'identity:resolved', ({ sub, role }) => {
+            this.ownSubId = sub._id;
+            this.role = role;
+            this.refreshVisuals();
+        });
+
+        this.subscribeToFeature('submarine', 'submarine:moved', (event) => {
+            // Only refresh if our sub moved
+            if (event.id === this.ownSubId) {
+                this.refreshVisuals();
+            }
+        });
+
+        this.subscribeToFeature('submarine', 'submarine:allUpdated', () => {
+            this.refreshVisuals();
         });
     }
 
@@ -117,8 +120,10 @@ export class MapController extends BaseController {
     }
 
     centerOnOwnship() {
-        if (this.view?.mapView && this._lastPos) {
-            this.view.mapView.centerOn(this._lastPos.row, this._lastPos.col, true);
+        const sub = this.features.get('submarine')?.getOwnship();
+        if (this.view?.mapView && sub) {
+            const pos = sub.getPosition();
+            this.view.mapView.centerOn(pos.row, pos.col, true);
         }
     }
 
@@ -155,20 +160,24 @@ export class MapController extends BaseController {
         const mv = this.view?.mapView;
         if (!mv) return;
 
-        const ownshipData = mapManager.getOwnshipData();
-        const role = mapManager.getLocalRole();
-        const ctx = mapManager.getRoleContext();
+        const subFeature = this.features.get('submarine');
+        if (!subFeature) return;
 
-        if (!ownshipData || !role) return;
+        const ownship = subFeature.getOwnship();
+        const role = subFeature.getLocalRole();
+        const ctx = mapManager.getRoleContext(); // Context still comes from MapManager (shared spatial state)
 
-        const { row, col } = ownshipData.position;
+        if (!ownship || !role) return;
+
+        const pos = ownship.getPosition();
+        const { row, col } = pos;
+        
         const isStartPositions = ctx.phase === 'INTERRUPT' && ctx.interrupt?.type === 'START_POSITIONS';
-        // Note: activeInterrupt logic regarding 'hasChosen' needs sub data. We use a simple fallback for now.
         const hasChosen = ctx.interrupt?.data?.submarineIdsWithStartPositionChosen?.includes(this.ownSubId);
 
-        // Update intent behavior context
+        // Update intent behavior context with the SubmarineState instance
         mv.intentBehavior.updateContext({
-            ownship: ownshipData.raw._data, // Keep legacy compatibility for mapUtils expectations for now
+            ownship: ownship,
             isDroneQuery: ctx.interrupt?.type === 'DRONE'
         });
 
@@ -217,9 +226,6 @@ export class MapController extends BaseController {
         const ctx = mapManager.getRoleContext();
         const currentInterruptType = ctx.interrupt?.type;
 
-        // Note: Ping highlighting is generally Sonar's job using getEnemyPingData, but legacy intercept logic
-        // placed it here. We'll leave the fade logic intact, triggered by map:enemyPinged explicitly.
-
         if (this._prevInterruptType === 'SONAR_PING' && currentInterruptType !== 'SONAR_PING') {
             const delay = MapConstants.SONAR_PERSISTENCE_MS || 8000;
             this._sonarFadeTimeout = setTimeout(() => {
@@ -236,7 +242,6 @@ export class MapController extends BaseController {
             const axis = data.axis || 'row';
             this.view.mapView.overlays.highlightGridRange(data.row, data.col, axis, 0xFFFF00, 0.5);
 
-            // Note: If we need to clear previous fade timeout
             if (this._sonarFadeTimeout) {
                 clearTimeout(this._sonarFadeTimeout);
                 this._sonarFadeTimeout = null;
@@ -252,7 +257,6 @@ export class MapController extends BaseController {
             mv.onMapClicked = (data) => this.handleMapClick(data);
         }
 
-        // Initial visual sync in case mapManager already has data
         this.refreshVisuals();
     }
 
@@ -266,17 +270,19 @@ export class MapController extends BaseController {
         if (mv.currentState === MapStates.ANIMATING) return;
 
         const intent = mv.currentIntent;
-        const ownshipData = mapManager.getOwnshipData();
-        if (!ownshipData) return;
+        const subFeature = this.features.get('submarine');
+        const ownship = subFeature?.getOwnship();
+        if (!ownship) return;
+        
         const terrain = mapManager.getTerrain();
 
-        const squareData = MapUtils.getSquareData(data, ownshipData.raw._data, terrain);
+        const squareData = MapUtils.getSquareData(data, ownship, terrain);
 
         mv.intentBehavior.handleInteraction(data);
 
         // Logical checking
         if (intent === MapIntents.NAVIGATE) {
-            const dir = MapUtils.getDirection(ownshipData.position, data);
+            const dir = MapUtils.getDirection(ownship.getPosition(), data);
             if (dir) {
                 this.handleSelectionConfirmed({ direction: dir, ...squareData });
             }
@@ -292,4 +298,3 @@ export class MapController extends BaseController {
         this.emit('squareSelected', squareData);
     }
 }
-

@@ -99,6 +99,15 @@ export class SubmarineController extends BaseController {
         return sub ? sub.getStatusMessage() : 'Awaiting Connection...';
     }
 
+    /**
+     * @param {boolean} isStealth 
+     * @returns {object[]} Array of valid moves
+     */
+    getValidMoves(isStealth = false) {
+        const sub = this.getOwnship();
+        return sub ? sub.getValidMoves(isStealth) : [];
+    }
+
     // ─────────── Event Proxying ───────────
 
     /**

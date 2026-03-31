@@ -6,9 +6,9 @@ The Engineering Scene requires a dynamic layout where the visual identity ("Syst
 ## Identified Gaps
 
 ### 1. Visual Mutability (Button Renderer)
-*   **Issue:** The `Button` class is currently "construct-once". It lacks an API to update its background texture or tint after initialization.
+*   **Issue:** The `Button` class is currently "construct-once". It lacks an API to update its background texture or tint or text after initialization.
 *   **Gap:** We cannot change a button's appearance (e.g., from "Empty Slot" to "Weapons System") once it's on screen.
-*   **Solution:** Implement `updateButton()` in `src/render/button.js` to allow hot-swapping of textures and tints.
+*   **Solution:** Implement `updateButton()` in `src/render/button.js` to allow hot-swapping of textures, tints, and text.
 
 ### 2. State-Driven Layout (Engineer Controller)
 *   **Issue:** `EngineerController` currently assumes the UI state is fixed. It lacks logic to parse the `engineLayout` from the `GAME_STATE` event and apply it to the UI.

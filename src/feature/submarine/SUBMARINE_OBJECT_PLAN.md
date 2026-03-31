@@ -58,6 +58,19 @@ SubmarineState
 - `isStealthActive()`: Returns true if the sub is currently executing a silence/stealth move.
 - `isOwnship(playerId)`: Returns true if the local player is on this sub.
 - `getRole(playerId)`: Returns player role key ('co', 'eng', etc.).
+- `isValidMove(direction, distance = 1)`: Returns true if a movement in the given direction for the specified distance is valid.
+    - **Rejects U-turn**: Cardinal opposite of last move is always rejected.
+    - **Rejects Past Track**: Checks all intermediate squares (if distance > 1) and the target square.
+    - **Spatial Check**: Query Map feature's `getSpatialObstacles` for all squares in the path.
+
+#### Spatial Database Interaction
+The Submarine feature relies on the Map feature for spatial data. When validating a move:
+1.  Filter out the cardinal opposite of the last move.
+2.  Iterate through the 3 remaining directions.
+3.  For each direction, validate squares from distance 1 to 4:
+    - If `getSpatialObstacles` returns anything other than `CLEAR`, or if the square is in `past_track`:
+        - Reject this square AND stop checking further distances in this direction (NO JUMPING).
+    - Otherwise: Mark this square as a valid potential move.
 
 #### Formatted Getters (The "Facts")
 - `getPosition()`: Returns `{ row, col, sector }`.

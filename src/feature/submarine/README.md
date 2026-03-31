@@ -8,6 +8,21 @@ The Submarine feature is the canonical "Data Normalizer & View Model" for vessel
 2. **Identity Resolution**: Determines which submarine is "ownship" based on the local `playerId`.
 3. **Change Detection**: Emits high-signal events (`sub:moved`, `sub:damaged`, `sub:stateChanged`) only when meaningful properties change.
 4. **Logical Queries**: Provides gating functions (`canMove()`, `canFire()`) that other systems query instead of computing from raw state.
+5. **Move Validation**: Owns the logic for determining valid movement directions. It queries the Map feature for spatial obstacles (land, mines) but performs its own internal checks for past tracks and U-turn restrictions.
+
+## Move Validation Process
+The submarine feature implements movement validation using the following priority:
+1. **Direction Check**: Immediately reject the cardinal opposite of the last move (U-turn). This applies to both standard and stealth moves.
+2. **Track Check**: Verify the target coordinate is not in the submarine's own `past_track`.
+3. **Spatial Check**: Query the Map feature's `getSpatialObstacles(coords, submarineId)` method.
+    - If Map returns `CLEAR`, the move is valid.
+    - If Map returns `BLOCKED_BY_TERRAIN`, `BLOCKED_BY_MINE`, or `OUT_OF_BOUNDS`, the move is rejected.
+
+### Stealth (Silence) Logic
+When a stealth move is requested:
+1. **Range**: Calculate potential moves for the 3 valid cardinal directions up to a range of 4 squares.
+2. **No Jumping**: For each direction, validate squares sequentially (1 to 4). If a square at distance `d` is blocked (by terrain, mine, or past track), all squares at distance `d+1` and beyond in that direction are also considered invalid.
+3. **Information Hiding**: Stealth moves emit a generic "move" event to opposing roles without direction data, while the ownship Captain retains full "Past Track" visibility.
 
 ## Architecture
 

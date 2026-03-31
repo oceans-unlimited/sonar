@@ -9,9 +9,10 @@ import { MapController } from './mapController.js';
  * @param {number} width - The width of the map panel.
  * @param {number} height - The height of the map panel.
  * @param {object} panelLayoutConfig - Layout properties for the main panel container.
+ * @param {import('./mapController').MapController} [injectedController] - Optional existing controller.
  * @returns {Container} The configured map panel container.
  */
-export function createMapPanel(ticker, width, height, panelLayoutConfig = {}) {
+export function createMapPanel(ticker, width, height, panelLayoutConfig = {}, injectedController = null) {
     // 1. Create the root container for the map feature.
     // Setting isRenderGroup: true isolates the coordinate system (origin 0,0).
     const mapPanel = new Container({
@@ -47,15 +48,19 @@ export function createMapPanel(ticker, width, height, panelLayoutConfig = {}) {
     // Add a convenience reference to the mapViewArea on the panel if needed
     mapPanel.mapView = mapViewArea;
 
-    // --- EMBEDDED CONTROLLER ---
-    // Every map panel owns its own controller instance for UI logic
-    const controller = new MapController();
+    // --- CONTROLLER BINDING ---
+    // If a controller is provided (persistent feature), use it.
+    // Otherwise, create a local one for this specific panel instance.
+    const controller = injectedController || new MapController();
     controller.bindView(mapPanel);
     mapPanel.controller = controller;
 
     mapPanel.on('destroyed', () => {
-        console.log('[mapRenderer] Map panel destroyed. Cleaning up embedded controller.');
-        controller.destroy();
+        // Only destroy the controller if it was created locally (not injected)
+        if (!injectedController && controller && typeof controller.destroy === 'function') {
+            console.log('[mapRenderer] Map panel destroyed. Cleaning up local controller.');
+            controller.destroy();
+        }
     });
 
     vb.on('layout', (event) => {

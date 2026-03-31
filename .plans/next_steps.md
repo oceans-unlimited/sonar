@@ -59,7 +59,7 @@ Current work:
 - [ ] **Interrupt Overlay**: Refactor to Feature-Owned Renderer + Role Hint architecture.
   - Add `interruptPanelRenderer.js` (stateless, role-aware panel builders).
   - Add `InterruptOverlay` to engineer and XO scenes.
-- [ ] **Submarine Singleton Consumption**: Audit role-based scenes to use the `SubmarineController` facade instead of raw server state.
+- [x] **Submarine Singleton Consumption**: Audit role-based scenes to use the `SubmarineController` facade instead of raw server state. (All major roles migrated)
 - [ ] **Director Scenarios**: Fix engineer interrupt scenarios (format + registration), create interrupt scenarios for Captain and XO roles.
 
 ---

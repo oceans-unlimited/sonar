@@ -27,16 +27,11 @@ export async function createMapTestScene(controller, ticker) {
     };
 
     // 1. Create the Map Panel
+    const mapController = controller.features.get('map');
     const mapPanel = createMapPanel(ticker, '100%', '100%', {
         backgroundColor: 0x0a1f0a,
         borderRadius: 8
-    });
-
-    // 2. Register Feature
-    // We bind the map feature to the scene's controller
-    if (controller && mapPanel.controller) {
-        controller.bindFeatures({ map: mapPanel.controller });
-    }
+    }, mapController);
 
     // Expose mapView for compatibility with debug scenarios (e.g., map_pristine.js)
     scene.mapView = mapPanel.mapView;

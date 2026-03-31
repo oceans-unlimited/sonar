@@ -158,17 +158,6 @@ export class DebugOverlay {
         <strong>Last Emitted:</strong>
         <pre id="last-event-display" style="margin: 8px 0 0 0; font-size: 12px; color: #00ff00; overflow-x: auto; white-space: pre-wrap; max-height: 120px;">None</pre>
       </div>
-      
-      <div style="margin-bottom: 15px;">
-        <strong>Event Log:</strong>
-        <div id="event-log" style="max-height: 200px; overflow-y: auto; background: #000; padding: 12px; border: 1px solid #003300; font-size: 12px; margin-top: 8px; border-radius: 4px;">
-          <div style="color: #666;">Waiting for events...</div>
-        </div>
-      </div>
-      
-      <button id="clear-log-btn" style="width: 100%; padding: 10px; background: #220000; color: #ff4444; border: 1px solid #ff4444; border-radius: 4px; cursor: pointer; font-size: 12px;">
-        Clear Log
-      </button>
     `;
 
     this.attachEventListeners();
@@ -242,10 +231,6 @@ export class DebugOverlay {
       } catch (e) {
         this.logEvent(`Injection Error: ${e.message}`, '#ff0000');
       }
-    });
-
-    document.getElementById('clear-log-btn').addEventListener('click', () => {
-      document.getElementById('event-log').innerHTML = '<div style="color: #666;">Log cleared</div>';
     });
   }
 
@@ -339,11 +324,11 @@ export class DebugOverlay {
   }
 
   logEvent(message, color = '#00ff00') {
-    const log = document.getElementById('event-log');
-    const entry = document.createElement('div');
-    entry.style.cssText = `margin-bottom: 3px; color: ${color};`;
-    entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-    log.insertBefore(entry, log.firstChild);
+    if (window.logEvent) {
+      window.logEvent(message, color);
+    } else {
+      console.log(`%c[Director] ${message}`, `color:${color}`);
+    }
   }
 
   updateLastEvent() {

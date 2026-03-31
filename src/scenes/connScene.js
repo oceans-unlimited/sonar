@@ -8,6 +8,7 @@ import { MapController } from '../feature/map/mapController';
 import { Colors, SystemColors } from '../core/uiStyle';
 import { socketManager } from '../core/socketManager';
 import { InterruptOverlay } from '../feature/interrupt/InterruptOverlay';
+import { teletypeManager } from '../feature/teletype/TeletypeManager.js';
 
 /**
  * ConnScene Factory
@@ -102,10 +103,11 @@ export async function createConnScene(controller, ticker) {
     // --- 4. Silent Running Toggle ---
     // Vessel subsystem: uses SystemColors.vessel (yellow)
     const silentBtn = createButtonFromDef({
-        asset: 'vessel',
-        textLabel: 'Silent Running',
+        asset: 'empty',
+        textLabel: 'Silence',
         color: SystemColors.vessel,
-        profile: 'basic',
+        profile: 'text',
+        textOnly: true,
         canonicalLabel: 'silent_running'
     });
 
@@ -125,7 +127,6 @@ export async function createConnScene(controller, ticker) {
 
     controlsSidebar.addChild(silentBlock);
 
-    // --- 5. Weapons Stub ---
     const weaponsBlock = new ButtonBlock([], 'horizontal', {
         label: 'weapons_stub',
         heading: 'Weapons System',
@@ -134,6 +135,19 @@ export async function createConnScene(controller, ticker) {
         color: Colors.primary
     });
     controlsSidebar.addChild(weaponsBlock);
+
+    // --- 6. Teletype Terminal ---
+    teletypeManager.mount(controlsSidebar, {
+        width: '100%',
+        height: 120,
+        maxRows: 10,
+        layout: { marginTop: 10 }
+    });
+    
+    // Register the teletype feature with the controller registry
+    controller.features.set('teletype', teletypeManager);
+    
+    sceneContent.on('destroyed', () => teletypeManager.unmount());
 
     sceneContent.addChild(controlsSidebar);
 

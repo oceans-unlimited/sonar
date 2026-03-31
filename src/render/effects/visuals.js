@@ -7,7 +7,7 @@ export const visuals = {
         const bg = target.content?.getChildByLabel('btnBackground');
         if (bg) {
             bg.tint = color;
-            console.log(`[Visuals] Set tint on ${target.label || 'button'}: ${color.toString(16)}`);
+            // console.log(`[Visuals] Set tint on ${target.label || 'button'}: ${color.toString(16)}`);
         }
     },
 
@@ -15,7 +15,7 @@ export const visuals = {
         const overlay = target.getChildByLabel('btnOverlay');
         if (overlay) {
             overlay.visible = visible;
-            console.log(`[Visuals] Toggle overlay on ${target.label || 'button'}: ${visible}`);
+            // console.log(`[Visuals] Toggle overlay on ${target.label || 'button'}: ${visible}`);
         }
     },
 
@@ -23,7 +23,7 @@ export const visuals = {
         const overlay = target.getChildByLabel('btnOverlay');
         if (overlay) {
             overlay.alpha = alpha;
-            console.log(`[Visuals] Set overlay alpha on ${target.label || 'button'}: ${alpha}`);
+            // console.log(`[Visuals] Set overlay alpha on ${target.label || 'button'}: ${alpha}`);
         }
     },
 
@@ -31,9 +31,9 @@ export const visuals = {
         const bg = target.content?.getChildByLabel('btnBackground');
         if (bg) {
             bg.alpha = alpha;
-            console.log(`[Visuals] Set background alpha on ${target.label || 'button'}: ${alpha}`);
+            // console.log(`[Visuals] Set background alpha on ${target.label || 'button'}: ${alpha}`);
         } else {
-            console.warn(`[Visuals] btnBackground not found on ${target.label || 'button'}`);
+            // console.warn(`[Visuals] btnBackground not found on ${target.label || 'button'}`);
         }
     },
 

@@ -1,6 +1,7 @@
 import { BaseController } from './baseController';
 import { GlobalPhases, SubmarineStates } from '../constants';
 import { MapUtils } from '../feature/map/mapUtils';
+import { Colors } from '../core/uiStyle.js';
 
 /**
  * ConnController
@@ -53,7 +54,7 @@ export class ConnController extends BaseController {
 
         const subController = this.features.get('submarine');
         const sub = subController?.getOwnship();
-        
+
         console.log(`[ConnController] onGameStateUpdate. Sub found: ${!!sub}, Phase: ${state.phase}, SubState: ${sub?.getState()}`);
         console.log(`[ConnController] Registered buttons:`, Array.from(this.buttons.keys()));
 
@@ -116,7 +117,7 @@ export class ConnController extends BaseController {
         ['N', 'S', 'E', 'W'].forEach(dir => {
             const btnKey = `helm_${dir.toLowerCase()}`;
             const btn = this.buttons.get(btnKey);
-            
+
             if (!btn) {
                 console.warn(`[ConnController] Button not found in registry: ${btnKey}`);
                 return;
@@ -179,7 +180,7 @@ export class ConnController extends BaseController {
     handleMove({ direction }) {
         const subController = this.features.get('submarine');
         const sub = subController?.getOwnship();
-        
+
         if (sub && sub.isValidMove(direction)) {
             if (this.socket) {
                 console.log(`[ConnController] Emitting move: ${direction}`);
@@ -201,15 +202,26 @@ export class ConnController extends BaseController {
         // Check if silence system is fully charged
         if (!sub.canFire('silence')) {
             console.warn('[ConnController] Silence system not fully charged!');
-            // TODO: Push error flavor text to teletype when available
+
+            const teletype = this.features.get('teletype');
+            if (teletype) teletype.pushMessage('> [Error] Silent running offline!', { color: Colors.caution });
+
+            // Still dispatch to director for logging overlay
             window.dispatchEvent(new CustomEvent('director:ui_trigger', {
-                detail: { action: 'log', message: '⚠️ SILENCE SYSTEM NOT CHARGED — Requires full charge (5/5) to activate.' }
+                detail: { action: 'log', message: '> [Error] Silent running offline!', color: Colors.caution }
             }));
             return;
         }
 
         this._stealthActive = !this._stealthActive;
         console.log(`[ConnController] Stealth mode: ${this._stealthActive ? 'ACTIVE' : 'INACTIVE'}`);
+
+        // Update Button State & Label
+        const btn = this.buttons.get('silent_running');
+        if (btn) {
+            btn.setActive(this._stealthActive);
+            btn.view.setTextLabel(this._stealthActive ? 'Cancel' : 'Silence');
+        }
 
         // Update map intent
         if (this._stealthActive) {
@@ -292,6 +304,16 @@ export class ConnController extends BaseController {
             if (direction && spaces > 0 && spaces <= 4) {
                 console.log(`[ConnController] Stealth move: ${direction} x${spaces}`);
                 this._stealthActive = false; // Deactivate after use
+
+                // Reset Button State & Label
+                const btn = this.buttons.get('silent_running');
+                if (btn) {
+                    btn.setActive(false);
+                    btn.view.setTextLabel('Silence');
+                }
+
+                this.map?.execute('NAVIGATE', { stealth: false });
+
                 this.socket.emit('silence', { direction, spaces });
             } else {
                 console.warn('[ConnController] Invalid stealth target — must be in a cardinal line, 1-4 squares.');

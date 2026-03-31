@@ -84,6 +84,14 @@ export default {
                 log(`📢 HELM: Moving ${getDirName(direction)} (standard)`);
             }
 
+            // Logic Update: Move position IMMEDIATELY to provide visual feedback
+            for (let s = 0; s < spaces; s++) {
+                subData.past_track.push({ row: subData.row, col: subData.col });
+                subData.row += rowDeltas[direction];
+                subData.col += colDeltas[direction];
+            }
+            console.log(`[Director] Submarine state transitioned to MOVED. New Position: (${subData.row}, ${subData.col})`);
+
             // B. Transition to MOVED
             log(`⚠️ STATE: MOVED. Waiting for Engineer...`);
             director.injectEvent('state', {
@@ -156,14 +164,8 @@ export default {
 
             await delay(1000);
 
-            // E. Finalize Move (add all intermediate positions to past_track)
-            for (let s = 0; s < spaces; s++) {
-                subData.past_track.push({ row: subData.row, col: subData.col });
-                subData.row += rowDeltas[direction];
-                subData.col += colDeltas[direction];
-            }
-
-            log(`🌊 Diving... Position updated to (${subData.row}, ${subData.col})`);
+            // E. Finalize Move
+            log(`🌊 Diving... Position finalized at (${subData.row}, ${subData.col})`);
             if (type === 'stealth') {
                 log(`   Silence gauge consumed: 0/5`);
             }

@@ -49,10 +49,11 @@
     <div id="debug-log"></div>
 
     <script>
-        window.logEvent = (msg) => {
+        window.logEvent = (msg, color = '#0f0') => {
             const log = document.getElementById('debug-log');
             const line = document.createElement('div');
             line.textContent = `> ${msg}`;
+            line.style.color = color;
             log.prepend(line);
 
             // Auto-destruct after 4 seconds

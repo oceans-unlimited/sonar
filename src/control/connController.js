@@ -203,8 +203,7 @@ export class ConnController extends BaseController {
         if (!sub.canFire('silence')) {
             console.warn('[ConnController] Silence system not fully charged!');
 
-            const teletype = this.features.get('teletype');
-            if (teletype) teletype.pushMessage('> [Error] Silent running offline!', { color: Colors.caution });
+            this.pushTeletype('> [Error] Silent running offline!', { color: Colors.caution });
 
             // Still dispatch to director for logging overlay
             window.dispatchEvent(new CustomEvent('director:ui_trigger', {

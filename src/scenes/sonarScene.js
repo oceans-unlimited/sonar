@@ -5,7 +5,9 @@ import { createMapPanel } from '../feature/map/mapRenderer';
 import { MapController } from '../feature/map/mapController';
 import { Colors } from '../core/uiStyle';
 import { socketManager } from '../core/socketManager';
-import { InterruptOverlay } from '../feature/interrupt/InterruptOverlay';
+import { InterruptCoordinator } from '../feature/interrupt/InterruptCoordinator.js';
+import { damageManager } from '../feature/damage/DamageManager.js';
+import { teletypeManager } from '../feature/teletype/TeletypeManager.js';
 
 /**
  * SonarScene Factory
@@ -64,24 +66,80 @@ export async function createSonarScene(controller, ticker) {
     controlsSidebar.layout.width = '25%';
     controlsSidebar.layout.minWidth = 300;
     controlsSidebar.layout.height = '100%';
-    controlsSidebar.layout.flexGrow = 0;
-    controlsSidebar.layout.flexShrink = 0;
+    controlsSidebar.layout.flexDirection = 'column';
+    controlsSidebar.layout.justifyContent = 'space-between';
 
-    // --- 4. Stub Additional Panels (Teletype / Audio) ---
+    // A. Damage UI (Top - Persistent)
+    const damageContainer = new Container();
+    damageContainer.label = 'damageContainer';
+    damageContainer.layout = { width: '100%', height: 'auto', marginBottom: 10 };
+    controlsSidebar.addChild(damageContainer);
+
+    damageManager.mount(ticker, sceneContent, damageContainer, {
+        layout: { width: '100%' }
+    });
+
+    // B. Swap Wrapper (Middle)
+    const swapWrapper = new Container();
+    swapWrapper.label = 'swapWrapper';
+    swapWrapper.layout = {
+        flexGrow: 1,
+        width: '100%',
+        flexDirection: 'column',
+        gap: 15,
+        overflow: 'hidden'
+    };
+    controlsSidebar.addChild(swapWrapper);
+
+    // Normal Content Container
+    const normalContent = new Container();
+    normalContent.label = 'normalContent';
+    normalContent.layout = {
+        width: '100%',
+        height: '100%',
+        flexDirection: 'column',
+        gap: 15
+    };
+    swapWrapper.addChild(normalContent);
+
+    // C. Teletype Terminal (Bottom - Persistent)
+    const teletypeContainer = new Container();
+    teletypeContainer.label = 'teletypeContainer';
+    teletypeContainer.layout = { width: '100%', height: 150, marginTop: 10 };
+    controlsSidebar.addChild(teletypeContainer);
+
+    teletypeManager.mount(teletypeContainer, {
+        width: '100%',
+        height: 150,
+        maxRows: 10
+    });
+
+    // --- 4. Sonar Specific Controls (Added to normalContent) ---
     const teletypeBlock = new ButtonBlock([], 'vertical', {
         label: 'teletype_stub',
-        heading: 'Teletype Communications',
+        heading: 'Radio Comms',
         header: true,
         line: true,
         color: Colors.primary
     });
-    controlsSidebar.addChild(teletypeBlock);
+    normalContent.addChild(teletypeBlock);
+
+    // Register features with controller
+    controller.features.set('damage', damageManager);
+    controller.features.set('teletype', teletypeManager);
+
+    sceneContent.on('destroyed', () => {
+        damageManager.unmount();
+        teletypeManager.unmount();
+    });
 
     sceneContent.addChild(controlsSidebar);
 
-    // --- 5. Interrupt Overlay ---
-    const interruptOverlay = new InterruptOverlay(ticker, 'sonar');
-    sceneContent.addChild(interruptOverlay);
+    // --- 5. Interrupt Coordinator ---
+    // Non-visual coordinator swaps normalContent for interrupt panels
+    const interruptCoordinator = new InterruptCoordinator(ticker, 'sonar');
+    interruptCoordinator.bindView(sceneContent);
 
     return sceneContent;
 }
+

@@ -6,7 +6,6 @@
 
 import { BaseController } from './baseController';
 import { Colors } from '../core/uiStyle';
-import { teletypeManager } from '../feature/teletype/TeletypeManager.js';
 
 export class EngineerController extends BaseController {
     constructor() {
@@ -102,7 +101,7 @@ export class EngineerController extends BaseController {
      * @param {string} text - The message text.
      */
     pushAtmosphereMessage(text) {
-        teletypeManager.pushMessage(text, { color: Colors.text });
+        this.pushTeletype(text, { color: Colors.text });
     }
 
     /**

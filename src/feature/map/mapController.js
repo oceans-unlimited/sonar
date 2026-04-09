@@ -208,10 +208,16 @@ export class MapController extends BaseController {
                 this._lastHasChosen = hasChosen;
                 this._lastIsStartPositions = isStartPositions;
 
-                // Apply contextual tinting based on start position phase
+                // Apply contextual tinting and visibility based on start position phase
                 if (isStartPositions) {
-                    mv.setOwnshipTint(hasChosen ? SystemColors.detection : Colors.text);
+                    if (!hasChosen && row === 0 && col === 0) {
+                        mv.setOwnshipVisible(false);
+                    } else {
+                        mv.setOwnshipVisible(true);
+                        mv.setOwnshipTint(hasChosen ? SystemColors.detection : Colors.text);
+                    }
                 } else {
+                    mv.setOwnshipVisible(true);
                     mv.setOwnshipTint(Colors.text);
                 }
             }

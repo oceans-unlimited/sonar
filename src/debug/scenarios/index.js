@@ -27,6 +27,9 @@ import surfaceInteractive from './surface/interactive.js';
 import realtimeEngineLogic from './test/realtime_engine_logic.js';
 import lobbyPristine from './lobby/01_pristine.js';
 import sonarPristine from './sonar/01_pristine.js';
+import sonarStartPositions from './sonar/02_start_positions.js';
+import xoStartPositions from './xo/05_start_positions.js';
+import engineerStartPositions from './engineer/09_start_positions.js';
 
 export const SCENARIO_REGISTRY = {
   'engineer_pristine': engineerPristine,
@@ -57,7 +60,10 @@ export const SCENARIO_REGISTRY = {
   'surface_pristine': surfacePristine,
   'surface_interactive': surfaceInteractive,
   'lobby_pristine': lobbyPristine,
-  'sonar_pristine': sonarPristine
+  'sonar_pristine': sonarPristine,
+  'sonar_start_positions': sonarStartPositions,
+  'xo_start_positions': xoStartPositions,
+  'engineer_start_positions': engineerStartPositions
 };
 
 export const SCENARIO_CATEGORIES = {
@@ -92,10 +98,14 @@ export const SCENARIO_CATEGORIES = {
   'Interrupt States': [
     'engineer_interrupt_pause',
     'engineer_interrupt_damage',
+    'engineer_start_positions',
     'conn_interrupt_pause',
     'conn_interrupt_weapon',
+    'conn_start_positions',
     'xo_interrupt_pause',
-    'xo_interrupt_weapon'
+    'xo_interrupt_weapon',
+    'xo_start_positions',
+    'sonar_start_positions'
   ],
   'Surface Feature': [
     'surface_pristine',

@@ -12,10 +12,10 @@ import { createButtonFromDef } from '../../render/button.js';
  * 
  * Rules:
  * - NO events, NO state, NO server calls.
- * - Interactive nodes are labelled for the overlay to wire behaviors.
+ * - Interactive nodes are labelled for the InterruptCoordinator to wire behaviors.
  */
 
-// ─────────── Panel Shell ───────────
+// ─────────── Shared Components ───────────
 
 /**
  * Creates the standard interrupt panel container (background, border, layout).
@@ -26,14 +26,11 @@ function createPanelShell() {
     const panel = new LayoutContainer({
         label: 'interruptPanel',
         layout: {
-            width: '60%',
-            height: 'auto',
+            width: '100%',
+            height: '100%',
             padding: 20,
             backgroundColor: 0x051505,
             backgroundAlpha: 0.9,
-            borderColor: Colors.text,
-            borderWidth: 2,
-            borderRadius: 8,
             flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
@@ -81,14 +78,37 @@ function createMessage(text) {
 }
 
 /**
- * Creates a READY button with the canonical label for wiring.
+ * Creates a modular, reusable status label for interrupt panels.
+ * Can be updated dynamically by the InterruptCoordinator via label lookup.
+ * Used for position display, sonar responses, and other interrupt state text.
+ * @param {string} initialText - Initial text to display
+ * @returns {Text}
+ */
+function createStatusLabel(initialText = '') {
+    const label = new Text({
+        text: initialText,
+        style: new TextStyle({
+            fontFamily: Fonts.primary,
+            fontSize: 14,
+            fill: 0xaaaaaa,
+            align: 'center',
+            fontStyle: 'italic'
+        })
+    });
+    label.label = 'interrupt_status_label';
+    return label;
+}
+
+/**
+ * Creates the universal READY button with the canonical label for wiring.
+ * Uses 'thumb' asset with toggle behavior (managed by InterruptCoordinator).
  * @returns {Container}
  */
 function createReadyButton() {
     const btn = createButtonFromDef({
-        asset: 'pause',
+        asset: 'thumb',
         color: Colors.text,
-        profile: 'frame',
+        profile: 'basic',
         textLabel: 'READY'
     });
     btn.label = 'interrupt_ready_btn';
@@ -113,20 +133,27 @@ function buildWeaponResolutionPanel(interrupt) {
     return panel;
 }
 
-// START_POSITIONS: Captain only gets Ready button
+// ─── START_POSITIONS: Captain ───
+
 function buildStartPositionsCaptainPanel(interrupt) {
     const panel = createPanelShell();
     panel.addChild(createTitle('SELECT POSITION'));
-    panel.addChild(createMessage(interrupt.payload?.message || 'Select your starting position on the map.'));
-    panel.addChild(createReadyButton());
+    panel.addChild(createMessage('Select your starting position on the map.'));
+    panel.addChild(createStatusLabel(interrupt.payload?.statusText || 'No position selected'));
+
+    const readyBtn = createReadyButton();
+    panel.addChild(readyBtn);
+
     return panel;
 }
 
-// START_POSITIONS: Non-captain roles see waiting message only
+// ─── START_POSITIONS: Crew ───
+
 function buildStartPositionsCrewPanel(interrupt) {
     const panel = createPanelShell();
     panel.addChild(createTitle('AWAITING CAPTAINS'));
     panel.addChild(createMessage('Captains are selecting starting positions...'));
+    panel.addChild(createStatusLabel(interrupt.payload?.statusText || ''));
     return panel;
 }
 

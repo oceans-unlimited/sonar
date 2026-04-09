@@ -66,7 +66,7 @@ export class BaseController extends EventEmitter {
      * @param {object} controlAPI - The return value of wireButton()
      */
     registerButton(id, api) {
-        console.log(`[BaseController] Registering button: ${id}`);
+        // console.log(`[BaseController] Registering button: ${id}`);
         this.buttons.set(id, api);
     }
 
@@ -262,5 +262,19 @@ export class BaseController extends EventEmitter {
         this.features.clear();
         this.buttons.clear();
         this.visuals.clear();
+    }
+
+    // ─────────── Teletype Convenience ───────────
+
+    /**
+     * Helper to push local messages directly to the teletype if available.
+     * @param {string} text - Message text
+     * @param {object} options - Style overrides
+     */
+    pushTeletype(text, options = {}) {
+        const teletype = this.features.get('teletype');
+        if (teletype && typeof teletype.pushMessage === 'function') {
+            teletype.pushMessage(text, options);
+        }
     }
 }

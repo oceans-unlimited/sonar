@@ -185,6 +185,12 @@ export class MapViewArea {
         }
     }
 
+    setOwnshipVisible(visible) {
+        if (this.ownShip) {
+            this.ownShip.visible = visible;
+        }
+    }
+
     setOwnShipPosition(row, col, animate = true, center = true) {
         console.log(`[MapViewArea] setOwnShipPosition: row=${row}, col=${col}, animate=${animate}, center=${center}`);
         const { tileSize } = this.config;

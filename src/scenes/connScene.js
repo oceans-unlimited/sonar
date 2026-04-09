@@ -7,8 +7,9 @@ import { createMapPanel } from '../feature/map/mapRenderer';
 import { MapController } from '../feature/map/mapController';
 import { Colors, SystemColors } from '../core/uiStyle';
 import { socketManager } from '../core/socketManager';
-import { InterruptOverlay } from '../feature/interrupt/InterruptOverlay';
+import { InterruptCoordinator } from '../feature/interrupt/InterruptCoordinator.js';
 import { teletypeManager } from '../feature/teletype/TeletypeManager.js';
+import { damageManager } from '../feature/damage/DamageManager.js';
 
 /**
  * ConnScene Factory
@@ -56,10 +57,55 @@ export async function createConnScene(controller, ticker) {
     controlsSidebar.layout.width = '25%';
     controlsSidebar.layout.minWidth = 300;
     controlsSidebar.layout.height = '100%';
-    controlsSidebar.layout.flexGrow = 0;
-    controlsSidebar.layout.flexShrink = 0;
+    controlsSidebar.layout.flexDirection = 'column';
+    controlsSidebar.layout.justifyContent = 'space-between';
 
-    // --- 3. Helm Controls ---
+    // A. Damage UI (Top - Persistent)
+    const damageContainer = new Container();
+    damageContainer.label = 'damageContainer';
+    damageContainer.layout = { width: '100%', height: 'auto', marginBottom: 10 };
+    controlsSidebar.addChild(damageContainer);
+
+    damageManager.mount(ticker, sceneContent, damageContainer, {
+        layout: { width: '100%' }
+    });
+
+    // B. Swap Wrapper (Middle)
+    const swapWrapper = new Container();
+    swapWrapper.label = 'swapWrapper';
+    swapWrapper.layout = {
+        flexGrow: 1,
+        width: '100%',
+        height: 10,
+        flexDirection: 'column',
+        gap: 15,
+        overflow: 'hidden'
+    };
+    controlsSidebar.addChild(swapWrapper);
+
+    // Normal Content Container
+    const normalContent = new Container();
+    normalContent.label = 'normalContent';
+    normalContent.layout = {
+        width: '100%',
+        flexDirection: 'column',
+        gap: 15
+    };
+    swapWrapper.addChild(normalContent);
+
+    // C. Teletype Terminal (Bottom - Persistent)
+    const teletypeContainer = new Container();
+    teletypeContainer.label = 'teletypeContainer';
+    teletypeContainer.layout = { width: '100%', height: 150, marginTop: 10 };
+    controlsSidebar.addChild(teletypeContainer);
+
+    teletypeManager.mount(teletypeContainer, {
+        width: '100%',
+        height: 150,
+        maxRows: 10
+    });
+
+    // --- 3. Helm Controls (Added to normalContent) ---
     const helmDirections = [
         { id: 'w', label: 'W', rot: Math.PI },
         { id: 'n', label: 'N', rot: -Math.PI / 2 },
@@ -86,7 +132,6 @@ export async function createConnScene(controller, ticker) {
         });
 
         controller.registerButton(behavior.id, behavior);
-        console.log(`[ConnScene] Registered button: ${behavior.id}`);
         return btn;
     });
 
@@ -98,12 +143,10 @@ export async function createConnScene(controller, ticker) {
         color: Colors.primary
     });
 
-    controlsSidebar.addChild(helmBlock);
+    normalContent.addChild(helmBlock);
 
-    // --- 4. Silent Running Toggle ---
-    // Vessel subsystem: uses SystemColors.vessel (yellow)
+    // --- 4. Silent Running Toggle (Added to normalContent) ---
     const silentBtn = createButtonFromDef({
-        asset: 'empty',
         textLabel: 'Silence',
         color: SystemColors.vessel,
         profile: 'text',
@@ -125,7 +168,7 @@ export async function createConnScene(controller, ticker) {
         color: SystemColors.vessel
     });
 
-    controlsSidebar.addChild(silentBlock);
+    normalContent.addChild(silentBlock);
 
     const weaponsBlock = new ButtonBlock([], 'horizontal', {
         label: 'weapons_stub',
@@ -134,26 +177,24 @@ export async function createConnScene(controller, ticker) {
         line: true,
         color: Colors.primary
     });
-    controlsSidebar.addChild(weaponsBlock);
+    normalContent.addChild(weaponsBlock);
 
-    // --- 6. Teletype Terminal ---
-    teletypeManager.mount(controlsSidebar, {
-        width: '100%',
-        height: 120,
-        maxRows: 10,
-        layout: { marginTop: 10 }
-    });
-    
-    // Register the teletype feature with the controller registry
+    // Register features with controller
+    controller.features.set('damage', damageManager);
     controller.features.set('teletype', teletypeManager);
-    
-    sceneContent.on('destroyed', () => teletypeManager.unmount());
+
+    sceneContent.on('destroyed', () => {
+        damageManager.unmount();
+        teletypeManager.unmount();
+    });
 
     sceneContent.addChild(controlsSidebar);
 
-    // --- 7. Interrupt Overlay ---
-    const interruptOverlay = new InterruptOverlay(ticker, 'co');
-    sceneContent.addChild(interruptOverlay);
+    // --- 7. Interrupt Coordinator ---
+    // Non-visual coordinator swaps normalContent for interrupt panels
+    const interruptCoordinator = new InterruptCoordinator(ticker, 'co');
+    interruptCoordinator.bindView(sceneContent);
 
     return sceneContent;
 }
+

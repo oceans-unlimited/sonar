@@ -38,7 +38,11 @@ export default {
                 id: 'B',
                 submarineState: SUBMARINE_STATES.SUBMERGED,
                 row: 0,
-                col: 0
+                col: 0,
+                co: 'p2_co',
+                xo: 'p2_xo',
+                eng: 'p2_eng',
+                sonar: 'p2_sonar'
             })
         ],
         ready: []
@@ -81,7 +85,11 @@ export default {
                         id: 'B',
                         submarineState: SUBMARINE_STATES.SUBMERGED,
                         row: 14,
-                        col: 14
+                        col: 14,
+                        co: 'p2_co',
+                        xo: 'p2_xo',
+                        eng: 'p2_eng',
+                        sonar: 'p2_sonar'
                     })
                 ],
                 ready: isReady ? [PLAYER_ROLES.CO] : []
@@ -148,7 +156,11 @@ export default {
                                 id: 'B',
                                 submarineState: SUBMARINE_STATES.SUBMERGED,
                                 row: 14,
-                                col: 14
+                                col: 14,
+                                co: 'p2_co',
+                                xo: 'p2_xo',
+                                eng: 'p2_eng',
+                                sonar: 'p2_sonar'
                             })
                         ],
                         ready: []

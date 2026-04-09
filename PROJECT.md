@@ -137,5 +137,42 @@
 ---
 
 *This session significantly advanced the project's architectural maturity, moving role-specific logic into a clean, event-driven model and providing robust tools for functional verification.*
+
+---
+
+## Session: Interrupt Refit & Semantic Teletype Translation
+**Date:** April 8, 2026
+**Objective:** Replace legacy interrupt layering with a robust Context Swapping architecture, and build a clean Semantic Translation engine for the Teletype logging feature.
+
+### 🎯 **Session Goals**
+- **Interrupt UI:** Migrate `START_POSITIONS` to a non-visual coordinator pattern (swapping layouts instead of overlaying layers).
+- **Teletype Refit:** Enforce strict client-side data isolation. Teletype should pull from semantic game states, never accepting raw strings from the server.
+- **Controller API:** Streamline local UI feedback by establishing a canonical push method.
+
+### 🏗️ **Implementation Overview**
+
+#### **1. Context Swapping Architecture (`src/feature/interrupt/`)**
+- Deprecated `InterruptOverlay.js` in favor of `InterruptCoordinator.js`.
+- Implemented `swapWrapper` injection logic. During interrupts, Role Scenes dynamically swap out their `normalContent` for an `interruptPanelRenderer.js` generated UI component.
+- Polished the `START_POSITIONS` flow to provide exact role context ("Awaiting Captains" vs "Select starting sector").
+
+#### **2. Teletype Semantic Engine (`src/feature/teletype/`)**
+- Built **TeletypeTranslator.js** to function as a modular dictionary that maps structural game states to role-colorized flavor text. This primes the game for easy localization or database integration in the future.
+- Modified `teletypeController`'s `onGameStateUpdate` hook to run automated state diffs (e.g. noticing a change in `state.activeInterrupt` and asking the Translator for the flavor text).
+- Removed raw `TELETYPE_MSG` sockets to rigorously defend the "Semantic Only" data rule.
+
+#### **3. BaseController Injection**
+- Added `pushTeletype(text, opts)` to `src/control/baseController.js`.
+- Refactored `connController`, `xoController`, and `engineerController` to use this canonical helper instead of hunting down singletons manually, significantly cleaning up mechanical UI logs.
+
+### ✅ **Features Delivered**
+- **Clean Scene Graphs**: Role panels completely swap rather than stacking infinitely.
+- **Narrative Extensibility**: Teletype translates sterile game structs to rich text flawlessly.
+- **Decoupled Logging**: Controllers can log instantly to their local terminal without a server round-trip.
+
+### 📊 **Session Metrics**
+- **Key Architectures Created**: Context Swapping & Semantic Translation.
+- **Components Retired/Deprecated**: Legacy Overlay logic.
+- **Systems Standardized**: Interrupt layout structure, BaseController feedback API. 
 </content>
 <parameter name="filePath">/home/seth/Documents/Coding/sonar/PROJECT.md

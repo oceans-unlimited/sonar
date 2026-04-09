@@ -1,5 +1,6 @@
 import { BaseController } from '../../control/baseController';
 import { Colors } from '../../core/uiStyle.js';
+import { TeletypeTranslator } from './teletypeTranslator.js';
 
 /**
  * TeletypeController manages the teletype feature, handling message ingestion,
@@ -10,6 +11,7 @@ import { Colors } from '../../core/uiStyle.js';
 export class TeletypeController extends BaseController {
     constructor() {
         super();
+        this._cachedInterrupt = null;
 
         this.handlers = {
             ...this.handlers,
@@ -82,6 +84,36 @@ export class TeletypeController extends BaseController {
     }
 
     onGameStateUpdate(state) {
-        // Future: automated log dumps or state-driven alerts
+        if (!state) return;
+
+        const newInterrupt = state.activeInterrupt;
+        const oldInterrupt = this._cachedInterrupt;
+
+        // Detect new interrupts that just appeared in the state
+        if (newInterrupt && (!oldInterrupt || oldInterrupt.type !== newInterrupt.type)) {
+            this._handleNewInterruptLog(state, newInterrupt);
+        }
+
+        this._cachedInterrupt = newInterrupt;
+    }
+
+    _handleNewInterruptLog(state, interrupt) {
+        const playerId = this.socket?.playerId;
+        const mySub = state.submarines?.find(s =>
+            s.co === playerId || s.xo === playerId || s.sonar === playerId || s.eng === playerId
+        );
+        const myRole = mySub ? Object.keys(mySub).find(k => mySub[k] === playerId) : null;
+
+        const context = {
+            role: myRole,
+            vessel: mySub?.id,
+            payload: interrupt.payload,
+            type: interrupt.type
+        };
+
+        const translation = TeletypeTranslator.getTranslation(`INTERRUPT_${interrupt.type}`, context);
+        if (translation) {
+            this.pushMessage(translation.text, { color: translation.color });
+        }
     }
 }

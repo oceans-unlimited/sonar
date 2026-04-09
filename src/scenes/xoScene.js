@@ -8,10 +8,12 @@ import { Container, Text } from 'pixi.js';
 import Panel from '../render/panel';
 import ButtonBlock from '../render/buttonBlock';
 import { createButtonFromDef } from '../render/button';
-import { SystemColors, Fonts, Alphas } from '../core/uiStyle';
+import { SystemColors, Fonts, Alphas, Colors } from '../core/uiStyle';
 import { wireButton } from '../behavior/buttonBehavior.js';
-import { InterruptOverlay } from '../feature/interrupt/InterruptOverlay.js';
+import { InterruptCoordinator } from '../feature/interrupt/InterruptCoordinator.js';
 import { MiniMap } from '../feature/map/MiniMap.js';
+import { damageManager } from '../feature/damage/DamageManager.js';
+import { teletypeManager } from '../feature/teletype/TeletypeManager.js';
 
 
 /**
@@ -24,12 +26,25 @@ export async function createXOScene(controller, ticker) {
     sceneContent.label = 'xoScene';
 
     sceneContent.layout = {
-        width: '80%',
-        height: 400,
+        width: '100%',
+        height: '100%',
         flexDirection: 'row',
         justifyContent: 'space-between',
-        gap: 20,
+        padding: 15,
+        gap: 15,
     };
+
+    // --- 1. Systems Area (Left/Middle) ---
+    // We keep the original layout for system panels
+    const systemsArea = new Container();
+    systemsArea.label = 'systemsArea';
+    systemsArea.layout = {
+        flexDirection: 'row',
+        justifyContent: 'flex-start',
+        gap: 15,
+        flexGrow: 1
+    };
+    sceneContent.addChild(systemsArea);
 
     // --- Data Definitions ---
     const columnConfigs = [
@@ -61,7 +76,7 @@ export async function createXOScene(controller, ticker) {
 
     sceneContent._rows = new Map();
 
-    // --- Build Panels ---
+    // --- Build System Panels ---
     columnConfigs.forEach(col => {
         const panel = new Panel('control', {
             label: `panel_${col.name.toLowerCase()}`,
@@ -136,8 +151,6 @@ export async function createXOScene(controller, ticker) {
                 };
             }
 
-            // Position status text roughly next to the buttons
-
             statusText.layout = {
                 marginLeft: 10,
                 alignSelf: 'center'
@@ -157,7 +170,6 @@ export async function createXOScene(controller, ticker) {
 
 
             // 5. Linked Block Wiring
-            // We wire the 'buttonRow' (the container holding the buttons) as a single block
             const rowBehavior = wireButton(
                 row.buttonRow, {
                 id: `row_${rowData.key}_behavior`,
@@ -169,7 +181,6 @@ export async function createXOScene(controller, ticker) {
             // Add lifecycle methods to row for controller compatibility
             row.setGaugeLevel = (level) => {
                 const texture = rowData.frames[level];
-                console.log(`[xoScene] Setting gauge level for ${rowData.key}: ${level} (texture: ${texture})`);
                 if (texture) gaugeBtn.setAsset(texture);
 
                 const isFull = level >= (rowData.frames.length - 1) && level > 0;
@@ -201,10 +212,10 @@ export async function createXOScene(controller, ticker) {
             }
         });
 
-        sceneContent.addChild(panel);
+        systemsArea.addChild(panel);
     });
 
-    // --- Navigation Panel (Mini Map) ---
+    // --- 2. Navigation Panel (Mini Map) ---
     const navPanel = new Panel('control', {
         label: 'mapPanel',
         headerText: 'Tracking',
@@ -229,6 +240,81 @@ export async function createXOScene(controller, ticker) {
 
     sceneContent.addChild(navPanel);
 
+    // --- 3. Control Panel (Right Sidebar) ---
+    // Following standardized layout from INTERRUPT_REFIT_PLAN.md
+    const controlPanel = new Panel('control', {
+        label: 'controlPanel',
+        borderColor: Colors.roleXO,
+        borderWidth: 2,
+        padding: 15
+    });
+    controlPanel.setAlpha(0);
+
+    controlPanel.layout = {
+        width: '25%',
+        minWidth: 300,
+        height: '100%',
+        flexDirection: 'column',
+        justifyContent: 'space-between'
+    };
+
+    // A. Damage UI (Top - Persistent)
+    const damageContainer = new Container();
+    damageContainer.label = 'damageContainer';
+    damageContainer.layout = { width: '100%', height: 'auto', marginBottom: 10 };
+    controlPanel.addChild(damageContainer);
+
+    damageManager.mount(ticker, sceneContent, damageContainer, {
+        layout: { width: '100%' }
+    });
+
+    // B. Swap Wrapper (Middle)
+    const swapWrapper = new Container();
+    swapWrapper.label = 'swapWrapper';
+    swapWrapper.layout = {
+        flexGrow: 1,
+        width: '100%',
+        flexDirection: 'column',
+        gap: 10,
+        overflow: 'hidden'
+    };
+    controlPanel.addChild(swapWrapper);
+
+    // Normal Content Container (Currently empty for XO, as buttons are in systemsArea)
+    const normalContent = new Container();
+    normalContent.label = 'normalContent';
+    normalContent.layout = {
+        width: '100%',
+        height: '100%',
+        flexDirection: 'column',
+        gap: 10
+    };
+    swapWrapper.addChild(normalContent);
+
+    // C. Teletype Terminal (Bottom - Persistent)
+    const teletypeContainer = new Container();
+    teletypeContainer.label = 'teletypeContainer';
+    teletypeContainer.layout = { width: '100%', height: 150, marginTop: 10 };
+    controlPanel.addChild(teletypeContainer);
+
+    teletypeManager.mount(teletypeContainer, {
+        width: '100%',
+        height: 150,
+        maxRows: 10
+    });
+
+    sceneContent.addChild(controlPanel);
+
+    // Register features with controller
+    controller.features.set('damage', damageManager);
+    controller.features.set('teletype', teletypeManager);
+    controller.features.set('map', miniMap.controller);
+
+    sceneContent.on('destroyed', () => {
+        damageManager.unmount();
+        teletypeManager.unmount();
+    });
+
     // Register MiniMap's feature controller if bound
     if (controller && miniMap.controller) {
         // Register the whole miniMap object so the controller can find it
@@ -237,9 +323,10 @@ export async function createXOScene(controller, ticker) {
     }
 
 
-    // --- Interrupt Overlay ---
-    const interruptOverlay = new InterruptOverlay(ticker, 'xo');
-    sceneContent.addChild(interruptOverlay);
+    // --- Interrupt Coordinator ---
+    // Non-visual coordinator swaps normalContent for interrupt panels
+    const interruptCoordinator = new InterruptCoordinator(ticker, 'xo');
+    interruptCoordinator.bindView(sceneContent);
 
     return sceneContent;
 }

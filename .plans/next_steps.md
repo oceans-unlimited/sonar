@@ -55,13 +55,24 @@ Develop comprehensive test scenarios for critical game states to ensure Engineer
 The Interrupt and Submarine features have been implemented as persistent singletons.
 See [interrupt/README.md](../src/feature/interrupt/README.md) and [submarine/README.md](../src/feature/submarine/README.md).
 
-Current work:
-- [ ] **Interrupt Overlay**: Refactor to Feature-Owned Renderer + Role Hint architecture.
-  - Add `interruptPanelRenderer.js` (stateless, role-aware panel builders).
-  - Add `InterruptOverlay` to engineer and XO scenes.
+### Completed
 - [x] **Submarine Singleton Consumption**: Audit role-based scenes to use the `SubmarineController` facade instead of raw server state. (All major roles migrated)
-- [ ] **Director Scenarios**: Fix engineer interrupt scenarios (format + registration), create interrupt scenarios for Captain and XO roles.
+- [x] **InterruptCoordinator** (replaces InterruptOverlay): Non-visual context swap coordinator.
+  - Swaps `normalContent` for interrupt panels inside `swapWrapper`.
+  - Discovers containers by standardized labels — no argument passing.
+  - Wires universal ready button (`thumb` asset, toggle behavior) and modular status label.
+- [x] **START_POSITIONS Interrupt**: End-to-end implementation for all role scenes.
+  - Captain (co): Map-driven position selection + ready toggle in control panel swap area.
+  - Crew (xo, eng, sonar): "AWAITING CAPTAINS" panel in swap area.
+  - Director scenarios created for all 4 roles.
+- [x] **Scene Integration**: All role scenes (conn, xo, engineer, sonar) updated to use `InterruptCoordinator`.
+
+### In Progress
 - [ ] **Post-Start Validation**: Implement a "Validate Moves" process immediately following the selection of a starting position (START_POSITIONS) to ensure legal moves are immediately available.
+
+### Server Gaps (Documented)
+- [ ] **START_POSITIONS Ready Flow**: Server currently auto-resolves when all subs have chosen positions via `chooseInitialPosition`. The desired client behavior is a two-step flow (select → ready toggle) where the server waits for `ready_interrupt` from both captains. Director scenarios currently simulate this desired behavior. Server update deferred.
+
 
 ---
 

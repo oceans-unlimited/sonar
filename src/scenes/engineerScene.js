@@ -5,7 +5,7 @@ import { createButtonFromDef } from '../render/button.js';
 import Panel from '../render/panel';
 import { SystemStatusCard } from '../render/card';
 import { wireButton } from '../behavior/buttonBehavior.js';
-import { InterruptOverlay } from '../feature/interrupt/InterruptOverlay';
+import { InterruptCoordinator } from '../feature/interrupt/InterruptCoordinator.js';
 import { teletypeManager } from '../feature/teletype/TeletypeManager.js';
 import { damageManager } from '../feature/damage/DamageManager.js';
 import EngineerButtonBlock from '../render/engineerButtonBlock.js';
@@ -165,42 +165,84 @@ export function createEngineScene(controller, ticker) {
     });
     controlPanel.setAlpha(0);
 
-    // Initialize Damage Feature for this scene
-    damageManager.mount(ticker, sceneContent, controlPanel, {
-        layout: {
-            marginBottom: 10,
-            width: '100%'
-        }
-    });
-    sceneContent.on('destroyed', () => damageManager.unmount());
+    controlPanel.layout = {
+        width: '25%',
+        minWidth: 300,
+        height: '100%',
+        flexDirection: 'column',
+        justifyContent: 'space-between'
+    };
 
-    // Listen for damage events to push to terminal
-    damageManager.controller.on('damageTaken', ({ current }) => {
-        controller.pushAtmosphereMessage(`>>> ALERT: HULL COMPROMISED - ${current} HULL REMAINING <<<`);
+    // A. Damage UI (Top - Persistent)
+    const damageContainer = new Container();
+    damageContainer.label = 'damageContainer';
+    damageContainer.layout = { width: '100%', height: 'auto', marginBottom: 10 };
+    controlPanel.addChild(damageContainer);
+
+    damageManager.mount(ticker, sceneContent, damageContainer, {
+        layout: { width: '100%' }
     });
 
-    // Add System Status Cards
+    // B. Swap Wrapper (Middle)
+    const swapWrapper = new Container();
+    swapWrapper.label = 'swapWrapper';
+    swapWrapper.layout = {
+        flexGrow: 1,
+        width: '100%',
+        height: 'auto',
+        flexDirection: 'column',
+        gap: 15,
+        overflow: 'hidden'
+    };
+    controlPanel.addChild(swapWrapper);
+
+    // Normal Content Container
+    const normalContent = new Container();
+    normalContent.label = 'normalContent';
+    normalContent.layout = {
+        width: '100%',
+        height: 'auto',
+        flexDirection: 'column',
+        gap: 15
+    };
+    swapWrapper.addChild(normalContent);
+
+    // C. Teletype Terminal (Bottom - Persistent)
+    const teletypeContainer = new Container();
+    teletypeContainer.label = 'teletypeContainer';
+    teletypeContainer.layout = { width: '100%', height: 150, marginTop: 10 };
+    controlPanel.addChild(teletypeContainer);
+
+    teletypeManager.mount(teletypeContainer, {
+        width: '100%',
+        height: 150,
+        maxRows: 10
+    });
+
+    // Add System Status Cards to normalContent
     const systems = ['vessel', 'weapons', 'detection'];
     systems.forEach(sys => {
         const card = new SystemStatusCard(sys);
-        controlPanel.addChildAt(card, 0);
+        normalContent.addChild(card);
         controller.registerVisual(`status_${sys}`, card);
     });
 
-    // --- Teletype Terminal ---
-    teletypeManager.mount(controlPanel, {
-        width: '100%',
-        height: 120,
-        maxRows: 10,
-        layout: { marginTop: 10 }
+    // Register features with controller
+    controller.features.set('damage', damageManager);
+    controller.features.set('teletype', teletypeManager);
+
+    sceneContent.on('destroyed', () => {
+        damageManager.unmount();
+        teletypeManager.unmount();
     });
-    sceneContent.on('destroyed', () => teletypeManager.unmount());
 
     sceneContent.addChild(controlPanel);
 
-    // --- Interrupt Overlay ---
-    const interruptOverlay = new InterruptOverlay(ticker, 'eng');
-    sceneContent.addChild(interruptOverlay);
+    // --- Interrupt Coordinator ---
+    // Non-visual coordinator swaps normalContent for interrupt panels
+    const interruptCoordinator = new InterruptCoordinator(ticker, 'eng');
+    interruptCoordinator.bindView(sceneContent);
 
     return sceneContent;
 }
+

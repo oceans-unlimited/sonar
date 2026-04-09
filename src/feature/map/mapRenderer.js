@@ -58,14 +58,14 @@ export function createMapPanel(ticker, width, height, panelLayoutConfig = {}, in
     mapPanel.on('destroyed', () => {
         // Only destroy the controller if it was created locally (not injected)
         if (!injectedController && controller && typeof controller.destroy === 'function') {
-            console.log('[mapRenderer] Map panel destroyed. Cleaning up local controller.');
+            //console.log('[mapRenderer] Map panel destroyed. Cleaning up local controller.');
             controller.destroy();
         }
     });
 
     vb.on('layout', (event) => {
         const computedLayout = MapUtils.getLayout(vb, 'computed');
-        console.log('[mapRenderer] mapPanel layout synced:', computedLayout);
+        //console.log('[mapRenderer] mapPanel layout synced:', computedLayout);
         mapMask.clear();
         mapMask.rect(computedLayout.left, computedLayout.top, computedLayout.width, computedLayout.height);
         mapMask.fill({ color: 0xff0000 })

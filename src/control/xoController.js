@@ -5,7 +5,7 @@
  */
 
 import { BaseController } from './baseController';
-import { SystemColors } from '../core/uiStyle';
+import { SystemColors, Colors } from '../core/uiStyle';
 import { simulationClock } from '../core/clock/simulationClock';
 import { MapIntents } from '../feature/map/mapConstants';
 
@@ -104,6 +104,11 @@ export class XOController extends BaseController {
                 this._syncLevels(sub);
                 this._updateInteractionState(this.lastState, sub);
             }
+        });
+
+        // Subscribe to damage events
+        this.subscribeToFeature('damage', 'damageTaken', ({ current }) => {
+            this.pushTeletype(`>>> ALERT: HULL COMPROMISED - ${current} HULL REMAINING <<<`, { color: Colors.caution });
         });
     }
 

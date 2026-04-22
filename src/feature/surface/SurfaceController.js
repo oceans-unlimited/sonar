@@ -10,6 +10,10 @@ import { SurfacePaths } from './SurfacePathData.js';
  * and the tracing mini-game.
  *
  * Role sequencing: CO → XO → Sonar → Engineer
+ *
+ * autoComplete mode: When enabled, bypasses the tracing mini-game and
+ * rapidly completes all role tasks in sequence. Used for initial production
+ * testing of the surfacing loop.
  */
 
 const SURFACING_ROLE_ORDER = ['co', 'xo', 'sonar', 'eng'];
@@ -37,6 +41,9 @@ export class SurfaceController extends BaseController {
         /** @type {string|null} The role currently performing the trace. */
         this._activeRole = null;
 
+        /** @type {boolean} When true, bypasses minigame and auto-completes all tasks. */
+        this.autoComplete = false;
+
         this.handlers = {
             ...this.handlers,
             /**
@@ -58,7 +65,11 @@ export class SurfaceController extends BaseController {
             /**
              * TRIGGER: Server / local — surfacing sequence cancelled or complete.
              */
-            'SURFACE_END': () => this.teardownMiniGame()
+            'SURFACE_END': () => this.teardownMiniGame(),
+            /**
+             * TRIGGER: Enables auto-complete mode and starts the sequence.
+             */
+            'AUTO_COMPLETE_SURFACE': () => this.autoCompleteSurfacing()
         };
     }
 
@@ -86,6 +97,29 @@ export class SurfaceController extends BaseController {
             console.log(`[SurfaceController] Requesting submerge for sub ${sub.getId()}`);
             this.socket.emit('submerge', sub.getId());
         }
+    }
+
+    /**
+     * Short-circuits the surfacing minigame by auto-completing each role's task
+     * in sequence. Used for initial production testing.
+     * Emits complete_surfacing_task for each role with a 500ms stagger.
+     */
+    async autoCompleteSurfacing() {
+        if (!this.socket) return;
+
+        this.autoComplete = true;
+        console.log('[SurfaceController] AUTO-COMPLETE: Bypassing minigame...');
+
+        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        for (const role of SURFACING_ROLE_ORDER) {
+            console.log(`[SurfaceController] AUTO-COMPLETE: ${role} task...`);
+            this.socket.emit('complete_surfacing_task');
+            await delay(500);
+        }
+
+        console.log('[SurfaceController] AUTO-COMPLETE: All tasks done. Awaiting SURFACED state.');
+        this.autoComplete = false;
     }
 
     // ─────────── Mini-Game Lifecycle ───────────

@@ -113,9 +113,12 @@ export class EngineerController extends BaseController {
         if (!this.engineState) return;
 
         // Canonical submarine state checks (referencing SubmarineStates in constants.js)
-        const canInteract = sub.getState() === 'MOVED';
+        // Must be in MOVED state AND engineer must not have already crossed off a system.
+        // Without the engineerCrossedOutSystem check, the engineer can click multiple slots
+        // before the server responds, since MOVED persists until the XO also finishes.
         const movedData = sub.getStateData('MOVED');
         const activeDirection = movedData?.directionMoved; // 'N', 'E', 'S', 'W'
+        const canInteract = sub.getState() === 'MOVED' && !movedData?.engineerCrossedOutSystem;
         
         this.isInteractionLocked = !canInteract;
 

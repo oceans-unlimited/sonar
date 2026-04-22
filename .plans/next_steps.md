@@ -26,18 +26,22 @@ The Button system has been refactored into a **"Four Pillars"** architecture. Ph
 
 ---
 
-## Phase 3.5: Damage State Scenarios [PLANNED]
-Develop comprehensive test scenarios for critical game states to ensure Engineer UI feedback handles damage and failure modes correctly.
+## Phase 3.5: Damage State Scenarios [COMPLETED]
+Comprehensive test scenarios for critical game states. Damage feature coordinates with `EngineerController` breakdown heuristics. Visual feedback (screen shake, red tint) is fully operational.
 
-- [ ] **Circuit Completion**: 
-  - Simulate multiple turns to verify circuit completion logic (clearing slots).
-  - Verify interaction with the mocked server logic.
-- [ ] **Direction Critical**:
-  - Simulate a state where all slots in one direction are crossed out.
-  - Verify `1 Damage` feedback and board reset (if applicable per rules).
-- [ ] **Reactor Critical**:
-  - Simulate failure of all reactor systems.
-  - Verify "Reactor Breakdown" state and visual consequences.
+- [x] **Circuit Completion**: 
+  - Verified via `engineer/03_circuit_near_complete.js`.
+  - Circuit repair clears member slots and triggers atmosphere message.
+- [x] **Direction Critical**:
+  - Verified via `engineer/04_direction_critical.js`.
+  - All slots in one direction crossed → 1 Damage → board reset → screen shake + red tint.
+- [x] **Reactor Critical**:
+  - Verified via `engineer/05_reactor_critical.js`.
+  - All 6 reactor slots crossed → 1 Damage → board reset → screen shake + red tint.
+- [x] **Damage Feature Integration**:
+  - `DamageController` listens to `submarine:damaged` from submarine singleton.
+  - `shake()` and `flashDamage()` effects fire on health decrement.
+  - `DamageUI` updates health percentage and profile tint.
 
 ---
 
@@ -73,15 +77,40 @@ See [interrupt/README.md](../src/feature/interrupt/README.md) and [submarine/REA
 ### Server Gaps (Documented)
 - [ ] **START_POSITIONS Ready Flow**: Server currently auto-resolves when all subs have chosen positions via `chooseInitialPosition`. The desired client behavior is a two-step flow (select → ready toggle) where the server waits for `ready_interrupt` from both captains. Director scenarios currently simulate this desired behavior. Server update deferred.
 
+---
+
+## Phase 5.5: Client-Side Production Test Gaps [COMPLETED]
+Addressed all client-side gaps from `PRODUCTION_TEST_GAPS.md`. See that document for full resolution details.
+
+### Milestone 1: Engineer Interaction Guard
+- [x] `EngineerController.updateEngineView()` now checks `engineerCrossedOutSystem` from the submarine data object to prevent duplicate cross-off actions.
+- [x] Director scenario `engineer/10_interaction_guard.js` created and registered.
+
+### Milestone 2: Teletype State Sync
+- [x] `TeletypeTranslator.js` expanded with 5 submarine state transition entries (`SUB_STATE_MOVED`, `SUB_STATE_SUBMERGED`, `SUB_STATE_SURFACING`, `SUB_STATE_SURFACED`, `SUB_STATE_DESTROYED`), each with role-filtered resolvers.
+- [x] `TeletypeController` now subscribes to `submarine:stateChanged` via the submarine singleton (feature-to-feature pattern). Cleanup handled in `onSocketUnbound()`.
+- [x] Local controller atmosphere messages audited — action-driven messages (e.g., "Silent running offline") intentionally retained.
+
+### Milestone 3: Surfacing Short-Circuit & Damage Confirmation
+- [x] `SurfaceController.autoCompleteSurfacing()` added — emits `complete_surfacing_task` for each role in sequence (500ms stagger) to bypass the tracing minigame during testing.
+- [x] Track erasure pipeline confirmed: server clears `past_track` → `SubmarineState.update()` → `submarine:allUpdated` → `MapController.refreshVisuals()`.
+- [x] Damage feature confirmed operational via existing `04_direction_critical` and `05_reactor_critical` scenarios.
+
+### Discovered Issues (Deferred — Server-Side)
+- **`chargeGauge` state reset bug**: When the XO is the last to complete, `engineerCrossedOutSystem` and `xoChargedGauge` flags are not reset before transitioning back to `SUBMERGED`.
+- **`completeSurfacingTask` state check bug**: Method checks `sub.submarineState !== SUBMERGED` (undefined constant) instead of `!== SubmarineStates.SURFACING`.
 
 ---
 
 ## Future Steps
-1.  **DamageSystem Feature**: Track hull health and visual impacts.
-2.  **Director Expansion**: Create multi-scene scenarios and assertion-based verification.
-3.  **Core Improvements**:
+1.  **Server-Side Fixes**: Address `chargeGauge` reset inconsistency and `completeSurfacingTask` state check bug (see `PRODUCTION_TEST_GAPS.md` Section 1 and Section 3).
+2.  **Multi-Client Latency Test**: Conduct a live test with `logical-server.lib.js` to verify MOVED state race conditions between XO and Engineer.
+3.  **Damage SFX**: Add audio effects for damage events (screen shake and red tint are visual-only currently).
+4.  **Director Expansion**: Create multi-scene scenarios and assertion-based verification.
+5.  **Core Improvements**:
     *   Implement `animators.js` for complex time-based effects (Glow, Pulse).
     *   Integrate persistence for switch states across scene loads.
 
 ---
 *For big picture architecture, see [GEMINI.md](./GEMINI.md).*
+

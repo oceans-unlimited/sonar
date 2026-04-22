@@ -80,11 +80,12 @@ this.subscribeToFeature('submarine', 'submarine:moved', (data) => {
 
 ### Direct Singleton Access (Feature-to-Feature Only)
 
-Other features may import the singleton directly for cross-feature integration:
+Other features may import the singleton directly for cross-feature integration (e.g., `DamageController` or `TeletypeController` monitoring global state):
 
 ```js
 import { submarine } from '../submarine/submarine.js';
 submarine.on('identity:resolved', ({ sub, role }) => { ... });
+submarine.on('submarine:stateChanged', (data) => { ... });
 ```
 
 > **Important**: Scene controllers must **always** use the injected `SubmarineController` facade, never the raw singleton.
@@ -117,5 +118,6 @@ The submarine feature exists precisely to normalize server data. Bypassing it le
 | `sub:updated` | `SubmarineState` | Full `_data` object |
 | `sub:engineUpdated` | `SubmarineState` | `{ layout, previousCount, newCount, wasReset }` |
 | `submarine:moved` | `submarine` (feature) | `{ id, row, col, ... }` |
+| `submarine:stateChanged` | `submarine` (feature) | `{ id, state, previous }` |
 | `submarine:allUpdated` | `submarine` (feature) | `Map<id, SubmarineState>` |
 | `identity:resolved` | `submarine` (feature) | `{ sub, role }` |

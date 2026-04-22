@@ -1,6 +1,7 @@
 import { BaseController } from '../../control/baseController';
 import { Colors } from '../../core/uiStyle.js';
 import { TeletypeTranslator } from './teletypeTranslator.js';
+import { submarine } from '../submarine/submarine.js';
 
 /**
  * TeletypeController manages the teletype feature, handling message ingestion,
@@ -12,6 +13,7 @@ export class TeletypeController extends BaseController {
     constructor() {
         super();
         this._cachedInterrupt = null;
+        this._onStateChanged = null;
 
         this.handlers = {
             ...this.handlers,
@@ -74,12 +76,23 @@ export class TeletypeController extends BaseController {
         if (rawSocket) {
             rawSocket.on('PUSH_TEST_MESSAGE', (d) => this.handleEvent('PUSH_TEST_MESSAGE', d));
         }
+
+        // Subscribe to submarine state changes for state-driven teletype messages.
+        // Uses the submarine singleton directly (feature-to-feature pattern, like DamageController).
+        this._onStateChanged = (data) => this._handleSubStateChanged(data);
+        submarine.on('submarine:stateChanged', this._onStateChanged);
     }
 
     onSocketUnbound() {
         const rawSocket = this.socket?.socket;
         if (rawSocket) {
             rawSocket.off('PUSH_TEST_MESSAGE');
+        }
+
+        // Cleanup submarine listener
+        if (this._onStateChanged) {
+            submarine.off('submarine:stateChanged', this._onStateChanged);
+            this._onStateChanged = null;
         }
     }
 
@@ -114,6 +127,39 @@ export class TeletypeController extends BaseController {
         const translation = TeletypeTranslator.getTranslation(`INTERRUPT_${interrupt.type}`, context);
         if (translation) {
             this.pushMessage(translation.text, { color: translation.color });
+        }
+    }
+
+    /**
+     * Handles submarine state change events from the submarine singleton.
+     * Translates state transitions into role-filtered teletype messages.
+     * @param {object} data - { id, state, previous }
+     */
+    _handleSubStateChanged(data) {
+        const playerId = this.socket?.playerId;
+        if (!playerId) return;
+
+        // Only process state changes for ownship
+        const ownship = submarine.getOwnship();
+        if (!ownship || data.id !== ownship.getId()) return;
+
+        const myRole = submarine.getLocalRole();
+        const movedData = ownship.getStateData('MOVED');
+
+        const context = {
+            role: myRole,
+            vessel: data.id,
+            payload: {
+                previous: data.previous,
+                direction: movedData?.directionMoved
+            },
+            type: data.state
+        };
+
+        const eventKey = `SUB_STATE_${data.state}`;
+        const translation = TeletypeTranslator.getTranslation(eventKey, context);
+        if (translation) {
+            this.pushMessage(translation.text, { fill: translation.color });
         }
     }
 }

@@ -173,6 +173,54 @@
 ### 📊 **Session Metrics**
 - **Key Architectures Created**: Context Swapping & Semantic Translation.
 - **Components Retired/Deprecated**: Legacy Overlay logic.
-- **Systems Standardized**: Interrupt layout structure, BaseController feedback API. 
-</content>
-<parameter name="filePath">/home/seth/Documents/Coding/sonar/PROJECT.md
+- **Systems Standardized**: Interrupt layout structure, BaseController feedback API.
+
+---
+
+## Session: Client-Side Production Test Gaps
+**Date:** April 20, 2026
+**Objective:** Close all client-side gaps identified for a production-level basic movement loop test.
+
+### 🎯 **Session Goals**
+- **Interaction Guards**: Prevent race conditions in the Engineer station by reading server-authoritative state flags.
+- **Teletype State Sync**: Make the Teletype terminal a state-driven feedback system, producing role-filtered messages on submarine state transitions.
+- **Surfacing Short-Circuit**: Enable rapid production testing of the surfacing loop without requiring manual minigame interaction.
+
+### 🏗️ **Implementation Overview**
+
+#### **1. Engineer Interaction Guard (`src/control/engineerController.js`)**
+- `updateEngineView()` now checks **both** `sub.getState() === 'MOVED'` and `!movedData.engineerCrossedOutSystem` before unlocking any engine slots.
+- Previously, only the state check was performed, allowing the engineer to click multiple slots before the server responded with the confirmation.
+- Director scenario `engineer/10_interaction_guard.js` verifies the locked state.
+
+#### **2. Teletype Submarine State Sync (`src/feature/teletype/`)**
+- **TeletypeTranslator.js**: Added 5 new semantic dictionary entries for submarine state transitions:
+  - `SUB_STATE_MOVED` — Role-filtered (Captain: "Awaiting crew", Engineer: "Cross-off required", XO: "Charge gauge")
+  - `SUB_STATE_SUBMERGED` — Context-aware (different text after MOVED vs after SURFACED)
+  - `SUB_STATE_SURFACING`, `SUB_STATE_SURFACED`, `SUB_STATE_DESTROYED` — Flavor text
+- **TeletypeController.js**: Now subscribes to `submarine:stateChanged` via the submarine singleton (feature-to-feature pattern, matching `DamageController`). Cleanup handled in `onSocketUnbound()`.
+- **Decision**: Local controller atmosphere messages (e.g., "Silent running offline") were intentionally retained since they are action-driven, not state-driven.
+
+#### **3. Surfacing Short-Circuit (`src/feature/surface/SurfaceController.js`)**
+- Added `autoCompleteSurfacing()` method that emits `complete_surfacing_task` for each role in sequence (500ms stagger).
+- Added `AUTO_COMPLETE_SURFACE` handler for Director-driven triggering.
+- Track erasure pipeline confirmed working: server clears `past_track` → `SubmarineState.update()` → `submarine:allUpdated` → `MapController.refreshVisuals()`.
+
+#### **4. Damage Feature Verification**
+- Confirmed `DamageController` already handles `submarine:damaged` events from the submarine singleton.
+- Existing scenarios `04_direction_critical` and `05_reactor_critical` provide full coverage for screen shake + red tint + health UI updates.
+
+### ✅ **Features Delivered**
+- **Race Condition Prevention**: Engineer station is now safe from duplicate cross-off clicks.
+- **State-Driven Feedback**: All 4 roles receive consistent teletype messages on every submarine state transition.
+- **Testing Fast-Path**: Surfacing loop can be exercised rapidly via auto-complete without manual tracing.
+- **Verified Damage Pipeline**: Direction and reactor breakdown scenarios confirmed operational.
+
+### 🐛 **Discovered Server Bugs (Deferred)**
+- **`chargeGauge` reset bug**: When XO is last to complete, `engineerCrossedOutSystem` and `xoChargedGauge` flags are not reset before transitioning to `SUBMERGED`.
+- **`completeSurfacingTask` state check bug**: Uses bare `SUBMERGED` constant (undefined) instead of `SubmarineStates.SURFACING`.
+
+### 📊 **Session Metrics**
+- **Key Files Modified**: `engineerController.js`, `teletypeController.js`, `teletypeTranslator.js`, `SurfaceController.js`.
+- **New Scenarios**: 1 (`engineer/10_interaction_guard.js`).
+- **Documents Updated**: `PRODUCTION_TEST_GAPS.md`, `next_steps.md`, `engineer.md`, `PROJECT.md`, submarine `README.md`.

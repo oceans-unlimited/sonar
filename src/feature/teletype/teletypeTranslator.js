@@ -20,6 +20,55 @@ const DICTIONARY = {
             const msg = context.payload?.message || `System Alert: ${context.type}`;
             return { text: `> [SYS] ${msg}`, color: Colors.warning };
         }
+    },
+
+    // ─────────── Submarine State Transitions ───────────
+
+    'SUB_STATE_MOVED': {
+        resolver: (context) => {
+            const dir = context.payload?.direction || '?';
+            switch (context.role) {
+                case 'co':
+                    return { text: `> [HELM] Heading ${dir} confirmed. Awaiting crew confirmation...`, color: Colors.secondary };
+                case 'eng':
+                    return { text: `> [ENG] Cross-off required: ${dir} systems.`, color: Colors.warning };
+                case 'xo':
+                    return { text: `> [XO] Charge a subsystem gauge.`, color: Colors.warning };
+                default:
+                    return { text: `> [NAV] Vessel moving ${dir}. Crew responding.`, color: Colors.secondary };
+            }
+        }
+    },
+    'SUB_STATE_SUBMERGED': {
+        resolver: (context) => {
+            if (context.payload?.previous === 'MOVED') {
+                return { text: '> [SYS] All stations confirmed. Vessel submerged.', color: Colors.primary };
+            }
+            if (context.payload?.previous === 'SURFACED') {
+                return { text: '> [SYS] Dive complete. Vessel submerged — all systems nominal.', color: Colors.primary };
+            }
+            return null; // Suppress for initial state / no-op transitions
+        }
+    },
+    'SUB_STATE_SURFACING': {
+        resolver: (context) => {
+            switch (context.role) {
+                case 'co':
+                    return { text: '> [ALERT] EMERGENCY SURFACE initiated. Complete trace protocol.', color: Colors.danger };
+                default:
+                    return { text: '> [ALERT] SURFACING — standby for crew task sequence.', color: Colors.danger };
+            }
+        }
+    },
+    'SUB_STATE_SURFACED': {
+        resolver: () => {
+            return { text: '> [SYS] Vessel surfaced. Systems repaired. Awaiting dive order.', color: Colors.warning };
+        }
+    },
+    'SUB_STATE_DESTROYED': {
+        resolver: () => {
+            return { text: '>>> HULL BREACH: VESSEL LOST <<<', color: Colors.danger };
+        }
     }
 };
 

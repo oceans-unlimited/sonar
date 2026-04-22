@@ -3,6 +3,7 @@ import engineerMoveCycle from './engineer/02_move_cycle.js';
 import engineerCircuitNear from './engineer/03_circuit_near_complete.js';
 import engineerDirectionCritical from './engineer/04_direction_critical.js';
 import engineerReactorCritical from './engineer/05_reactor_critical.js';
+import engineerInteractionGuard from './engineer/10_interaction_guard.js';
 import engineerInterruptPause from './engineer/07_interrupt_pause.js';
 import engineerInterruptDamage from './engineer/08_interrupt_damage.js';
 import xoPristine from './xo/01_pristine.js';
@@ -37,6 +38,7 @@ export const SCENARIO_REGISTRY = {
   'engineer_circuit_near': engineerCircuitNear,
   'engineer_direction_critical': engineerDirectionCritical,
   'engineer_reactor_critical': engineerReactorCritical,
+  'engineer_interaction_guard': engineerInteractionGuard,
   'engineer_interrupt_pause': engineerInterruptPause,
   'engineer_interrupt_damage': engineerInterruptDamage,
   'xo_pristine': xoPristine,
@@ -72,7 +74,8 @@ export const SCENARIO_CATEGORIES = {
   ],
   'Engineer - Basic': [
     'engineer_pristine',
-    'engineer_move_cycle'
+    'engineer_move_cycle',
+    'engineer_interaction_guard'
   ],
   'Engineer - Damage States': [
     'engineer_circuit_near',

@@ -107,7 +107,7 @@ export class XOController extends BaseController {
         });
 
         // Subscribe to damage events
-        this.subscribeToFeature('damage', 'damageTaken', ({ current }) => {
+        this.subscribeToFeature('submarine', 'sub:damaged', ({ current }) => {
             this.pushTeletype(`>>> ALERT: HULL COMPROMISED - ${current} HULL REMAINING <<<`, { color: Colors.caution });
         });
     }

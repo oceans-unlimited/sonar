@@ -25,6 +25,17 @@ export class EngineerController extends BaseController {
 
     // ─────────── Lifecycle ───────────
 
+    onViewBound(view) {
+        super.onViewBound(view);
+        console.log('[EngineerController] View bound. Checking for late sync.');
+        
+        // If features were already bound and we have ownship, sync now that we have a view.
+        const sub = this.features.get('submarine')?.getOwnship();
+        if (sub) {
+            this._syncWithSubmarine(sub);
+        }
+    }
+
     onFeaturesBound() {
         super.onFeaturesBound();
         console.log('[EngineerController] Features bound.');

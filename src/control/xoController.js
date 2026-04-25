@@ -62,6 +62,12 @@ export class XOController extends BaseController {
         if (view._miniMap) {
             this.bindFeatures({ map: view._miniMap.controller });
         }
+
+        // Late Sync: If features were already bound and we have ownship, sync now.
+        const sub = this.features.get('submarine')?.getOwnship();
+        if (sub) {
+            this._syncWithSubmarine(sub);
+        }
     }
 
     onFeaturesBound() {

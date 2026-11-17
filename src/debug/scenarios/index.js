@@ -21,6 +21,7 @@ import connMoveCycle from './conn/04_move_cycle.js';
 import connInterruptPause from './conn/02_interrupt_pause.js';
 import connInterruptWeapon from './conn/03_interrupt_weapon.js';
 import connStealthMoves from './conn/05_stealth_moves.js';
+import connWeaponsHot from './conn/06_weapons_hot.js';
 import submarinePristine from './submarine/pristine.js';
 import damagePristine from './damage/pristine.js';
 import surfacePristine from './surface/pristine.js';
@@ -55,6 +56,7 @@ export const SCENARIO_REGISTRY = {
   'conn_start_positions': connStartPositions,
   'conn_move_cycle': connMoveCycle,
   'conn_stealth_moves': connStealthMoves,
+  'conn_weapons_hot': connWeaponsHot,
   'conn_interrupt_pause': connInterruptPause,
   'conn_interrupt_weapon': connInterruptWeapon,
   'submarine_pristine': submarinePristine,
@@ -90,7 +92,8 @@ export const SCENARIO_CATEGORIES = {
     'conn_pristine',
     'conn_start_positions',
     'conn_move_cycle',
-    'conn_stealth_moves'
+    'conn_stealth_moves',
+    'conn_weapons_hot'
   ],
   'Submarine Feature': [
     'submarine_pristine'

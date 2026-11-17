@@ -9,7 +9,7 @@ export const PROFILES = {
     basic: {
         [INTERACTIVE_STATES.IDLE]: (t) => {
             visuals.setBackgroundAlpha(t, 0.8);
-            visuals.setTint(t, t.initialColor || 0xFFFFFF);
+            visuals.setTint(t, t.initialColor);
             visuals.toggleOverlay(t, false);
         },
         [INTERACTIVE_STATES.HOVER]: (t) => {
@@ -25,7 +25,7 @@ export const PROFILES = {
         },
         [INTERACTIVE_STATES.ACTIVE]: (t) => {
             visuals.toggleOverlay(t, false);
-            visuals.setTint(t, t.activeColor || 0xFFFF00);
+            visuals.setTint(t, t.activeColor);
         }
     },
 

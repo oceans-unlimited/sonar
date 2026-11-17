@@ -7,6 +7,7 @@ import { MapBehaviors } from '../behaviors/MapBehaviors.js';
 import { MapIntentBehavior } from '../behaviors/MapIntentBehavior.js';
 import { MapUtils } from '../mapUtils.js';
 import { LayoutContainer } from '@pixi/layout/components';
+import { SystemColors } from '../../../core/uiStyle.js';
 
 /**
  * MapViewArea
@@ -310,6 +311,31 @@ export class MapViewArea {
             }
         };
         this.ticker.add(this._moveTicker);
+    }
+
+    // --- Target Reticule ---
+    setTargetReticule(row, col) {
+        if (row === undefined || row < 0 || col === undefined || col < 0) {
+            if (this.targetReticule) {
+                this.targetReticule.visible = false;
+            }
+            return;
+        }
+
+        if (!this.targetReticule) {
+            this.targetReticule = Sprite.from('reticule');
+            this.targetReticule.anchor.set(0.5);
+            this.targetReticule.tint = SystemColors.weapons;
+            this.mapContent.addChild(this.targetReticule);
+            this.layers.overlay.attach(this.targetReticule);
+        }
+
+        const { tileSize } = this.config;
+        this.targetReticule.width = tileSize;
+        this.targetReticule.height = tileSize;
+        this.targetReticule.x = col * tileSize + tileSize / 2;
+        this.targetReticule.y = row * tileSize + tileSize / 2;
+        this.targetReticule.visible = true;
     }
 
     // --- Layer Controls ---

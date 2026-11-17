@@ -2,7 +2,7 @@ import { LayoutContainer } from '@pixi/layout/components';
 import { cardPatterns } from './layouts';
 import { cascadeColor } from './util/colorOps';
 import { Sprite, Text, Assets, Container } from 'pixi.js';
-import { SYSTEM_ASSETS, Fonts, Colors, Alphas } from '../core/uiStyle.js';
+import { SYSTEM_ASSETS, Fonts, SystemColors, Colors, Alphas } from '../core/uiStyle.js';
 import { createButtonFromDef } from './button';
 
 /**
@@ -18,7 +18,7 @@ export default class Card extends LayoutContainer {
             backgroundColor = 0xFFFFFF,
             borderColor = 0xFFFFFF,
             borderWidth = 3,
-            borderRadius = 8,
+            borderRadius = 10,
             padding = 10,
             gap = 0
         } = config;
@@ -219,5 +219,72 @@ export class PlayerNamePlate extends Card {
                 this.nameText.style.fontWeight = 'normal';
             }
         }
+    }
+}
+
+/**
+ * Visual card representing a selected target.
+ * Matches styling of SystemStatusCard.
+ */
+export class TargetCard extends Card {
+    constructor() {
+        super('nameplate', {
+            label: 'target_card',
+            backgroundColor: SystemColors.weapons,
+            borderColor: SystemColors.weapons,
+            borderWidth: 5,
+            padding: 10,
+            gap: 10
+        });
+
+        this.interactive = true; // Make it interactable
+        this.cursor = 'pointer';
+
+        // Prefix Label
+        this.prefixLabel = new Text({
+            text: 'TARGET: ',
+            style: {
+                fontFamily: Fonts.header,
+                fontSize: 20,
+                fill: SystemColors.weapons,
+                fontWeight: 'bold'
+            },
+            layout: true
+        });
+        this.addChild(this.prefixLabel);
+
+        // Target Coordinate Label
+        this.coordLabel = new Text({
+            text: '- -',
+            style: {
+                fontFamily: Fonts.header,
+                fontSize: 18,
+                fill: SystemColors.weapons,
+                fontWeight: 'bold'
+            },
+            layout: true
+        });
+        this.addChild(this.coordLabel);
+
+        this.updateTarget(null);
+    }
+
+    updateTarget(coordString) {
+        if (coordString) {
+            this.setAlpha(1);
+            this.coordLabel.text = coordString;
+            this.prefixLabel.style.fill = 0x000000;
+            this.coordLabel.style.fill = 0x000000;
+        } else {
+            this.setAlpha(0);
+            this.coordLabel.text = '- -';
+            this.prefixLabel.style.fill = SystemColors.weapons;
+            this.coordLabel.style.fill = SystemColors.weapons;
+        }
+    }
+
+    // Duck typing for wireButton expecting a view with setTextLabel
+    setTextLabel(coordString) {
+        this.updateTarget(coordString);
     }
 }

@@ -98,6 +98,7 @@ export class MapIntentBehavior {
         const { ownship } = this.context;
         if (!ownship) return;
 
+        const pos = ownship.getPosition();
         const red = SystemColors.weapons;
         const alpha = Alphas.dim;
 
@@ -105,7 +106,7 @@ export class MapIntentBehavior {
         for (let r = 0; r < MapConstants.GRID_SIZE; r++) {
             for (let c = 0; c < MapConstants.GRID_SIZE; c++) {
                 if (this._isLand(r, c)) continue;
-                const dist = Math.abs(r - ownship.row) + Math.abs(c - ownship.col);
+                const dist = Math.abs(r - pos.row) + Math.abs(c - pos.col);
                 if (dist > 0 && dist <= 4) {
                     this.overlays.setGridOverlay(r, c, red, alpha);
                 }
@@ -117,13 +118,14 @@ export class MapIntentBehavior {
         const { ownship } = this.context;
         if (!ownship) return;
 
+        const pos = ownship.getPosition();
         const red = SystemColors.weapons;
         const alpha = Alphas.dim;
 
         // Adjacent (orthogonal + diagonal) - Filter LAND
-        for (let r = ownship.row - 1; r <= ownship.row + 1; r++) {
-            for (let c = ownship.col - 1; c <= ownship.col + 1; c++) {
-                if (r === ownship.row && c === ownship.col) continue;
+        for (let r = pos.row - 1; r <= pos.row + 1; r++) {
+            for (let c = pos.col - 1; c <= pos.col + 1; c++) {
+                if (r === pos.row && c === pos.col) continue;
                 if (this._isValid(r, c) && !this._isLand(r, c)) {
                     this.overlays.setGridOverlay(r, c, red, alpha);
                 }

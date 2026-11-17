@@ -2,6 +2,7 @@ import { Container } from 'pixi.js';
 import Panel from '../render/panel';
 import ButtonBlock from '../render/buttonBlock';
 import { createButtonFromDef } from '../render/button';
+import { TargetCard } from '../render/card';
 import { wireButton } from '../behavior/buttonBehavior';
 import { createMapPanel } from '../feature/map/mapRenderer';
 import { MapController } from '../feature/map/mapController';
@@ -119,6 +120,7 @@ export async function createConnScene(controller, ticker) {
             textLabel: dir.label,
             color: Colors.primary,
             profile: 'basic',
+            height: 55,
             canonicalLabel: `helm_${dir.id}`
         });
 
@@ -170,12 +172,40 @@ export async function createConnScene(controller, ticker) {
 
     normalContent.addChild(silentBlock);
 
-    const weaponsBlock = new ButtonBlock([], 'horizontal', {
+    // --- 5. Weapons System (Added to normalContent) ---
+    const targetCard = new TargetCard();
+
+    // We treat the card as a button behavior target
+    const targetBehavior = wireButton(targetCard, {
+        id: 'torpedo_target',
+        onPress: () => controller.handleEvent('TARGET_SELECT_BTN')
+    });
+    controller.registerButton(targetBehavior.id, targetBehavior);
+
+    const launchBtn = createButtonFromDef({
+        asset: 'torpedo_sys',
+        color: SystemColors.weapons,
+        frameColor: SystemColors.weapons,
+        tagColor: SystemColors.weapons,
+        profile: 'basic',
+        canonicalLabel: 'torpedo_launch',
+        height: 60
+    });
+
+    // The launch button uses its color configuration natively now.
+
+    const launchBehavior = wireButton(launchBtn, {
+        id: 'torpedo_launch',
+        onPress: () => controller.handleEvent('TORPEDO_BTN')
+    });
+    controller.registerButton(launchBehavior.id, launchBehavior);
+
+    const weaponsBlock = new ButtonBlock([launchBtn, targetCard], 'horizontal', {
         label: 'weapons_stub',
         heading: 'Weapons System',
         header: true,
         line: true,
-        color: Colors.primary
+        color: SystemColors.weapons
     });
     normalContent.addChild(weaponsBlock);
 

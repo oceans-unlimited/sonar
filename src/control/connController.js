@@ -13,11 +13,13 @@ export class ConnController extends BaseController {
         super();
         this._lastPos = null;
         this._stealthActive = false;
+        this._torpedoTarget = null;
 
         // Action Mapping
         this.handlers = {
             ...this.handlers,
             'MOVE_HELM': (d) => this.handleMove(d),
+            'TARGET_SELECT_BTN': () => this.toggleTorpedoIntent(),
             'TORPEDO_BTN': () => this.requestTorpedo(),
             'MINE_BTN': () => this.requestMine(),
             'TOGGLE_STEALTH': () => this.toggleStealth(),
@@ -237,8 +239,38 @@ export class ConnController extends BaseController {
 
     // --- Feature Routing ---
 
+    toggleTorpedoIntent() {
+        this.map?.execute('SET_INTENT', { intent: 'TORPEDO' });
+    }
+
     requestTorpedo() {
-        this.map?.execute('TORPEDO');
+        const subController = this.features.get('submarine');
+        const sub = subController?.getOwnship();
+        
+        if (!sub) return;
+
+        // Launch only happens on full charge
+        if (!sub.canFire('torpedo')) {
+            return;
+        }
+
+        if (!this._torpedoTarget) {
+            // Push missing coordinate flavor text immediately
+            this.pushTeletype('> [Error] Weapon guidance failure', { color: Colors.caution });
+            window.dispatchEvent(new CustomEvent('director:ui_trigger', {
+                detail: { action: 'log', message: '> [Error] Weapon guidance failure', color: Colors.caution }
+            }));
+            
+            // Emit with invalid coordinates to reset gauge and trigger MISS resolution
+            if (this.socket) {
+                this.socket.emit('launch_torpedo', { row: -1, col: -1 });
+            }
+            return;
+        }
+
+        if (this.socket) {
+            this.socket.emit('launch_torpedo', this._torpedoTarget);
+        }
     }
 
     requestMine(data = {}) {
@@ -273,7 +305,16 @@ export class ConnController extends BaseController {
         const intent = data.intent || (this.map?.view?.mapView?.currentIntent);
 
         if (intent === 'TORPEDO') {
-            this.socket.emit('launch_torpedo', { row: data.coords.row, col: data.coords.col });
+            this._torpedoTarget = { row: data.coords.row, col: data.coords.col };
+            this.map?.execute('SET_RETICULE', { row: data.coords.row, col: data.coords.col });
+            
+            const targetBtn = this.buttons.get('torpedo_target');
+            if (targetBtn && data.alphaNumeric) {
+                targetBtn.view.setTextLabel(data.alphaNumeric);
+            }
+            
+            // Restore default navigation intent
+            this.map?.execute('SET_INTENT', { intent: 'NAVIGATE' });
         } else if (intent === 'MINE_LAY') {
             this.socket.emit('drop_mine', { row: data.coords.row, col: data.coords.col });
         } else if (intent === 'POSITION_SELECT') {

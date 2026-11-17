@@ -32,7 +32,8 @@ export class MapController extends BaseController {
             'CENTER': () => this.centerOnOwnship(),
             'SET_INTENT': (d) => this.setIntent(d.intent),
             'TOGGLE_LABELS': () => this.handleToggleRowLabels(),
-            'CLEAR': () => this.clearOverlays()
+            'CLEAR': () => this.clearOverlays(),
+            'SET_RETICULE': (d) => this.setTargetReticule(d)
         };
 
         this.handlers = {
@@ -43,7 +44,8 @@ export class MapController extends BaseController {
             'REQUEST_TORPEDO': (d) => this.execute('TORPEDO', d),
             'REQUEST_MINE_LAY': (d) => this.execute('MINE_LAY', d),
             'TOGGLE_ROW_LABELS': () => this.execute('TOGGLE_LABELS'),
-            'CLEAR_OVERLAYS': () => this.execute('CLEAR')
+            'CLEAR_OVERLAYS': () => this.execute('CLEAR'),
+            'SET_RETICULE': (d) => this.execute('SET_RETICULE', d)
         };
 
         this._initMapSubscriptions();
@@ -112,6 +114,12 @@ export class MapController extends BaseController {
         if (this.view?.mapView) {
             console.log(`[MapController] Setting intent: ${intent}`);
             this.view.mapView.setIntent(intent);
+        }
+    }
+
+    setTargetReticule(d) {
+        if (this.view?.mapView) {
+            this.view.mapView.setTargetReticule(d?.row, d?.col);
         }
     }
 

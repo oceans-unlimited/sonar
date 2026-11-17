@@ -39,6 +39,7 @@ export default class Button extends Container {
         const {
             asset,
             color = 0xFFFFFF,
+            activeColor = 0xFFFFFF,
             profile = 'basic',
             textLabel,
             textOnly = false,
@@ -51,6 +52,8 @@ export default class Button extends Container {
 
         this.profile = profile.toLowerCase();
         this.canonicalLabel = canonicalLabel;
+        this.initialColor = color;
+        this.activeColor = activeColor;
         const profileConfig = PROFILES[this.profile] || PROFILES.basic;
         const layoutPattern = buttonPatterns[this.profile] || {};
 
@@ -346,6 +349,7 @@ export default class Button extends Container {
  * @param {string} [config.textLabel] - Text label
  * @param {boolean} [config.textOnly=false] - If true, background is hidden
  * @param {string} [config.canonicalLabel='system'] - Canonical label for the button
+ * @param {number} [config.activeColor] - Optional color used for the ACTIVE state
  * @param {number|string} [config.width] - Explicit width (forces 'width' constraint)
  * @param {number|string} [config.height] - Explicit height (forces 'height' constraint)
  * @param {'width'|'height'} [config.constraint] - Baseline dimension to calculate against

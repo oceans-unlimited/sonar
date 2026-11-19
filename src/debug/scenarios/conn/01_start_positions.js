@@ -1,5 +1,6 @@
 import { simulationClock } from '../../../core/clock/simulationClock';
 import { createMockSubmarineState, SUBMARINE_STATES, PLAYER_ROLES } from '../shared/engineMockData.js';
+import { MapUtils } from '../../../feature/map/mapUtils.js';
 
 const BOARD = Array(15).fill(0).map(() => Array(15).fill(0));
 
@@ -101,7 +102,7 @@ export default {
             log(`📍 Captain selected position: (${row}, ${column})`);
 
             // Validate bounds
-            if (row < 0 || row >= 15 || column < 0 || column >= 15) {
+            if (!MapUtils.inBounds(row, column)) {
                 log('❌ Invalid position: out of bounds');
                 return;
             }

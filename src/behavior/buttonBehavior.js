@@ -20,25 +20,24 @@ export function wireButton(buttonView, { id, profile = 'basic', onPress } = {}) 
     // 2. State flags
     let isActive = false;
     let isEnabled = true;
+    let pointerState = INTERACTIVE_STATES.IDLE;
+
+    function syncVisual() {
+        if (!isEnabled) effects.update(INTERACTIVE_STATES.DISABLED);
+        else if (isActive && pointerState === INTERACTIVE_STATES.IDLE) effects.update(INTERACTIVE_STATES.ACTIVE);
+        else effects.update(pointerState);
+    }
 
     // 3. Create interactable (handles pointer events)
     const interactable = createInteractable(buttonView, (state) => {
         // Handle press completion
         if (state === INTERACTIVE_STATES.HOVER && effects.lastState === INTERACTIVE_STATES.PRESSED) {
             // This is a successful press (pointerup while in pressed state)
-            if (onPress && isEnabled) {
-                onPress(id, buttonView);
-            }
+            if (onPress && isEnabled) onPress(id, buttonView);
         }
-
+        pointerState = state;
         // Update visuals based on composite state
-        if (!isEnabled) {
-            effects.update(INTERACTIVE_STATES.DISABLED);
-        } else if (isActive && state === INTERACTIVE_STATES.IDLE) {
-            effects.update(INTERACTIVE_STATES.ACTIVE);
-        } else {
-            effects.update(state);
-        }
+        syncVisual();
     });
 
     // 4. Control API (for the controller)
@@ -49,15 +48,12 @@ export function wireButton(buttonView, { id, profile = 'basic', onPress } = {}) 
         setEnabled(flag) {
             isEnabled = flag;
             interactable.setEnabled(flag);
+            syncVisual();
         },
 
         setActive(flag) {
             isActive = flag;
-            if (isActive) {
-                effects.update(INTERACTIVE_STATES.ACTIVE);
-            } else {
-                effects.update(INTERACTIVE_STATES.IDLE);
-            }
+            syncVisual();
         },
 
         setInteractive(flag) {

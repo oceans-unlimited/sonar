@@ -233,12 +233,18 @@ export class SubmarineState extends EventEmitter {
     getPosition() {
         const row = this._data.row;
         const col = this._data.col;
+
+        if (row === null || col === null) {
+            return { row: null, col: null, sector: null, alphaNumeric: null };
+        }
+
         return {
             row,
             col,
             sector: MapUtils.getSector(row, col),
             alphaNumeric: MapUtils.toAlphaNumeric(row, col)
         };
+
     }
 
     getHealth() {

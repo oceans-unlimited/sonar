@@ -115,6 +115,25 @@ export class EngineerController extends BaseController {
         this.pushTeletype(text, { color: Colors.text });
     }
 
+    #applySlotState(ctrl, isCrossed, isDirectionActive) {
+        if (isCrossed) {
+            // Crossed off: DISABLED (tag shown by profile), not clickable
+            ctrl.setEnabled(false);
+            ctrl.setActive(false);
+            ctrl.setInteractive(false);
+        } else if (isDirectionActive) {
+            // Available this move: draws the eye, clickable
+            ctrl.setEnabled(true);
+            ctrl.setActive(true);
+            ctrl.setInteractive(true);
+        } else {
+            // Locked, not crossed: IDLE look, no tag, not clickable
+            ctrl.setEnabled(true);
+            ctrl.setActive(false);
+            ctrl.setInteractive(false);  // must be last so the cursor stays 'default'
+        }
+    }
+
     /**
      * Syncs the visual state of all buttons with the game state.
      * @param {object} state - The full game state
@@ -138,49 +157,19 @@ export class EngineerController extends BaseController {
         // 1. Process Frame Slots (Circuits)
         for (const [direction, dirData] of Object.entries(this.engineState.directions || {})) {
             const isDirectionActive = canInteract && direction === activeDirection;
+            const slotIds = [
+                ...Object.keys(dirData.frameSlots || {}),
+                ...Object.keys(dirData.reactorSlots || {}),
+            ];
 
-            for (const [slotId, _] of Object.entries(dirData.frameSlots || {})) {
-                const buttonId = `${direction}:${slotId}`;
-                const ctrl = this.buttons.get(buttonId);
-                if (!ctrl) continue;
-
-                // Check if this specific slot is in the crossed out list
-                const isCrossed = crossedOutSlots.some(
-                    xo => xo.direction === direction && xo.slotId === slotId
-                );
-
-                if (isCrossed) {
-                    ctrl.setEnabled(false);
-                    ctrl.setActive(false);
-                } else if (isDirectionActive) {
-                    ctrl.setEnabled(true);
-                    ctrl.setActive(true);
-                } else {
-                    ctrl.setEnabled(false);
-                    ctrl.setActive(false);
-                }
-            }
-
-            // 2. Process Reactor Slots
-            for (const [slotId, _] of Object.entries(dirData.reactorSlots || {})) {
-                const buttonId = `${direction}:${slotId}`;
-                const ctrl = this.buttons.get(buttonId);
+            for (const slotId of slotIds) {
+                const ctrl = this.buttons.get(`${direction}:${slotId}`);
                 if (!ctrl) continue;
 
                 const isCrossed = crossedOutSlots.some(
                     xo => xo.direction === direction && xo.slotId === slotId
                 );
-
-                if (isCrossed) {
-                    ctrl.setEnabled(false);
-                    ctrl.setActive(false);
-                } else if (isDirectionActive) {
-                    ctrl.setEnabled(true);
-                    ctrl.setActive(true);
-                } else {
-                    ctrl.setEnabled(false);
-                    ctrl.setActive(false);
-                }
+                this.#applySlotState(ctrl, isCrossed, isDirectionActive);
             }
         }
 

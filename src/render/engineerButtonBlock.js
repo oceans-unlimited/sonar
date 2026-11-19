@@ -76,9 +76,9 @@ export default class EngineerButtonBlock extends Container {
         this.directionLabel.tint = color;
 
         this.directionLabel.layout = {
-            position: 'absolute',
-            right: 35,
-            top: 24,
+            position: 'relative',
+            right: 0,
+            top: 0,
             zIndex: 10 // Above the frame
         };
 

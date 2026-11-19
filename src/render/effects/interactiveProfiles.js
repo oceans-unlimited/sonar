@@ -62,7 +62,7 @@ export const PROFILES = {
             visuals.setBackgroundAlpha(t, 1);
             visuals.toggleTag(t, false);
             visuals.setScale(t, 1);
-            visuals.setTint(t, t.initialColor || 0xFFFFFF); // Normal color
+            // visuals.setTint(t, t.initialColor || 0xFFFFFF); // Normal color
         },
         [INTERACTIVE_STATES.HOVER]: (t) => {
             // Interaction Feedback

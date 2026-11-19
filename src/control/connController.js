@@ -67,7 +67,7 @@ export class ConnController extends BaseController {
 
         // Handle START_POSITIONS interrupt
         if (state.phase === GlobalPhases.INTERRUPT && state.activeInterrupt?.type === 'START_POSITIONS') {
-            const hasChosen = state.activeInterrupt.data?.submarineIdsWithStartPositionChosen?.includes(sub.getId());
+            const hasChosen = state.activeInterrupt.data?.placedSubIds?.includes(sub.getId());
             const playerId = this.socket?.playerId;
             if (!hasChosen && sub.isOwnship(playerId) && sub.getRole(playerId) === 'co') {
                 console.log('[ConnController] Requesting Initial Position Selection');

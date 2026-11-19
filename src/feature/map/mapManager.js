@@ -1,4 +1,5 @@
 import { EventEmitter } from 'pixi.js';
+import { MapUtils } from './mapUtils.js';
 
 /**
  * Map Feature (Manager)
@@ -76,7 +77,7 @@ class MapManager extends EventEmitter {
         const { row, col } = coords;
 
         // 1. OUT_OF_BOUNDS (15x15 grid)
-        if (row < 0 || row >= 15 || col < 0 || col >= 15) {
+        if (!MapUtils.inBounds(row, col)) {
             return 'OUT_OF_BOUNDS';
         }
 

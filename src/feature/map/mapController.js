@@ -17,7 +17,7 @@ export class MapController extends BaseController {
 
         // Logical state cache
         this._lastPos = null;
-        this._lastHasChosen = false;
+        // this._lastHasChosen = false; DELETE THIS
         this._lastIsStartPositions = false;
         this.ownSubId = null;
         this.role = null;
@@ -125,6 +125,7 @@ export class MapController extends BaseController {
         const sub = this.features.get('submarine')?.getOwnship();
         if (this.view?.mapView && sub) {
             const pos = sub.getPosition();
+            if (pos.row == null || pos.col == null) return;
             this.view.mapView.centerOn(pos.row, pos.col, true);
         }
     }
@@ -176,11 +177,9 @@ export class MapController extends BaseController {
             mv.overlays.clearAllOverlays();
         }
 
-        const pos = ownship.getPosition();
-        const { row, col } = pos;
-        
+        const { row, col } = ownship.getPosition();
+        const hasPositoin = row != null && col != null;
         const isStartPositions = ctx.phase === 'INTERRUPT' && ctx.interrupt?.type === 'START_POSITIONS';
-        const hasChosen = ctx.interrupt?.data?.submarineIdsWithStartPositionChosen?.includes(this.ownSubId);
 
         // Update intent behavior context with the SubmarineState instance
         mv.intentBehavior.updateContext({
@@ -188,9 +187,12 @@ export class MapController extends BaseController {
             isDroneQuery: ctx.interrupt?.type === 'DRONE'
         });
 
-        if (row !== undefined && col !== undefined) {
+        if (!hasPositoin) {
+            this._lastPos = null;
+            mv.setOwnshipVisible(false);
+        } else {
             const posChanged = !this._lastPos || this._lastPos.row !== row || this._lastPos.col !== col;
-            const tintChanged = this._lastHasChosen !== hasChosen || this._lastIsStartPositions !== isStartPositions;
+            // const tintChanged = this._lastHasChosen !== hasChosen || this._lastIsStartPositions !== isStartPositions;
 
             if (posChanged) {
                 const isInitial = !this._lastPos;
@@ -204,22 +206,10 @@ export class MapController extends BaseController {
                 mv.setOwnShipPosition(row, col, animate, role === 'co');
             }
 
-            if (posChanged || tintChanged) {
-                this._lastHasChosen = hasChosen;
+            if (posChanged || this._lastIsStartPositions !== isStartPositions) {
                 this._lastIsStartPositions = isStartPositions;
-
-                // Apply contextual tinting and visibility based on start position phase
-                if (isStartPositions) {
-                    if (!hasChosen && row === 0 && col === 0) {
-                        mv.setOwnshipVisible(false);
-                    } else {
-                        mv.setOwnshipVisible(true);
-                        mv.setOwnshipTint(hasChosen ? SystemColors.detection : Colors.text);
-                    }
-                } else {
-                    mv.setOwnshipVisible(true);
-                    mv.setOwnshipTint(Colors.text);
-                }
+                mv.setOwnshipVisible(true);
+                mv.setOwnshipTint(isStartPositions ? SystemColors.detection : Colors.text);
             }
         }
 

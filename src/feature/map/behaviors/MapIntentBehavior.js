@@ -207,6 +207,6 @@ export class MapIntentBehavior {
     }
 
     _isValid(r, c) {
-        return r >= 0 && r < MapConstants.GRID_SIZE && c >= 0 && c < MapConstants.GRID_SIZE;
+        return MapUtils.inBounds(r, c);
     }
 }

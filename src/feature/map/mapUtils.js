@@ -2,8 +2,17 @@
  * mapUtils.js
  * Shared utility functions for map logic (grid, distance, sectors).
  */
+import { MapConstants } from './mapConstants.js';
+
 
 export const MapUtils = {
+    //**Checks if a grid coordinate is within bounds */
+    inBounds(row, col) {
+        const max = MapConstants.GRID_SIZE;
+        return Number.isInteger(row) && Number.isInteger(col) &&
+            row >= 0 && row < max && col >= 0 && col < max;
+    },
+
     /**
      * Calculates the orthogonal (Manhattan) distance between two grid points.
      * @param {object} p1 - { row, col }
@@ -23,18 +32,17 @@ export const MapUtils = {
      * @returns {number} Sector ID (1-9)
      */
     getSector(row, col) {
-        // Validation
-        if (row < 0 || col < 0) return 0;
+        if (!this.inBounds(row, col)) return 0;
 
-        const sectorRow = Math.floor(row / 5);
-        const sectorCol = Math.floor(col / 5);
+        const sectorRow = Math.floor(row / MapConstants.SECTOR_SIZE);
+        const sectorCol = Math.floor(col / MapConstants.SECTOR_SIZE);
 
         // Sector layout:
         // 1 2 3
         // 4 5 6
         // 7 8 9
 
-        return (sectorRow * 3) + sectorCol + 1;
+        return (sectorRow * MapConstants.SECTORS_PER_ROW) + sectorCol + 1;
     },
 
     /**
@@ -59,7 +67,7 @@ export const MapUtils = {
         const col = colStr.charCodeAt(0) - 65;
         const row = parseInt(rowStr, 10) - 1;
         
-        if (isNaN(row) || col < 0 || col >= 15 || row < 0 || row >= 15) return null;
+        if (!this.inBounds(row, col)) return null;
         
         return { row, col };
     },
@@ -119,14 +127,13 @@ export const MapUtils = {
         if (!state || !ownship || !moves) return [];
         
         const board = state.board;
-        const gridSize = board.length;
         const opposite = { N: 'S', S: 'N', E: 'W', W: 'E' };
         const lastMove = ownship.submarineStateData?.MOVED?.directionMoved || 
                          ownship.submarineStateData?.POST_MOVEMENT?.directionMoved;
 
         return moves.filter(move => {
             // 1. Map edges
-            if (move.row < 0 || move.row >= gridSize || move.col < 0 || move.col >= board[0].length) return false;
+            if (!this.inBounds(move.row, move.col)) return false;
 
             // 2. Last move direction (no 180 reversals)
             if (lastMove && lastMove !== ' ' && move.direction === opposite[lastMove]) return false;
@@ -170,7 +177,7 @@ export const MapUtils = {
         const sector = this.getSector(row, col);
 
         // Check if coordinates are valid
-        const isValidCoords = row >= 0 && row < 15 && col >= 0 && col < 15;
+        const isValidCoords = this.inBounds(row, col);
 
         let terrainType = 'UNKNOWN';
         if (isValidCoords && terrain && terrain[row] && terrain[row][col] !== undefined) {
@@ -185,7 +192,8 @@ export const MapUtils = {
         const isCurrentWaypoint = waypoints?.current?.row === row && waypoints?.current?.col === col;
         const isCurrentTarget = targets?.torpedo?.row === row && targets?.torpedo?.col === col;
 
-        const ownPos = ownship ? ownship.getPosition() : null;
+        const ownPos = ownship?.getPosition();
+        const hasPos = ownPos?.row != null && ownPos?.col != null;
 
         return {
             coords: { row, col },
@@ -198,7 +206,7 @@ export const MapUtils = {
             isCurrentTarget,
             // Additional computed data
             alphaNumeric: this.toAlphaNumeric(row, col),
-            range: ownPos ? this.getRange(ownPos, coords) : 0
+            range: hasPos ? this.getRange(ownPos, coords) : 0
         };
     },
 
@@ -254,15 +262,15 @@ export const MapUtils = {
      * @returns {object} { minRow, maxRow, minCol, maxCol }
      */
     getSectorBounds(sectorId) {
-        const id = Math.max(1, Math.min(9, sectorId)) - 1;
-        const sRow = Math.floor(id / 3);
-        const sCol = id % 3;
+        const id = Math.max(1, Math.min(MapConstants.SECTOR_COUNT, sectorId)) - 1;
+        const sRow = Math.floor(id / MapConstants.SECTORS_PER_ROW);
+        const sCol = id % MapConstants.SECTORS_PER_ROW;
 
         return {
-            minRow: sRow * 5,
-            maxRow: (sRow * 5) + 4,
-            minCol: sCol * 5,
-            maxCol: (sCol * 5) + 4
+            minRow: sRow * MapConstants.SECTOR_SIZE,
+            maxRow: (sRow * MapConstants.SECTOR_SIZE) + MapConstants.SECTOR_SIZE - 1,
+            minCol: sCol * MapConstants.SECTOR_SIZE,
+            maxCol: (sCol * MapConstants.SECTOR_SIZE) + MapConstants.SECTOR_SIZE - 1
         };
     },
 
@@ -275,8 +283,8 @@ export const MapUtils = {
     getSectorCenter(sectorId, scale) {
         const bounds = this.getSectorBounds(sectorId);
         return {
-            x: (bounds.minCol * scale) + (2.5 * scale),
-            y: (bounds.minRow * scale) + (2.5 * scale)
+            x: (bounds.minCol * scale) + (MapConstants.SECTOR_SIZE / 2 * scale),
+            y: (bounds.minRow * scale) + (MapConstants.SECTOR_SIZE / 2 * scale)
         };
     },
 

@@ -1,4 +1,5 @@
 import { MapStates, MapConstants } from '../mapConstants.js';
+import { MapUtils } from '../mapUtils.js';
 
 /**
  * MapBehaviors
@@ -209,8 +210,7 @@ export class MapBehaviors {
         const col = Math.floor(local.x / this.mapViewArea.config.tileSize);
         const row = Math.floor(local.y / this.mapViewArea.config.tileSize);
 
-        if (col < 0 || col >= this.mapViewArea.config.gridSize ||
-            row < 0 || row >= this.mapViewArea.config.gridSize) {
+        if (!MapUtils.inBounds(row, col)) {
             return null;
         }
         return { row, col };

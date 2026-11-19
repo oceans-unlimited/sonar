@@ -89,25 +89,26 @@ export const PROFILES = {
     reactor: {
         [INTERACTIVE_STATES.IDLE]: (t) => {
             // LOCKED STATE
-            visuals.setBackgroundAlpha(t, 1);
+            visuals.setBackgroundAlpha(t, 0.8);
             visuals.toggleTag(t, false);
-            visuals.setScale(t, 1);
+            // visuals.setScale(t, 1);
         },
         [INTERACTIVE_STATES.HOVER]: (t) => {
             visuals.setScale(t, 1.05);
+            visuals.setBackgroundAlpha(t, 1);
         },
         [INTERACTIVE_STATES.PRESSED]: (t) => {
-            visuals.setScale(t, 0.95);
+            // visuals.setScale(t, 1.1);
         },
         [INTERACTIVE_STATES.DISABLED]: (t) => {
             // DONE/CROSSED OUT STATE
-            visuals.setBackgroundAlpha(t, 0.3);
+            visuals.setBackgroundAlpha(t, 0.2);
             visuals.toggleTag(t, true);
         },
         [INTERACTIVE_STATES.ACTIVE]: (t) => {
             // READY STATE
             visuals.toggleTag(t, false);
-            visuals.setScale(t, 1.05);
+            visuals.setScale(t, 1);
         }
     },
 

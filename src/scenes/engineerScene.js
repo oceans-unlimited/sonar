@@ -116,6 +116,7 @@ export function createEngineScene(controller, ticker) {
                     asset: sysConfig.asset || (isFrame ? 'empty' : 'reactor'),
                     color: sysConfig.color, // Icon color remains system color
                     profile: isFrame ? 'circuit' : 'reactor',
+                    targetSize: isFrame ? 80 : 50,
                     event: 'CROSS_OFF',
                     frameColor: frameColor,
                     tagColor: tagColor,

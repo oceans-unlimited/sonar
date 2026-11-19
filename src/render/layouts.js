@@ -93,8 +93,8 @@ export const tagPatterns = {
     },
     reactor: {
         position: 'absolute',
-        right: 4,
-        bottom: 0
+        right: 5,
+        bottom: -6
     }
 }
 

@@ -66,7 +66,7 @@ export default class EngineerButtonBlock extends Container {
             text: label.toUpperCase(),
             style: {
                 fontFamily: Fonts.headerBold,
-                fontSize: 36,
+                fontSize: 42,
                 fill: Colors.background,
                 fontWeight: 'bold',
                 letterSpacing: 2
@@ -76,8 +76,8 @@ export default class EngineerButtonBlock extends Container {
         this.directionLabel.tint = color;
 
         this.directionLabel.layout = {
-            position: 'relative',
-            right: 0,
+            position: 'absolute',
+            right: 5,
             top: 0,
             zIndex: 10 // Above the frame
         };
